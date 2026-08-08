@@ -2,7 +2,7 @@ import { Sparkles, ArrowRight } from 'lucide-react'
 
 export default function TryOnSection() {
   return (
-    <section className="border-t border-stone-200 bg-stone-50 px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+    <section className="bg-stone-50 px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <div className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white">
           <img

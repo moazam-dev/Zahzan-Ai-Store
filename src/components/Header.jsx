@@ -25,7 +25,7 @@ export default function Header() {
           <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105" onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
-          <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105">
+          <button type="button" className="p-2 text-black transition-transform  duration-150 hover:scale-105">
             <Search size={18} />
           </button>
         </div>

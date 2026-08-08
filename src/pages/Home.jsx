@@ -17,13 +17,13 @@ export default function Home() {
     <div className="min-h-screen bg-white text-stone-900">
       <AnnouncementBar />
       <div className="relative">
-        <Hero />
+        <Hero btnLeft="20.5%" btnTop="50.5%" />
         <Header />
       </div>
       <CategoryCarousel categories={categories} />
+      <TryOnSection />
       <ProductCarousel title="New Arrivals" subtitle="Discover the latest pieces from our collection." products={featuredProducts} id="new-arrivals" />
       <EditorialBanner />
-      <TryOnSection />
       <ProductCarousel title="Best Sellers" subtitle="The pieces our clients return to again and again." products={bestSellers} id="best-sellers" />
       <section className="border-t border-stone-200 bg-stone-900 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 rounded-[2rem] border border-white/10 bg-white/10 px-6 py-10 text-white sm:px-8 lg:px-10">

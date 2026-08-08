@@ -1,21 +1,20 @@
-export default function CategoryCard({ category }) {
+import carouselImg from '../assets/carouselimg.png'
+
+export default function CategoryCard({ category, image }) {
+  const src = image || category.image || carouselImg
+
   return (
-    <article className="group min-w-[80%] overflow-hidden border border-stone-200 bg-white sm:min-w-[45%] lg:min-w-0">
-      <div className="overflow-hidden">
+    <article className="group h-full overflow-hidden rounded-[2rem] shadow-sm">
+      <div className="relative overflow-hidden">
         <img
-          src={category.image}
+          src={src}
           alt={category.name}
-          className="h-72 w-full object-cover transition duration-500 group-hover:scale-[1.03] sm:h-80"
+          className="h-[28rem] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
-      </div>
-      <div className="flex items-center justify-between px-5 py-5">
-        <div>
-          <h3 className="text-lg font-medium uppercase tracking-[0.2em] text-stone-900">{category.name}</h3>
-          <p className="mt-1 text-sm text-stone-500">{category.description}</p>
+
+        <div className="absolute left-6 right-6 bottom-6">
+          <h3 className="text-lg font-semibold uppercase tracking-[0.12em] text-white drop-shadow-md">{category.name}</h3>
         </div>
-        <span className="text-sm uppercase tracking-[0.25em] text-stone-600 transition group-hover:text-stone-950">
-          View
-        </span>
       </div>
     </article>
   )
