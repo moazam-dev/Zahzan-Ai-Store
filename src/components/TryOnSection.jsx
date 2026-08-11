@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
-import tryonImg from '../assets/tryonimg2.png'
+import tryonImg from '../assets/tryonimg.png'
 import before from '../assets/tryonbefore.png'
 import after from '../assets/tryonafter.png'
 

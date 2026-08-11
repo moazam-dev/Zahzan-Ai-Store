@@ -3,6 +3,7 @@ import Header from '../components/Header'
 import Hero from '../components/Hero'
 import CategoryCarousel from '../components/CategoryCarousel'
 import ProductCarousel from '../components/ProductCarousel'
+import CraftsmanshipStory from '../components/CraftsmanshipStory'
 import EditorialBanner from '../components/EditorialBanner'
 import TryOnSection from '../components/TryOnSection'
 import ReviewCarousel from '../components/ReviewCarousel'
@@ -22,8 +23,9 @@ export default function Home() {
       </div>
       <CategoryCarousel categories={categories} />
       <TryOnSection />
-      <ProductCarousel title="New Arrivals" subtitle="Discover the latest pieces from our collection." products={featuredProducts} id="new-arrivals" />
-      <EditorialBanner />
+      <CraftsmanshipStory id="new-arrivals" />
+      <ReviewCarousel />
+      {/* <EditorialBanner />
       <ProductCarousel title="Best Sellers" subtitle="The pieces our clients return to again and again." products={bestSellers} id="best-sellers" />
       <section className="border-t border-stone-200 bg-stone-900 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 rounded-[2rem] border border-white/10 bg-white/10 px-6 py-10 text-white sm:px-8 lg:px-10">
@@ -38,8 +40,7 @@ export default function Home() {
           </a>
         </div>
       </section>
-      <ReviewCarousel />
-      <SocialGrid />
+      <SocialGrid /> */}
       <Newsletter />
       <Footer />
     </div>
