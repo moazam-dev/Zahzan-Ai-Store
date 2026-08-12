@@ -23,7 +23,7 @@ export default function Home() {
       </div>
       <CategoryCarousel categories={categories} />
       <TryOnSection />
-      <CraftsmanshipStory id="new-arrivals" />
+      <CraftsmanshipStory id="craftsmanship" />
       <ReviewCarousel />
       {/* <EditorialBanner />
       <ProductCarousel title="Best Sellers" subtitle="The pieces our clients return to again and again." products={bestSellers} id="best-sellers" />

@@ -91,7 +91,7 @@ export default function ReviewCarousel() {
   return (
     <section 
       ref={sectionRef}
-      className="relative bg-[#faf8f5] text-[#1c1b18] py-16 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8 border-t border-[#e8e4dc] overflow-hidden"
+      className="relative bg-[#faf8f5] text-[#1c1b18] py-8 sm:py-10 lg:py-12 px-4 sm:px-6 lg:px-8   overflow-hidden"
       id="worn-and-loved"
     >
       {/* Subtle Warm Background Pattern */}
@@ -102,22 +102,43 @@ export default function ReviewCarousel() {
         {/* -------------------------------------------------- */}
         {/* SECTION INTRODUCTION */}
         {/* -------------------------------------------------- */}
-        <div className={`text-center max-w-2xl mx-auto transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] transform ${
+
+        <div className={`flex flex-col md:flex-row md:items-end justify-between gap-8 transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] transform ${
           isVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
         }`}>
-          <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.4em] text-[#5a5e4b]">
-            CLIENT MEMOIRS & STYLING
-          </span>
+          {/* Left Intro Content */}
+          <div className="text-left max-w-xl">
+            <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.4em] text-[#5a5e4b]">
+              CLIENT MEMOIRS & STYLING
+            </span>
 
-          <h2 className="mt-3 font-serif text-3xl sm:text-5xl lg:text-6xl font-light tracking-tight text-[#1a1918] leading-[1.08]">
-            WORN & LOVED
-          </h2>
+            <h2 className="mt-3 font-serif text-3xl sm:text-5xl lg:text-6xl font-light tracking-tight text-[#1a1918] leading-[1.08]">
+              WORN & LOVED
+            </h2>
 
-          <p className="mt-3 text-sm sm:text-base font-sans text-[#706c64] font-light tracking-wide">
-            Seen on you. Loved by many.
-          </p>
+            <p className="mt-3 text-sm sm:text-base font-sans text-[#706c64] font-light tracking-wide">
+              Seen on you. Loved by many.
+            </p>
+          </div>
 
-          <div className="mt-6 mx-auto w-12 h-[1px] bg-[#5a5e4b]/30" />
+          {/* Right Share Your Look Content */}
+          <div className="text-left md:text-right">
+            <p className="font-serif italic text-2xl sm:text-3xl text-[#1a1918] font-light">
+              Your story could be next.
+            </p>
+
+            <button 
+              onClick={() => setIsShareModalOpen(true)}
+              className="mt-5 group inline-flex items-center gap-3 text-xs uppercase tracking-[0.3em] font-medium text-[#1a1918] py-2.5 px-7 border border-[#1a1918] rounded-full transition-all duration-300 hover:bg-[#1a1918] hover:text-white cursor-pointer"
+            >
+              <span>SHARE YOUR LOOK</span>
+              <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+            </button>
+
+            <p className="mt-3 text-[11px] text-[#706c64] font-light">
+              Tag us <span className="font-medium text-[#1a1918]">@zahzan.official</span> or use <span className="font-mono text-[#5a5e4b]">#WornAndLoved</span> to be featured.
+            </p>
+          </div>
         </div>
 
         {/* -------------------------------------------------- */}
@@ -150,12 +171,6 @@ export default function ReviewCarousel() {
                         : 'scale-[0.96] opacity-75 hover:opacity-95 z-10 border-[#e8e4dc] bg-[#fcfbf9]/90 shadow-sm'
                     }`}
                   >
-                    {/* Active Highlight Accent */}
-                    {isActive && (
-                      <div className="absolute top-3 right-4 px-2.5 py-0.5 rounded-full bg-[#5a5e4b]/10 text-[#5a5e4b] text-[9px] font-medium tracking-widest uppercase">
-                        Active Look
-                      </div>
-                    )}
 
                     <div>
                       {/* POST HEADER */}
@@ -197,9 +212,9 @@ export default function ReviewCarousel() {
                         />
 
                         {/* Environment Tag Overlay */}
-                        <div className="absolute bottom-3 left-3 bg-[#1a1918]/75 backdrop-blur-md px-2.5 py-1 rounded text-[9px] uppercase tracking-widest text-[#faf8f5] font-light">
+                        {/* <div className="absolute bottom-3 left-3 bg-[#1a1918]/75 backdrop-blur-md px-2.5 py-1 rounded text-[9px] uppercase tracking-widest text-[#faf8f5] font-light">
                           {post.environment}
-                        </div>
+                        </div> */}
                       </div>
 
                       {/* SOCIAL INTERACTION ROW */}
@@ -241,6 +256,8 @@ export default function ReviewCarousel() {
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                             </svg>
                           </button>
+
+                        </div>
                         </div>
 
                         {copiedId === post.id && (
@@ -250,29 +267,23 @@ export default function ReviewCarousel() {
                         )}
                       </div>
 
-                      {/* CAPTION */}
-                      <div className="mt-3 text-xs leading-relaxed text-[#2c2a26]">
-                        <span className="font-semibold text-[#1a1918] mr-1.5">{post.username}</span>
-                        <span>"{post.caption}"</span>
-                      </div>
 
                       {/* REVIEW / RATING */}
-                      <div className="mt-3 pt-3 border-t border-[#e8e4dc]/50 flex items-center justify-between">
+                      {/* <div className="mt-3 pt-3 border-t border-[#e8e4dc]/50 flex items-center justify-between">
                         <div className="flex items-center gap-1 text-amber-600 text-xs">
                           {'★'.repeat(post.rating)}
                         </div>
                         <span className="text-[10px] text-[#706c64] uppercase tracking-wider font-medium">
                           Verified Purchase
                         </span>
-                      </div>
-                    </div>
+                      </div> */}
 
                     {/* PRODUCT TAG AT BOTTOM */}
-                    <div className="mt-4 pt-3 border-t border-[#e8e4dc]/60 text-center">
+                    {/* <div className="mt-4 pt-3 border-t border-[#e8e4dc]/60 text-center">
                       <span className="text-[9px] uppercase tracking-[0.25em] text-[#5a5e4b] font-medium block hover:underline">
                         {post.productTag}
                       </span>
-                    </div>
+                    </div> */}
                   </article>
                 )
               })}
@@ -334,22 +345,17 @@ export default function ReviewCarousel() {
                       {copiedId === post.id && <span className="text-[10px] text-[#5a5e4b]">Copied!</span>}
                     </div>
 
-                    {/* Caption */}
-                    <div className="mt-3 text-xs leading-relaxed text-[#2c2a26]">
-                      <span className="font-semibold text-[#1a1918] mr-1.5">{post.username}</span>
-                      <span>"{post.caption}"</span>
-                    </div>
 
                     {/* Review */}
-                    <div className="mt-3 pt-3 border-t border-[#e8e4dc] flex items-center justify-between">
+                    {/* <div className="mt-3 pt-3 border-t border-[#e8e4dc] flex items-center justify-between">
                       <div className="flex text-amber-600 text-xs">{'★'.repeat(post.rating)}</div>
                       <span className="text-[10px] text-[#706c64] uppercase font-medium">Verified Purchase</span>
-                    </div>
+                    </div> */}
 
                     {/* Tag */}
-                    <div className="mt-4 pt-3 border-t border-[#e8e4dc] text-center">
+                    {/* <div className="mt-4 pt-3 border-t border-[#e8e4dc] text-center">
                       <span className="text-[9px] uppercase tracking-[0.25em] text-[#5a5e4b] font-medium">{post.productTag}</span>
-                    </div>
+                    </div> */}
                   </article>
                 )
               })()}
@@ -394,23 +400,7 @@ export default function ReviewCarousel() {
         {/* -------------------------------------------------- */}
         {/* SECTION FOOTER */}
         {/* -------------------------------------------------- */}
-        <div className="mt-14 sm:mt-16 text-center border-t border-[#e8e4dc]/70 pt-10">
-          <p className="font-serif italic text-2xl sm:text-3xl text-[#1a1918] font-light">
-            Your story could be next.
-          </p>
 
-          <button 
-            onClick={() => setIsShareModalOpen(true)}
-            className="mt-5 group inline-flex items-center gap-3 text-xs uppercase tracking-[0.3em] font-medium text-[#1a1918] py-2.5 px-7 border border-[#1a1918] rounded-full transition-all duration-300 hover:bg-[#1a1918] hover:text-white"
-          >
-            <span>SHARE YOUR LOOK</span>
-            <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
-          </button>
-
-          <p className="mt-3 text-[11px] text-[#706c64] font-light">
-            Tag us <span className="font-medium text-[#1a1918]">@zahzan.official</span> or use <span className="font-mono text-[#5a5e4b]">#WornAndLoved</span> to be featured.
-          </p>
-        </div>
 
       </div>
 

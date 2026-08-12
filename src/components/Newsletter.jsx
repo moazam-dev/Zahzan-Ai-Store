@@ -28,7 +28,7 @@ export default function Newsletter() {
   return (
     <section 
       ref={sectionRef}
-      className="relative bg-[#faf8f5] text-[#1c1b18] pt-20 pb-16 sm:pt-28 sm:pb-20 px-4 sm:px-8 lg:px-12 border-t border-[#e8e4dc]"
+      className="relative bg-[#faf8f5] text-[#1c1b18] pt-8 pb-10 sm:pt-10 sm:pb-12 lg:pt-12 lg:pb-16 px-4 sm:px-8 lg:px-12"
       id="stay-in-the-story"
     >
       {/* Subtle Background Radial Pattern */}

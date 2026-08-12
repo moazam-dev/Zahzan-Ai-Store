@@ -90,9 +90,13 @@ export default function TryOnSection() {
               After
             </div>
           </div>
-          <button className="mt-6 w-full rounded-[0.5rem] bg-stone-900 px-6 py-4 text-sm font-semibold uppercase tracking-[0.25em] text-white transition hover:bg-stone-800">
-            Try it on me
-          </button>
+          <a 
+            href="/product/1" 
+            className="mt-8 group relative inline-flex items-center gap-4 text-xs uppercase tracking-[0.3em] font-medium text-[#1c1b18] py-3 px-15 border-b border-[#1c1b18] transition-all duration-300 hover:bg-[#1c1b18] hover:text-[#faf8f5]"
+          >
+            <span>EXPLORE THE PIECE</span>
+            <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+          </a>
         </div>
       </div>
     </section>

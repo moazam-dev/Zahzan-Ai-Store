@@ -35,7 +35,7 @@ export default function Footer() {
   ]
 
   return (
-    <footer className="relative bg-[#faf8f5] text-[#1c1b18] pt-12 pb-10 px-4 sm:px-8 lg:px-12 border-t border-[#e8e4dc]">
+    <footer className="relative bg-[#faf8f5] text-[#1c1b18] pt-12 pb-10 px-4 sm:px-8 lg:px-12">
       
       {/* MAIN FOOTER CONTAINER */}
       <div className="mx-auto max-w-7xl">
