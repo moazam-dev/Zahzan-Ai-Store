@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Menu, Search, ShoppingCart, Heart, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import pkrIcon from '../assets/PKR.png'
+import logo from '../assets/logo.png'
 
 const links = [
   { name: 'New In', path: '/collections' },
@@ -19,7 +20,7 @@ export default function Header() {
     <header className="absolute inset-x-0 top-0 z-50 bg-transparent">
       <div className="mx-auto flex max-w-7xl items-center justify-center px-2 py-3 sm:px-3 lg:px-4">
         <Link to="/" className="text-lg font-semibold uppercase tracking-[0.35em] text-black sm:text-xl">
-          ZAHZAN
+          <img src={logo} alt="PKR" className="h-15 w-auto object-contain" />
         </Link>
         <div className="absolute left-3 top-1/2 flex items-center gap-2 -translate-y-1/2 sm:left-4">
           <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105" onClick={() => setMobileOpen(true)}>

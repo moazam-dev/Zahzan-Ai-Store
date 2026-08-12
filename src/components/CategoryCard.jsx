@@ -13,7 +13,7 @@ export default function CategoryCard({ category, image }) {
         />
 
         <div className="absolute left-6 right-6 bottom-6">
-          <h3 className="text-lg font-semibold uppercase tracking-[0.12em] text-white drop-shadow-md">{category.name}</h3>
+          <h3 className="font-serif text-2xl sm:text-3xl font-light tracking-wide text-white drop-shadow-md">{category.name}</h3>
         </div>
       </div>
     </article>

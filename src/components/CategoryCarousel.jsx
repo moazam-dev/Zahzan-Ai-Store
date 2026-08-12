@@ -119,17 +119,15 @@ export default function CategoryCarousel({ categories }) {
   }, [isAnimating, slotWidth])
 
   return (
-    <section id="collections" className="border-t border-stone-200 bg-stone-50 px-0 py-16 sm:px-0 lg:px-0 lg:py-20">
-      <div className="w-full px-3 sm:px-4">
-        <div className="mb-8 flex items-end justify-between">
-          <div className="flex-shrink-0">
-            <h2 className="mt-2 text-2xl font-semibold uppercase tracking-[0.08em] text-stone-900 sm:text-3xl">
-              Curated for every occasion
-            </h2>
-          </div>
-          <a href="/shop" className="text-sm uppercase tracking-[0.25em] text-stone-600 transition hover:text-stone-950">
-            Browse all
-          </a>
+    <section id="collections" className="border-t border-[#e8e4dc] bg-[#faf8f5] px-0 py-12 sm:py-16 lg:py-20">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="mb-10 text-left">
+          <span className="text-[10px] sm:text-[11px] font-sans font-medium uppercase tracking-[0.4em] text-[#5a5e4b] block mb-2">
+            COLLECTIONS
+          </span>
+          <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-light tracking-tight text-[#1a1918] leading-[1.08]">
+            Curated for every occasion
+          </h2>
         </div>
       </div>
 

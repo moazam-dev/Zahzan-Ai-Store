@@ -138,10 +138,10 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-12 border-b border-[#e5e0d8]">
             <div>
               <span className="text-[11px] font-sans tracking-[0.35em] text-[#5a5e4b] uppercase block mb-3 font-medium">
-                CRAFTSMANSHIP / 01
+                CRAFTSMANSHIP
               </span>
               <h2 className="font-serif text-4xl sm:text-6xl font-light text-[#1c1b18] leading-[1.02] tracking-tight">
-                THE GARMENT, <span className="italic block sm:inline font-normal text-[#5a5e4b]">DECONSTRUCTED</span>
+                FROM THREAD, <br /> <span className="italic block sm:inline font-normal text-[#5a5e4b]">TO FORM</span>
               </h2>
             </div>
             <p className="font-serif italic text-xl text-[#5a5e4b] max-w-sm">
@@ -220,7 +220,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
       style={{ height: '250vh' }}
     >
       {/* Sticky Viewport Stage — Full Editorial Canvas */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between p-3 sm:p-8 lg:p-12">
+      <div className="sticky top-0 h-screen w-full overflow-hidden flex flex-col justify-between pt-3 pb-3 px-3 sm:pt-4 sm:pb-8 sm:px-8 lg:pt-6 lg:pb-12 lg:px-12">
         
         {/* ========================================================================= */}
         {/* EDITORIAL CANVAS HEADER (Top Left & Top Right Typography) */}

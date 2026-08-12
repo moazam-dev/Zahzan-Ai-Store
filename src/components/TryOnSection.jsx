@@ -49,7 +49,7 @@ export default function TryOnSection() {
   }
 
   return (
-    <section className="bg-[#faf8f5] text-[#1c1b18] py-12 sm:py-16 lg:py-20 px-4 sm:px-8 lg:px-12 border-t border-[#e8e4dc]">
+    <section className="bg-[#faf8f5] text-[#1c1b18] pt-8 pb-4 sm:pt-10 sm:pb-6 lg:pt-12 lg:pb-6 px-4 sm:px-8 lg:px-12 ">
       <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
         
         {/* ========================================================================= */}

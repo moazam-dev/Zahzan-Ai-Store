@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import logo from '../assets/logo.png'
 
 export default function Footer() {
   const [activeModal, setActiveModal] = useState(null)
@@ -46,21 +47,13 @@ export default function Footer() {
           {/* BRAND STATEMENT COLUMN (4 cols) */}
           <div className="md:col-span-4 flex flex-col justify-between">
             <div>
-              <h3 className="font-serif text-3xl sm:text-4xl font-light tracking-[0.25em] text-[#1a1918]">
-                ZAHZAN
-              </h3>
+            <img src={logo} alt="PKR" className="h-15 w-auto object-contain" />              
               <p className="mt-3 text-xs sm:text-sm text-[#706c64] font-light leading-relaxed max-w-xs">
                 Modern Pakistani clothing,<br />
                 made with intention.
               </p>
             </div>
 
-            {/* Subtle Editorial Handwritten Note */}
-            <div className="mt-8 pt-4">
-              <span className="font-serif italic text-sm text-[#706c64]/80 tracking-wide">
-                Until next time.
-              </span>
-            </div>
           </div>
 
           {/* ESSENTIAL NAVIGATION GROUPS (6 cols) */}
@@ -128,7 +121,7 @@ export default function Footer() {
         </div>
 
         {/* BOTTOM FOOTER BAR */}
-        <div className="pt-6 border-t border-[#e8e4dc]/70 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#706c64] font-light tracking-wider">
+        <div className=" flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#706c64] font-light tracking-wider">
           <div>
             © 2026 ZAHZAN
           </div>
