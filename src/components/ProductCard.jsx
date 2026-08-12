@@ -1,45 +1,100 @@
-import { Heart, Eye } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Heart } from 'lucide-react'
+import { useCart } from '../context/CartContext'
+import { useWishlist } from '../context/WishlistContext'
 
 export default function ProductCard({ product }) {
+  const { addToCart } = useCart()
+  const { isInWishlist, toggleWishlist } = useWishlist()
+  const navigate = useNavigate()
+  const isSaved = isInWishlist(product.id)
+
   return (
-    <article className="group relative overflow-hidden border border-stone-200 bg-white">
-      <div className="relative overflow-hidden">
+    <article className="group relative flex flex-col justify-between select-none">
+      
+      {/* IMAGE CONTAINER WITH HOVER REVEAL & ADD TO BAG OVERLAY */}
+      <div 
+        onClick={() => navigate(`/product/${product.id}`)}
+        className="relative aspect-[3/4] overflow-hidden bg-[#f3efe8] cursor-pointer"
+      >
+        {/* Main Product Image */}
         <img
           src={product.image}
           alt={product.name}
-          className="h-80 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+          className="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
         />
+
+        {/* Secondary Hover Image */}
         {product.hoverImage && (
           <img
             src={product.hoverImage}
             alt={`${product.name} alternate view`}
-            className="absolute inset-0 h-80 w-full object-cover opacity-0 transition duration-500 group-hover:opacity-100"
+            className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"
           />
         )}
+
+        {/* Badge */}
         {product.badge && (
-          <span className="absolute left-4 top-4 rounded-full border border-white/70 bg-white/90 px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-stone-700">
+          <span className="absolute left-3 top-3 bg-[#faf8f5]/90 border border-[#e8e4dc] px-2.5 py-1 text-[9px] font-sans font-medium uppercase tracking-[0.3em] text-[#5a5e4b]">
             {product.badge}
           </span>
         )}
-        <div className="absolute right-4 top-4 flex flex-col gap-2">
-          <button type="button" className="rounded-full border border-stone-200 bg-white/90 p-2 text-stone-700 transition hover:bg-stone-900 hover:text-white">
-            <Heart size={16} />
-          </button>
-          <button type="button" className="rounded-full border border-stone-200 bg-white/90 p-2 text-stone-700 transition hover:bg-stone-900 hover:text-white">
-            <Eye size={16} />
+
+        {/* Wishlist Heart Action Button */}
+        <button
+          type="button"
+          aria-label={isSaved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+          aria-pressed={isSaved}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleWishlist(product.id)
+          }}
+          className="absolute right-3 top-3 z-10 p-2 rounded-full bg-[#faf8f5]/80 backdrop-blur-xs text-[#1c1b18] hover:scale-110 transition-transform cursor-pointer"
+        >
+          <Heart size={16} fill={isSaved ? '#1c1b18' : 'none'} className="text-[#1c1b18]" />
+        </button>
+
+        {/* Quick Add To Bag Overlay Button on Hover */}
+        <div className="absolute inset-x-0 bottom-0 p-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              addToCart(product)
+            }}
+            className="w-full bg-[#1c1b18]/90 backdrop-blur-xs text-[#faf8f5] text-[10px] font-sans uppercase tracking-[0.25em] py-2.5 px-4 hover:bg-[#5a5e4b] transition-colors cursor-pointer"
+          >
+            ADD TO BAG +
           </button>
         </div>
+
       </div>
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
+
+      {/* PRODUCT DETAILS BELOW IMAGE */}
+      <div className="pt-3.5 space-y-1 text-left">
+        <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-stone-500">{product.category}</p>
-            <h3 className="mt-2 text-lg font-medium text-stone-900">{product.name}</h3>
+            <span className="text-[9px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b] block">
+              {product.category}
+            </span>
+            <Link
+              to={`/product/${product.id}`}
+              className="font-serif text-lg font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors block leading-snug"
+            >
+              {product.name}
+            </Link>
           </div>
-          <span className="text-sm font-medium text-stone-700">PKR {product.price.toLocaleString()}</span>
+
+          <span className="text-xs font-sans font-medium text-[#1c1b18] pt-0.5">
+            PKR {product.price.toLocaleString()}
+          </span>
         </div>
-        <p className="mt-3 text-sm text-stone-500">{product.description}</p>
+
+        <p className="text-xs font-sans text-[#706c64] font-light line-clamp-1">
+          {product.description}
+        </p>
       </div>
+
     </article>
   )
 }

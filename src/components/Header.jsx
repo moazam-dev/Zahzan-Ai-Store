@@ -1,73 +1,124 @@
 import { useState } from 'react'
-import { Menu, Search, ShoppingCart, Heart, ArrowRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Menu, Search, ShoppingCart, Heart } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
 import pkrIcon from '../assets/PKR.png'
 import logo from '../assets/logo.png'
+import UniversalNavMenu from './UniversalNavMenu'
+import { useCart } from '../context/CartContext'
+import { useWishlist } from '../context/WishlistContext'
 
-const links = [
-  { name: 'New In', path: '/collections' },
-  { name: 'Collections', path: '/collections' },
-  { name: 'Ready to Wear', path: '/shop' },
-  { name: 'Unstitched', path: '/shop' },
-  { name: 'Luxury', path: '/shop' },
-  { name: 'About', path: '/collections' }
-]
+export default function Header({ variant }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [menuInitialView, setMenuInitialView] = useState('nav') // 'nav' | 'search'
+  const { openCart, cartCount, closeCart } = useCart()
+  const { openWishlist, closeWishlist } = useWishlist()
+  const location = useLocation()
 
-export default function Header() {
-  const [mobileOpen, setMobileOpen] = useState(false)
+  // On Home page ("/"), navbar stays absolute transparent over Hero.
+  // On all other pages, navbar flows relatively under AnnouncementBar without collapsing.
+  const isHomePage = variant ? variant === 'absolute' : location.pathname === '/'
+
+  const openNav = () => {
+    closeCart()
+    closeWishlist()
+    setMenuInitialView('nav')
+    setIsMenuOpen(true)
+  }
+
+  const openSearch = () => {
+    closeCart()
+    closeWishlist()
+    setMenuInitialView('search')
+    setIsMenuOpen(true)
+  }
+
+  const handleOpenCart = () => {
+    setIsMenuOpen(false)
+    closeWishlist()
+    openCart()
+  }
+
+  const handleOpenWishlist = () => {
+    setIsMenuOpen(false)
+    closeCart()
+    openWishlist()
+  }
 
   return (
-    <header className="absolute inset-x-0 top-0 z-50 bg-transparent">
-      <div className="mx-auto flex max-w-7xl items-center justify-center px-2 py-3 sm:px-3 lg:px-4">
+    <header className={isHomePage ? "absolute inset-x-0 top-0 z-50 bg-transparent" : "relative w-full z-50 bg-[#faf8f5] border-b border-[#e8e4dc]"}>
+      <div className="mx-auto flex max-w-7xl items-center justify-center px-2 py-2 sm:px-3 lg:px-4">
+        
+        {/* CENTER BRAND LOGO */}
         <Link to="/" className="text-lg font-semibold uppercase tracking-[0.35em] text-black sm:text-xl">
-          <img src={logo} alt="PKR" className="h-15 w-auto object-contain" />
+          <img src={logo} alt="ZAHZAN" className="h-14 sm:h-16 w-auto object-contain" />
         </Link>
-        <div className="absolute left-3 top-1/2 flex items-center gap-2 -translate-y-1/2 sm:left-4">
-          <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105" onClick={() => setMobileOpen(true)}>
+
+        {/* LEFT UTILITY CONTROLS: MENU & SEARCH */}
+        <div className="absolute left-3 top-1/2 flex items-center gap-1 sm:gap-2 -translate-y-1/2 sm:left-4">
+          <button 
+            type="button" 
+            onClick={openNav}
+            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer flex items-center gap-1.5"
+            aria-label="Open Navigation Menu"
+          >
             <Menu size={20} />
+            <span className="hidden sm:inline-block text-[11px] font-sans uppercase tracking-[0.25em] font-medium text-[#1c1b18]">
+              MENU
+            </span>
           </button>
-          <button type="button" className="p-2 text-black transition-transform  duration-150 hover:scale-105">
+
+          <button 
+            type="button" 
+            onClick={openSearch}
+            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer"
+            aria-label="Search Collection"
+          >
             <Search size={18} />
           </button>
         </div>
-        <div className="absolute right-3 top-1/2 flex items-center gap-2 -translate-y-1/2 sm:right-4">
-          <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105">
-            <Heart size={18} />
+
+        {/* RIGHT UTILITY CONTROLS: WISHLIST, BAG, CURRENCY */}
+        <div className="absolute right-3 top-1/2 flex items-center gap-1 sm:gap-2 -translate-y-1/2 sm:right-4">
+          <button 
+            type="button" 
+            onClick={handleOpenWishlist}
+            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer"
+            aria-label="Open Wishlist"
+          >
+            <Heart size={18} className="text-black stroke-[1.5]" />
           </button>
-          <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105">
+
+          <button 
+            type="button" 
+            onClick={handleOpenCart}
+            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer relative"
+            aria-label="Shopping Bag"
+          >
             <ShoppingCart size={18} />
+            {cartCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#5a5e4b] text-[9px] font-mono text-white font-medium">
+                {cartCount}
+              </span>
+            )}
           </button>
-          <button type="button" className="p-2 text-black transition-transform duration-150 hover:scale-105">
+
+          <button 
+            type="button" 
+            className="p-2 text-black transition-transform duration-150 hover:scale-105"
+            aria-label="Currency PKR"
+          >
             <img src={pkrIcon} alt="PKR" className="h-5 w-5 object-contain" />
           </button>
         </div>
+
       </div>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-[60] bg-stone-950/70 lg:hidden" onClick={() => setMobileOpen(false)}>
-          <div className="ml-auto flex h-full w-4/5 max-w-sm flex-col bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-8 flex items-center justify-between">
-              <span className="text-sm uppercase tracking-[0.3em] text-stone-900">Menu</span>
-              <button type="button" className="rounded-full p-2 text-stone-700 transition hover:bg-stone-100" onClick={() => setMobileOpen(false)}>
-                ×
-              </button>
-            </div>
-            <div className="flex flex-1 flex-col gap-4 text-base uppercase tracking-[0.28em] text-stone-700">
-              {links.map((link) => (
-                <Link key={link.name} to={link.path} className="border-b border-stone-200 py-3 transition hover:text-stone-950" onClick={() => setMobileOpen(false)}>
-                  {link.name}
-                </Link>
-              ))}
-            </div>
-            <div className="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-sm text-stone-600">Private edits and early access to new releases.</p>
-              <Link to="/collections" className="mt-3 inline-flex items-center gap-2 text-sm font-medium uppercase tracking-[0.25em] text-stone-900" onClick={() => setMobileOpen(false)}>
-                Discover more <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* UNIVERSAL NAVIGATION MENU SYSTEM */}
+      <UniversalNavMenu 
+        isOpen={isMenuOpen} 
+        onClose={() => setIsMenuOpen(false)} 
+        initialView={menuInitialView} 
+      />
     </header>
   )
 }
