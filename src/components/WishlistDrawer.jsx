@@ -54,7 +54,7 @@ export default function WishlistDrawer() {
       {/* RIGHT-SIDE WISHLIST DRAWER (30vw Desktop / 100vw Fullscreen Mobile) */}
       {/* ========================================================================= */}
       <aside
-        className={`fixed top-0 right-0 h-full bg-[#faf8f5] text-[#1c1b18] shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col justify-between overflow-y-auto
+        className={`fixed top-0 right-0 h-full bg-[#faf8f5] text-[#1c1b18] shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col justify-between overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
           w-full md:w-[30vw] md:min-w-[360px] md:max-w-[500px] md:border-l border-[#e8e4dc] z-10`}
       >
         
@@ -85,7 +85,7 @@ export default function WishlistDrawer() {
         {/* ----------------------------------------------------------------------- */}
         {/* WISHLIST PRODUCT LIST */}
         {/* ----------------------------------------------------------------------- */}
-        <div className="flex-1 px-6 py-6 sm:px-8 space-y-6 overflow-y-auto">
+        <div className="flex-1 px-6 py-6 sm:px-8 space-y-6 overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {wishlistProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 gap-6">
               {wishlistProducts.map((product) => (

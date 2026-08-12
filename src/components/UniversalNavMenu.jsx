@@ -86,7 +86,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
       {/* ========================================================================= */}
       <aside
         ref={drawerRef}
-        className={`fixed top-0 left-0 h-full bg-[#faf8f5] text-[#1c1b18] shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col justify-between overflow-y-auto
+        className={`fixed top-0 left-0 h-full bg-[#faf8f5] text-[#1c1b18] shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col justify-between overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
           w-full md:w-[40vw] md:min-w-[420px] md:max-w-[680px] md:border-r border-[#e8e4dc] z-10`}
       >
         
@@ -311,7 +311,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
               </div>
 
               {/* SEARCH RESULTS */}
-              <div className="space-y-3 pt-2 max-h-[45vh] overflow-y-auto pr-2">
+              <div className="space-y-3 pt-2 max-h-[45vh] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pr-2">
                 {searchQuery.trim() === '' ? (
                   <p className="text-xs font-sans text-[#a09c94] italic">
                     Type to explore signature lawn, pret, and formal pieces...
