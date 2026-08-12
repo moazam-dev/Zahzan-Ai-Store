@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles } from 'lucide-react'
-import tryonImg from '../assets/tryonimg.png'
 import before from '../assets/tryonbefore.png'
 import after from '../assets/tryonafter.png'
 
@@ -51,22 +49,52 @@ export default function TryOnSection() {
   }
 
   return (
-    <section className="bg-stone-50 py-0">
-      <div className="grid max-w-none min-h-[28rem] gap-8 lg:grid-cols-[50vw_minmax(0,50vw)] lg:items-stretch lg:min-h-[32rem]">
-        <div className="h-full overflow-hidden bg-transparent">
-          <img
-            src={tryonImg}
-            alt="AI try-on preview"
-            className="h-full w-full object-cover"    
-          />
+    <section className="bg-[#faf8f5] text-[#1c1b18] py-12 sm:py-16 lg:py-20 px-4 sm:px-8 lg:px-12 border-t border-[#e8e4dc]">
+      <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+        
+        {/* ========================================================================= */}
+        {/* LEFT SIDE: EDITORIAL HEADING, PARAGRAPH & TRY IT ON BUTTON */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-5 flex flex-col justify-center text-left">
+          
+          {/* Editorial Category Label */}
+          <span className="text-[10px] sm:text-[11px] font-sans font-medium uppercase tracking-[0.4em] text-[#5a5e4b] block mb-3">
+            AI VIRTUAL DRESSING
+          </span>
+
+          {/* Editorial Serif Heading */}
+          <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-light tracking-tight text-[#1a1918] leading-[1.08]">
+            SEE IT ON YOU,<br />
+            <span className="italic font-normal">BEFORE IT'S YOURS.</span>
+          </h2>
+
+          {/* Short Refined Copy Paragraph */}
+          <p className="mt-4 text-xs sm:text-sm font-sans text-[#706c64] font-light leading-relaxed tracking-wide max-w-md">
+            Experience instantaneous virtual dressing. Visualize signature drape, fit, and movement on your silhouette with precision AI rendering.
+          </p>
+
+          {/* Action Button */}
+          <div className="mt-6">
+            <a 
+              href="/shop" 
+              className="group relative inline-flex items-center gap-4 text-xs uppercase tracking-[0.3em] font-medium text-[#1c1b18] py-3 px-8 border-b border-[#1c1b18] transition-all duration-300 hover:bg-[#1c1b18] hover:text-[#faf8f5] cursor-pointer"
+            >
+              <span>TRY IT ON</span>
+              <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+            </a>
+          </div>
+
         </div>
 
-        <div className="lg:mr-8">
+        {/* ========================================================================= */}
+        {/* RIGHT SIDE: BEFORE / AFTER INTERACTIVE SLIDER (UNTOUCHED LOGIC) */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-7 w-full">
           <div
             ref={trackRef}
             onPointerDown={handlePointerDown}
             onTouchStart={handlePointerDown}
-            className="relative overflow-hidden rounded-[0.5rem] bg-stone-100 h-[41rem] touch-none"
+            className="relative overflow-hidden rounded-[0.5rem] bg-stone-100 h-[28rem] sm:h-[36rem] lg:h-[38rem] touch-none shadow-xs border border-[#e8e4dc]"
           >
             <img src={after} alt="Before" className="h-full w-full object-cover" />
             <div className="absolute inset-0 pointer-events-none">
@@ -83,21 +111,15 @@ export default function TryOnSection() {
                 <span className="text-[11px] uppercase tracking-[0.25em] text-stone-900">Slide</span>
               </div>
             </div>
-            <div className="absolute left-4 top-4 rounded-full bg-black/70 px-3 py-1 text-xs uppercase tracking-[0.3em] text-white">
+            <div className="absolute left-4 top-4 rounded-full bg-black/70 px-3.5 py-1 text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white">
               Before
             </div>
-            <div className="absolute right-4 top-4 rounded-full bg-black/70 px-3 py-1 text-xs uppercase tracking-[0.3em] text-white">
+            <div className="absolute right-4 top-4 rounded-full bg-black/70 px-3.5 py-1 text-[10px] sm:text-xs uppercase tracking-[0.3em] text-white">
               After
             </div>
           </div>
-          <a 
-            href="/product/1" 
-            className="mt-8 group relative inline-flex items-center gap-4 text-xs uppercase tracking-[0.3em] font-medium text-[#1c1b18] py-3 px-15 border-b border-[#1c1b18] transition-all duration-300 hover:bg-[#1c1b18] hover:text-[#faf8f5]"
-          >
-            <span>EXPLORE THE PIECE</span>
-            <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
-          </a>
         </div>
+
       </div>
     </section>
   )
