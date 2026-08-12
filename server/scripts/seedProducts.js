@@ -1,10 +1,28 @@
-export const products = [
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Product from '../models/Product.js';
+import connectDB from '../config/db.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
+const seedProductsList = [
   {
-    id: 1,
     name: 'Ivory Bloom',
+    slug: 'ivory-bloom',
+    sku: 'ZAH-IVORY-001',
     price: 18900,
     category: 'Lawn',
     image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85'
+    ],
     hoverImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
     badge: 'NEW',
     sizes: ['S', 'M', 'L'],
@@ -31,14 +49,22 @@ export const products = [
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85'
-    ]
+    ],
+    isActive: true
   },
   {
-    id: 2,
     name: 'Noor',
+    slug: 'noor',
+    sku: 'ZAH-NOOR-002',
     price: 21400,
     category: 'Ready to Wear',
     image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85'
+    ],
     hoverImage: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
     badge: 'LIMITED',
     sizes: ['XS', 'S', 'M'],
@@ -65,14 +91,22 @@ export const products = [
       'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85'
-    ]
+    ],
+    isActive: true
   },
   {
-    id: 3,
     name: 'Mehr',
+    slug: 'mehr',
+    sku: 'ZAH-MEHR-003',
     price: 23900,
     category: 'Unstitched',
     image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85'
+    ],
     hoverImage: 'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85',
     badge: 'NEW',
     sizes: ['M', 'L', 'XL'],
@@ -99,15 +133,23 @@ export const products = [
       'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85'
-    ]
+    ],
+    isActive: true
   },
   {
-    id: 4,
     name: 'Aster',
+    slug: 'aster',
+    sku: 'ZAH-ASTER-004',
     price: 16900,
     originalPrice: 21500,
     category: 'Luxury Pret',
     image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85'
+    ],
     hoverImage: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
     badge: 'SALE',
     sizes: ['S', 'M', 'L'],
@@ -134,14 +176,22 @@ export const products = [
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85'
-    ]
+    ],
+    isActive: true
   },
   {
-    id: 5,
     name: 'Zariya',
+    slug: 'zariya',
+    sku: 'ZAH-ZARIYA-005',
     price: 25600,
     category: 'Formal',
     image: 'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
+    ],
     hoverImage: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
     badge: 'NEW',
     sizes: ['S', 'M', 'L'],
@@ -168,14 +218,22 @@ export const products = [
       'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
-    ]
+    ],
+    isActive: true
   },
   {
-    id: 6,
     name: 'Elara',
+    slug: 'elara',
+    sku: 'ZAH-ELARA-006',
     price: 22100,
     category: 'Accessories',
     image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+    images: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85'
+    ],
     hoverImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
     badge: 'BEST SELLER',
     sizes: ['One Size'],
@@ -202,11 +260,37 @@ export const products = [
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=85',
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85'
-    ]
+    ],
+    isActive: true
   }
-]
+];
 
-export const featuredProducts = products.slice(0, 4)
-export const bestSellers = products.slice(1, 6)
+const seedProducts = async () => {
+  try {
+    await connectDB();
+    console.log('Clearing existing product catalog...');
+    await Product.deleteMany({});
 
+    console.log('Seeding exactly 6 real ZAHZAN products...');
+    const inserted = await Product.insertMany(seedProductsList);
 
+    const count = await Product.countDocuments({});
+    console.log(`Successfully seeded dataset. Database now contains EXACTLY ${count} products.`);
+
+    if (count !== 6) {
+      console.error(`ERROR: Expected 6 products but found ${count}`);
+      process.exit(1);
+    }
+
+    inserted.forEach((prod, index) => {
+      console.log(` Product ${index + 1}: ${prod.name} | ID: ${prod._id} | SKU: ${prod.sku} | Price: PKR ${prod.price}`);
+    });
+
+    process.exit(0);
+  } catch (error) {
+    console.error('Failed to seed products:', error);
+    process.exit(1);
+  }
+};
+
+seedProducts();

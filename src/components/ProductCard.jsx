@@ -7,19 +7,22 @@ export default function ProductCard({ product }) {
   const { addToCart } = useCart()
   const { isInWishlist, toggleWishlist } = useWishlist()
   const navigate = useNavigate()
-  const isSaved = isInWishlist(product.id)
+  const productId = product.id || product._id
+  const isSaved = isInWishlist(productId)
+
+  const imageSrc = (product.images && product.images[0]) || product.image
 
   return (
     <article className="group relative flex flex-col justify-between select-none">
       
       {/* IMAGE CONTAINER WITH HOVER REVEAL & ADD TO BAG OVERLAY */}
       <div 
-        onClick={() => navigate(`/product/${product.id}`)}
+        onClick={() => navigate(`/product/${productId}`)}
         className="relative aspect-[3/4] overflow-hidden bg-[#f3efe8] cursor-pointer"
       >
         {/* Main Product Image */}
         <img
-          src={product.image}
+          src={imageSrc}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
         />
@@ -47,7 +50,7 @@ export default function ProductCard({ product }) {
           aria-pressed={isSaved}
           onClick={(e) => {
             e.stopPropagation()
-            toggleWishlist(product.id)
+            toggleWishlist(productId)
           }}
           className="absolute right-3 top-3 z-10 p-2 rounded-full bg-[#faf8f5]/80 backdrop-blur-xs text-[#1c1b18] hover:scale-110 transition-transform cursor-pointer"
         >
@@ -78,7 +81,7 @@ export default function ProductCard({ product }) {
               {product.category}
             </span>
             <Link
-              to={`/product/${product.id}`}
+              to={`/product/${productId}`}
               className="font-serif text-lg font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors block leading-snug"
             >
               {product.name}

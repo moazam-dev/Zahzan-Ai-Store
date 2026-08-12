@@ -11,7 +11,6 @@ import SocialGrid from '../components/SocialGrid'
 import Newsletter from '../components/Newsletter'
 import Footer from '../components/Footer'
 import { categories } from '../data/categories'
-import { featuredProducts, bestSellers } from '../data/products'
 
 export default function Home() {
   return (

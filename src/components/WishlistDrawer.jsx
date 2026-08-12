@@ -88,71 +88,75 @@ export default function WishlistDrawer() {
         <div className="flex-1 px-6 py-6 sm:px-8 space-y-6 overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {wishlistProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 gap-6">
-              {wishlistProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="group relative flex items-start gap-4 pb-6 border-b border-[#e8e4dc]/70 last:border-0"
-                >
-                  {/* Product Thumbnail */}
+              {wishlistProducts.map((product) => {
+                const prodId = product.id || product._id
+                const prodImg = (product.images && product.images[0]) || product.image
+                return (
                   <div
-                    onClick={() => {
-                      closeWishlist()
-                      navigate(`/product/${product.id}`)
-                    }}
-                    className="w-20 h-24 sm:w-24 sm:h-30 flex-shrink-0 bg-[#f3efe8] overflow-hidden border border-[#e5e0d8] cursor-pointer"
+                    key={prodId}
+                    className="group relative flex items-start gap-4 pb-6 border-b border-[#e8e4dc]/70 last:border-0"
                   >
-                    <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </div>
+                    {/* Product Thumbnail */}
+                    <div
+                      onClick={() => {
+                        closeWishlist()
+                        navigate(`/product/${prodId}`)
+                      }}
+                      className="w-20 h-24 sm:w-24 sm:h-30 flex-shrink-0 bg-[#f3efe8] overflow-hidden border border-[#e5e0d8] cursor-pointer"
+                    >
+                      <img src={prodImg} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
 
-                  {/* Details & Actions */}
-                  <div className="flex-1 flex flex-col justify-between h-full space-y-3">
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#5a5e4b] block">
-                            {product.category}
-                          </span>
-                          <h4
-                            onClick={() => {
-                              closeWishlist()
-                              navigate(`/product/${product.id}`)
-                            }}
-                            className="font-serif text-lg text-[#1c1b18] font-normal leading-tight mt-0.5 hover:text-[#5a5e4b] transition-colors cursor-pointer"
+                    {/* Details & Actions */}
+                    <div className="flex-1 flex flex-col justify-between h-full space-y-3">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#5a5e4b] block">
+                              {product.category}
+                            </span>
+                            <h4
+                              onClick={() => {
+                                closeWishlist()
+                                navigate(`/product/${prodId}`)
+                              }}
+                              className="font-serif text-lg text-[#1c1b18] font-normal leading-tight mt-0.5 hover:text-[#5a5e4b] transition-colors cursor-pointer"
+                            >
+                              {product.name}
+                            </h4>
+                          </div>
+
+                          {/* Heart Remove Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => toggleWishlist(prodId)}
+                            className="p-1 text-[#1c1b18] hover:text-[#5a5e4b] transition-colors cursor-pointer"
+                            aria-label={`Remove ${product.name} from wishlist`}
                           >
-                            {product.name}
-                          </h4>
+                            <Heart size={16} fill="#1c1b18" />
+                          </button>
                         </div>
 
-                        {/* Heart Remove Toggle */}
+                        <span className="text-xs font-sans font-medium text-[#1c1b18] block mt-1">
+                          PKR {product.price.toLocaleString()}
+                        </span>
+                      </div>
+
+                      {/* Add to Bag Button */}
+                      <div>
                         <button
                           type="button"
-                          onClick={() => toggleWishlist(product.id)}
-                          className="p-1 text-[#1c1b18] hover:text-[#5a5e4b] transition-colors cursor-pointer"
-                          aria-label={`Remove ${product.name} from wishlist`}
+                          onClick={() => handleAddToCart(product)}
+                          className="w-full bg-[#1c1b18] text-[#faf8f5] text-[10px] font-sans uppercase tracking-[0.25em] py-2.5 px-4 hover:bg-[#5a5e4b] transition-colors cursor-pointer"
                         >
-                          <Heart size={16} fill="#1c1b18" />
+                          ADD TO BAG +
                         </button>
                       </div>
 
-                      <span className="text-xs font-sans font-medium text-[#1c1b18] block mt-1">
-                        PKR {product.price.toLocaleString()}
-                      </span>
                     </div>
-
-                    {/* Add to Bag Button */}
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => handleAddToCart(product)}
-                        className="w-full bg-[#1c1b18] text-[#faf8f5] text-[10px] font-sans uppercase tracking-[0.25em] py-2.5 px-4 hover:bg-[#5a5e4b] transition-colors cursor-pointer"
-                      >
-                        ADD TO BAG +
-                      </button>
-                    </div>
-
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             

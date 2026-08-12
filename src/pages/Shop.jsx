@@ -5,12 +5,16 @@ import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import ProductCard from '../components/ProductCard'
-import { products } from '../data/products'
 import { categories } from '../data/categories'
+
+const API_BASE = '/api'
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams()
   const categoryParam = searchParams.get('category')
+
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
 
   // Filter states
   const [selectedCategory, setSelectedCategory] = useState(categoryParam || 'All')
@@ -19,6 +23,25 @@ export default function Shop() {
   const [maxPrice, setMaxPrice] = useState(30000)
   const [sortBy, setSortBy] = useState('featured') // 'featured' | 'newest' | 'price-asc' | 'price-desc'
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false)
+
+  // Fetch products from backend API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch(`${API_BASE}/products`)
+        const data = await res.json()
+        if (data.success && Array.isArray(data.products)) {
+          setProducts(data.products)
+        }
+      } catch (err) {
+        console.error('Failed to fetch products:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
 
   // Sync category state if URL parameter changes
   useEffect(() => {
@@ -31,20 +54,20 @@ export default function Shop() {
   const fabricsList = useMemo(() => {
     const set = new Set()
     products.forEach((p) => {
-      const desc = (p.description || '').toLowerCase()
+      const desc = ((p.description || '') + ' ' + (p.fabric || '')).toLowerCase()
       if (desc.includes('lawn')) set.add('Lawn')
       if (desc.includes('cotton')) set.add('Cotton')
       if (desc.includes('silk') || desc.includes('handloom')) set.add('Silk')
       if (p.category === 'Unstitched') set.add('Handloom')
     })
     return ['All', ...Array.from(set)]
-  }, [])
+  }, [products])
 
   const sizesList = useMemo(() => {
     const set = new Set()
     products.forEach((p) => p.sizes?.forEach((s) => set.add(s)))
     return ['All', ...Array.from(set)]
-  }, [])
+  }, [products])
 
   const categoriesList = useMemo(() => {
     return ['All', ...categories.map((c) => c.name)]
@@ -77,7 +100,7 @@ export default function Shop() {
       }
       return true
     })
-  }, [selectedCategory, selectedFabric, selectedSize, maxPrice])
+  }, [products, selectedCategory, selectedFabric, selectedSize, maxPrice])
 
   // Sort products dynamically
   const sortedProducts = useMemo(() => {

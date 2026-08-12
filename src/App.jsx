@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import Shop from './pages/Shop'
 import Product from './pages/Product'
 import Collections from './pages/Collections'
+import Account from './pages/Account'
 import { CartProvider } from './context/CartContext'
 import { WishlistProvider } from './context/WishlistContext'
 import CartDrawer from './components/CartDrawer'
@@ -18,6 +19,7 @@ function App() {
             <Route path="/shop" element={<Shop />} />
             <Route path="/product/:id" element={<Product />} />
             <Route path="/collections" element={<Collections />} />
+            <Route path="/account" element={<Account />} />
           </Routes>
           <CartDrawer />
           <WishlistDrawer />

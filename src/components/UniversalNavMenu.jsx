@@ -4,17 +4,33 @@ import { Search, ShoppingBag, User, ArrowRight, X, Plus, Minus, ChevronRight, He
 import logo from '../assets/logo.png'
 import editorialThumb from '../assets/craftsmanship_hero.jpg'
 import { categories } from '../data/categories'
-import { products } from '../data/products'
+import { useCart } from '../context/CartContext'
+
+const API_BASE = '/api'
 
 export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' }) {
+  const { cartCount } = useCart()
   const [currentView, setCurrentView] = useState(initialView) // 'nav' | 'search'
   const [isCollectionsExpanded, setIsCollectionsExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeHelpModal, setActiveHelpModal] = useState(null) // 'size' | 'shipping' | 'contact' | 'track' | null
-  const [cartCount, setCartCount] = useState(2) // Default cart count state
+  const [products, setProducts] = useState([])
   const searchInputRef = useRef(null)
   const drawerRef = useRef(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isOpen && products.length === 0) {
+      fetch(`${API_BASE}/products`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.products)) {
+            setProducts(data.products)
+          }
+        })
+        .catch((err) => console.error('Failed to fetch search products:', err))
+    }
+  }, [isOpen, products.length])
 
   // Reset view when menu opens
   useEffect(() => {
@@ -317,16 +333,18 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                     Type to explore signature lawn, pret, and formal pieces...
                   </p>
                 ) : filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      onClick={() => {
-                        onClose()
-                        navigate(`/product/${product.id}`)
-                      }}
-                      className="group flex items-center gap-4 p-2 rounded-xs hover:bg-[#f3efe8] transition-colors cursor-pointer"
-                    >
-                      <img src={product.image} alt={product.name} className="w-12 h-16 object-cover bg-[#eee]" />
+                  filteredProducts.map((product) => {
+                    const prodId = product.id || product._id
+                    const prodImg = (product.images && product.images[0]) || product.image
+                    return (
+                      <div
+                        key={prodId}
+                        onClick={() => {
+                          onClose()
+                          navigate(`/product/${prodId}`)
+                        }}
+                        className="group flex items-center gap-4 p-2 rounded-xs hover:bg-[#f3efe8] transition-colors cursor-pointer"
+                      >
                       <div className="flex-1">
                         <span className="text-[9px] font-sans uppercase tracking-[0.25em] text-[#5a5e4b] block">
                           {product.category}
@@ -340,7 +358,8 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                       </div>
                       <ChevronRight size={16} className="text-[#a09c94] group-hover:translate-x-1 transition-transform" />
                     </div>
-                  ))
+                  )
+                })
                 ) : (
                   <p className="text-xs font-sans text-[#706c64] py-4">
                     No articles found matching "{searchQuery}".
@@ -368,7 +387,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
           </button>
 
           <Link
-            to="/shop"
+            to="/account"
             onClick={onClose}
             className="flex items-center justify-center gap-2 py-2 hover:text-[#5a5e4b] transition-colors"
           >

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { 
   Heart, 
   ChevronLeft, 
@@ -17,25 +17,64 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 import ProductCard from '../components/ProductCard'
 import SizeGuideModal from '../components/SizeGuideModal'
-import { products } from '../data/products'
+import CheckoutModal from '../components/CheckoutModal'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
+
+const API_BASE = '/api'
 
 export default function Product() {
   const { id } = useParams()
   const { addToCart } = useCart()
   const { isInWishlist, toggleWishlist } = useWishlist()
+  const navigate = useNavigate()
+
+  const [product, setProduct] = useState(null)
+  const [allProducts, setAllProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
 
   // Scroll to top when product ID changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [id])
 
-  // Locate product from dataset (fallback to first product if not found)
-  const product = products.find((item) => item.id === Number(id)) || products[0]
+  // Fetch product details and all products for related list
+  useEffect(() => {
+    const fetchProductData = async () => {
+      try {
+        setLoading(true)
+        const [prodRes, listRes] = await Promise.all([
+          fetch(`${API_BASE}/products/${id}`),
+          fetch(`${API_BASE}/products`)
+        ])
+
+        const prodData = await prodRes.json()
+        if (prodData.success && (prodData.product || prodData.data)) {
+          setProduct(prodData.product || prodData.data)
+        } else {
+          setProduct(null)
+        }
+
+        const listData = await listRes.json()
+        if (listData.success && Array.isArray(listData.products)) {
+          setAllProducts(listData.products)
+        }
+      } catch (err) {
+        console.error('Failed to load product page data:', err)
+        setProduct(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (id) {
+      fetchProductData()
+    }
+  }, [id])
 
   // State management
-  const [selectedSize, setSelectedSize] = useState(product?.sizes?.[0] || 'M')
+  const [selectedSize, setSelectedSize] = useState('M')
   const [quantity, setQuantity] = useState(1)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false)
@@ -43,14 +82,29 @@ export default function Product() {
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 })
   const [openDeliveryAccordion, setOpenDeliveryAccordion] = useState(false)
 
-  // Reset state when product ID changes
+  // Reset state when product changes
   useEffect(() => {
     if (product?.sizes?.length > 0) {
       setSelectedSize(product.sizes[0])
+    } else {
+      setSelectedSize('M')
     }
     setQuantity(1)
     setActiveImageIndex(0)
   }, [product])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#faf8f5] text-[#1c1b18] flex flex-col justify-between">
+        <AnnouncementBar />
+        <Header />
+        <div className="py-24 text-center space-y-4">
+          <p className="text-xs font-sans text-[#706c64] uppercase tracking-[0.25em]">LOADING ARTICLE...</p>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
 
   if (!product) {
     return (
@@ -69,16 +123,17 @@ export default function Product() {
     )
   }
 
-  const isSaved = isInWishlist(product.id)
+  const productId = product.id || product._id
+  const isSaved = isInWishlist(productId)
 
   // Construct images array
-  const galleryImages = product.gallery && product.gallery.length > 0
+  const galleryImages = (product.images && product.images.length > 0)
+    ? product.images
+    : (product.gallery && product.gallery.length > 0)
     ? product.gallery
     : [
-        product.image,
-        product.hoverImage || product.image,
-        'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=85',
-        'https://images.unsplash.com/photo-1487412912498-0447578fcca8?auto=format&fit=crop&w=1200&q=85'
+        product.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
+        product.hoverImage || product.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
       ]
 
   const handlePrevImage = () => {
@@ -99,15 +154,23 @@ export default function Product() {
 
   // Handle Add to Bag
   const handleAddToCart = () => {
-    // Add item with specified quantity
-    for (let i = 0; i < quantity; i++) {
-      addToCart(product, selectedSize)
+    addToCart(product, selectedSize, product.color || '', quantity)
+  }
+
+  // Handle Express Buy Now
+  const handleBuyNow = () => {
+    const token = localStorage.getItem('zahzan_token')
+    if (!token) {
+      alert('Please sign in to complete your purchase.')
+      navigate('/account')
+      return
     }
+    setIsCheckoutOpen(true)
   }
 
   // Related products (2 to 3 max, excluding current)
-  const relatedProducts = products
-    .filter((p) => p.id !== product.id && (p.category === product.category || true))
+  const relatedProducts = allProducts
+    .filter((p) => (p.id || p._id) !== productId)
     .slice(0, 3)
 
   const isSoldOut = product.stock === 0
@@ -380,19 +443,32 @@ export default function Product() {
               </span>
             </div>
 
-            {/* PRIMARY ACTION: ADD TO BAG */}
-            <div className="pt-2">
+            {/* PRIMARY ACTIONS: ADD TO BAG & BUY NOW */}
+            <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
                 disabled={isSoldOut}
                 onClick={handleAddToCart}
-                className={`w-full min-h-[48px] py-3.5 px-6 text-xs font-sans font-medium uppercase tracking-[0.3em] transition-colors cursor-pointer ${
+                className={`w-full min-h-[48px] py-3.5 px-4 text-xs font-sans font-medium uppercase tracking-[0.25em] transition-colors cursor-pointer border ${
                   isSoldOut
-                    ? 'bg-[#e8e4dc] text-[#706c64] cursor-not-allowed'
-                    : 'bg-[#1c1b18] text-[#faf8f5] hover:bg-[#3a3b36]'
+                    ? 'bg-[#e8e4dc] text-[#706c64] border-transparent cursor-not-allowed'
+                    : 'bg-[#1c1b18] text-[#faf8f5] border-[#1c1b18] hover:bg-[#3a3b36]'
                 }`}
               >
-                {isSoldOut ? 'SOLD OUT' : 'ADD TO BAG →'}
+                {isSoldOut ? 'SOLD OUT' : 'ADD TO BAG +'}
+              </button>
+
+              <button
+                type="button"
+                disabled={isSoldOut}
+                onClick={handleBuyNow}
+                className={`w-full min-h-[48px] py-3.5 px-4 text-xs font-sans font-medium uppercase tracking-[0.25em] transition-colors cursor-pointer border ${
+                  isSoldOut
+                    ? 'bg-[#e8e4dc] text-[#706c64] border-transparent cursor-not-allowed'
+                    : 'bg-[#faf8f5] text-[#1c1b18] border-[#1c1b18] hover:bg-[#1c1b18] hover:text-[#faf8f5]'
+                }`}
+              >
+                BUY NOW →
               </button>
             </div>
 
@@ -542,6 +618,18 @@ export default function Product() {
       <SizeGuideModal
         isOpen={isSizeGuideOpen}
         onClose={() => setIsSizeGuideOpen(false)}
+      />
+
+      {/* BUY NOW CHECKOUT MODAL */}
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        isBuyNow={true}
+        buyNowProduct={product}
+        buyNowSize={selectedSize}
+        buyNowColor={product?.color || ''}
+        buyNowQuantity={quantity}
+        onOrderSuccess={() => setIsCheckoutOpen(false)}
       />
 
       {/* FOOTER */}
