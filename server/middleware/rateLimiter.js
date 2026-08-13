@@ -43,3 +43,14 @@ export const verificationLimiter = rateLimit({
     message: 'Too many verification email requests. Please try again after 15 minutes.'
   }
 });
+
+export const newsletterLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many newsletter subscription requests from this IP. Please try again later.'
+  }
+});

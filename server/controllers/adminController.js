@@ -666,68 +666,7 @@ export const deleteAdminProduct = async (req, res, next) => {
   }
 };
 
-// @desc    Get Newsletter Subscribers
-// @route   GET /api/admin/newsletter
-// @access  Private (Admin)
-export const getAdminNewsletterSubscribers = async (req, res, next) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-    const limit = Math.max(1, parseInt(req.query.limit, 10) || 20);
-    const skip = (page - 1) * limit;
 
-    const { search } = req.query;
-    const query = {};
-
-    if (search) {
-      query.email = new RegExp(search, 'i');
-    }
-
-    const total = await NewsletterSubscriber.countDocuments(query);
-    const subscribers = await NewsletterSubscriber.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    return res.status(200).json({
-      success: true,
-      total,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
-      subscribers
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Export Newsletter Subscribers to CSV
-// @route   GET /api/admin/newsletter/export
-// @access  Private (Admin)
-export const exportAdminNewsletterSubscribers = async (req, res, next) => {
-  try {
-    const subscribers = await NewsletterSubscriber.find().sort({ createdAt: -1 });
-
-    let csvContent = 'Email,Status,SubscribedAt\n';
-    subscribers.forEach((sub) => {
-      const dateStr = sub.createdAt ? new Date(sub.createdAt).toISOString() : '';
-      csvContent += `"${sub.email}","${sub.status}","${dateStr}"\n`;
-    });
-
-    await recordAuditLog({
-      adminId: req.user._id,
-      action: 'NEWSLETTER_EXPORTED',
-      entity: 'NewsletterSubscriber',
-      ipAddress: req.ip || '',
-      metadata: { count: subscribers.length }
-    });
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="zahzan_newsletter_subscribers.csv"');
-    return res.status(200).send(csvContent);
-  } catch (error) {
-    next(error);
-  }
-};
 
 // @desc    Get Audit Logs
 // @route   GET /api/admin/audit-logs
@@ -968,6 +907,102 @@ export const rejectAdminPayment = async (req, res, next) => {
       payment,
       order
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get Newsletter Subscribers List (Admin)
+// @route   GET /api/admin/newsletter/subscribers
+// @access  Private (Admin)
+export const getAdminNewsletterSubscribers = async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit, 10) || 20);
+    const skip = (page - 1) * limit;
+
+    const { status, search } = req.query;
+    const query = {};
+
+    if (status && status !== 'all') {
+      query.status = status.toLowerCase();
+    }
+
+    if (search) {
+      query.email = new RegExp(search.trim(), 'i');
+    }
+
+    const total = await NewsletterSubscriber.countDocuments(query);
+    const subscribers = await NewsletterSubscriber.find(query)
+      .populate('userId', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Calculate real database stats
+    const totalSubscribers = await NewsletterSubscriber.countDocuments({});
+    const activeSubscribers = await NewsletterSubscriber.countDocuments({ status: 'subscribed' });
+    const unsubscribedSubscribers = await NewsletterSubscriber.countDocuments({ status: 'unsubscribed' });
+
+    return res.status(200).json({
+      success: true,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      stats: {
+        totalSubscribers,
+        activeSubscribers,
+        unsubscribedSubscribers
+      },
+      subscribers
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Export Newsletter Subscribers as CSV (Admin)
+// @route   GET /api/admin/newsletter/export
+// @access  Private (Admin)
+export const exportAdminNewsletterSubscribers = async (req, res, next) => {
+  try {
+    const { status, search } = req.query;
+    const query = {};
+
+    if (status && status !== 'all') {
+      query.status = status.toLowerCase();
+    }
+
+    if (search) {
+      query.email = new RegExp(search.trim(), 'i');
+    }
+
+    const subscribers = await NewsletterSubscriber.find(query).sort({ subscribedAt: -1 });
+
+    // Generate CSV Header & Rows
+    let csvContent = 'Email,Status,Source,Subscribed Date,Unsubscribed Date\n';
+    
+    subscribers.forEach((sub) => {
+      const email = `"${sub.email.replace(/"/g, '""')}"`;
+      const subStatus = sub.status;
+      const source = `"${(sub.source || 'footer').replace(/"/g, '""')}"`;
+      const subDate = sub.subscribedAt ? `"${new Date(sub.subscribedAt).toISOString()}"` : '""';
+      const unsubDate = sub.unsubscribedAt ? `"${new Date(sub.unsubscribedAt).toISOString()}"` : '""';
+      
+      csvContent += `${email},${subStatus},${source},${subDate},${unsubDate}\n`;
+    });
+
+    await recordAuditLog({
+      adminId: req.user._id,
+      action: 'NEWSLETTER_EXPORT',
+      entity: 'NewsletterSubscriber',
+      ipAddress: req.ip || '',
+      metadata: { recordCount: subscribers.length, filterStatus: status || 'all' }
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="zahzan_newsletter_subscribers_${Date.now()}.csv"`);
+    return res.status(200).send(csvContent);
   } catch (error) {
     next(error);
   }

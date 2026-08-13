@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 
 export default function Newsletter() {
   const [email, setEmail] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [feedback, setFeedback] = useState(null) // { type: 'success' | 'already' | 'error', text: '' }
   const [isVisible, setIsVisible] = useState(false)
   const sectionRef = useRef(null)
 
@@ -18,10 +19,47 @@ export default function Newsletter() {
     return () => observer.disconnect()
   }, [])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (email) {
-      setSubmitted(true)
+    if (!email || loading) return
+
+    setLoading(true)
+    setFeedback(null)
+
+    try {
+      const res = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'homepage' })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        if (data.isAlreadySubscribed) {
+          setFeedback({
+            type: 'already',
+            text: "You're already subscribed to the ZAHZAN newsletter."
+          })
+        } else {
+          setFeedback({
+            type: 'success',
+            text: data.message || 'Thank you for subscribing. You will receive our quiet editorial updates directly in your inbox.'
+          })
+        }
+      } else {
+        setFeedback({
+          type: 'error',
+          text: data.message || 'Something went wrong. Please try again.'
+        })
+      }
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: 'Something went wrong. Please check your connection and try again.'
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -62,25 +100,34 @@ export default function Newsletter() {
             </p>
 
             {/* MINIMAL EDITORIAL FORM */}
-            {!submitted ? (
+            {!feedback || feedback.type === 'error' ? (
               <form onSubmit={handleSubmit} className="mt-10 max-w-lg">
                 <div className="relative flex items-center border-b border-[#1a1918]/30 transition-colors duration-300 focus-within:border-[#1a1918] pb-1">
                   <input
                     type="email"
                     required
+                    disabled={loading}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="YOUR EMAIL ADDRESS"
-                    className="w-full bg-transparent py-2 text-xs sm:text-sm tracking-[0.2em] uppercase text-[#1a1918] placeholder:text-[#706c64]/50 focus:outline-none font-sans"
+                    className="w-full bg-transparent py-2 text-xs sm:text-sm tracking-[0.2em] uppercase text-[#1a1918] placeholder:text-[#706c64]/50 focus:outline-none font-sans disabled:opacity-50"
                   />
                   <button
                     type="submit"
-                    className="group inline-flex items-center gap-2 shrink-0 py-2 text-xs font-medium uppercase tracking-[0.25em] text-[#1a1918] transition hover:text-[#5a5e4b] focus:outline-none"
+                    disabled={loading}
+                    className="group inline-flex items-center gap-2 shrink-0 py-2 text-xs font-medium uppercase tracking-[0.25em] text-[#1a1918] transition hover:text-[#5a5e4b] focus:outline-none disabled:opacity-50 cursor-pointer"
                   >
-                    <span>JOIN THE JOURNEY</span>
+                    <span>{loading ? 'SUBSCRIBING...' : 'JOIN THE JOURNEY'}</span>
                     <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
                   </button>
                 </div>
+
+                {/* Error feedback if any */}
+                {feedback && feedback.type === 'error' && (
+                  <p className="mt-2 text-xs font-sans text-red-600 font-medium">
+                    {feedback.text}
+                  </p>
+                )}
 
                 {/* Microcopy under form */}
                 <div className="mt-3 flex items-center justify-between text-[11px] text-[#706c64] font-light tracking-wide">
@@ -91,10 +138,10 @@ export default function Newsletter() {
             ) : (
               <div className="mt-8 p-6 rounded-xl border border-[#5a5e4b]/30 bg-white/60 max-w-lg transition-all duration-500">
                 <p className="text-xs uppercase tracking-[0.25em] text-[#5a5e4b] font-medium">
-                  ✓ WELCOME TO THE JOURNEY
+                  {feedback.type === 'already' ? '✓ ALREADY SUBSCRIBED' : '✓ WELCOME TO THE JOURNEY'}
                 </p>
                 <p className="mt-2 text-xs sm:text-sm text-[#2c2a26] font-light leading-relaxed">
-                  Thank you for subscribing. You will receive our quiet editorial updates directly in your inbox.
+                  {feedback.text}
                 </p>
               </div>
             )}
