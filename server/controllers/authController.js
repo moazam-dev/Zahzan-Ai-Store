@@ -1,13 +1,12 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
-import VerificationToken from '../models/VerificationToken.js';
 import PasswordResetToken from '../models/PasswordResetToken.js';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
-import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email.js';
+import { sendPasswordResetEmail } from '../services/emailService.js';
 
 /**
- * @desc    Register a new customer account
+ * @desc    Register a new customer account (Immediate Access — No Mandatory Email Verification)
  * @route   POST /api/auth/register
  * @access  Public
  */
@@ -15,7 +14,6 @@ export const registerUser = async (req, res, next) => {
   try {
     const { firstName, lastName, name, email, password, confirmPassword, phone } = req.body;
 
-    // Handle full name parsing if name is provided instead of firstName/lastName
     let fName = firstName;
     let lName = lastName;
     if (!fName && name) {
@@ -56,30 +54,20 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    // Create User
+    // Create User with isEmailVerified: true (IMMEDIATE ACCESS)
     const user = await User.create({
       firstName: fName.trim(),
       lastName: lName.trim(),
       email: normalizedEmail,
       password,
       phone: phone ? phone.trim() : '',
+      authProvider: 'local',
       role: 'customer',
-      isEmailVerified: false,
+      isEmailVerified: true,
       isActive: true
     });
 
-    // Create Verification Token
-    const rawVerificationToken = crypto.randomBytes(32).toString('hex');
-    await VerificationToken.create({
-      userId: user._id,
-      token: rawVerificationToken,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-    });
-
-    // Dispatch verification email in background
-    sendVerificationEmail(user.email, rawVerificationToken, `${user.firstName} ${user.lastName}`);
-
-    // Create JWT Tokens & Session
+    // Create JWT Tokens & Session for immediate login
     const token = generateToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
@@ -88,12 +76,12 @@ export const registerUser = async (req, res, next) => {
       token: refreshToken,
       deviceInfo: req.headers['user-agent'] || '',
       ipAddress: req.ip || '',
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully. Please check your email to verify your account.',
+      message: 'Account created successfully. Welcome to ZAHZAN!',
       token,
       refreshToken,
       user: {
@@ -104,6 +92,7 @@ export const registerUser = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        authProvider: user.authProvider,
         isEmailVerified: user.isEmailVerified
       }
     });
@@ -148,7 +137,6 @@ export const loginUser = async (req, res, next) => {
     const token = generateToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
 
-    // Save refresh token session
     await RefreshToken.create({
       userId: user._id,
       token: refreshToken,
@@ -170,7 +158,175 @@ export const loginUser = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        authProvider: user.authProvider || 'local',
         isEmailVerified: user.isEmailVerified
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Google Social Login
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { googleId, email, name, firstName, lastName, picture } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email address is required for Google authentication.'
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    let user = await User.findOne({
+      $or: [{ googleId: googleId || 'nonexistent' }, { email: normalizedEmail }]
+    });
+
+    if (user) {
+      // Safely link Google ID to existing account if not set
+      if (!user.googleId && googleId) {
+        user.googleId = googleId;
+        if (user.authProvider === 'local') {
+          user.authProvider = 'google';
+        }
+        await user.save();
+      }
+    } else {
+      // Create new user for Google social login
+      let fName = firstName;
+      let lName = lastName;
+      if (!fName && name) {
+        const parts = name.trim().split(' ');
+        fName = parts[0];
+        lName = parts.slice(1).join(' ') || parts[0];
+      }
+
+      user = await User.create({
+        firstName: (fName || 'Valued').trim(),
+        lastName: (lName || 'Client').trim(),
+        email: normalizedEmail,
+        authProvider: 'google',
+        googleId: googleId || `google_${Date.now()}`,
+        isEmailVerified: true,
+        isActive: true
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+    }
+
+    const token = generateToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id);
+
+    await RefreshToken.create({
+      userId: user._id,
+      token: refreshToken,
+      deviceInfo: req.headers['user-agent'] || '',
+      ipAddress: req.ip || '',
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Google authentication successful.',
+      token,
+      refreshToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone || '',
+        role: user.role,
+        authProvider: user.authProvider,
+        isEmailVerified: true
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    Facebook Social Login
+ * @route   POST /api/auth/facebook
+ * @access  Public
+ */
+export const facebookAuth = async (req, res, next) => {
+  try {
+    const { facebookId, email, name, firstName, lastName } = req.body;
+
+    const targetEmail = email
+      ? email.toLowerCase().trim()
+      : `facebook_${facebookId || Date.now()}@zahzan.com`;
+
+    let user = await User.findOne({
+      $or: [{ facebookId: facebookId || 'nonexistent' }, { email: targetEmail }]
+    });
+
+    if (user) {
+      if (!user.facebookId && facebookId) {
+        user.facebookId = facebookId;
+        await user.save();
+      }
+    } else {
+      let fName = firstName;
+      let lName = lastName;
+      if (!fName && name) {
+        const parts = name.trim().split(' ');
+        fName = parts[0];
+        lName = parts.slice(1).join(' ') || parts[0];
+      }
+
+      user = await User.create({
+        firstName: (fName || 'Valued').trim(),
+        lastName: (lName || 'Client').trim(),
+        email: targetEmail,
+        authProvider: 'facebook',
+        facebookId: facebookId || `fb_${Date.now()}`,
+        isEmailVerified: true,
+        isActive: true
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account is deactivated.' });
+    }
+
+    const token = generateToken(user._id, user.role);
+    const refreshToken = generateRefreshToken(user._id);
+
+    await RefreshToken.create({
+      userId: user._id,
+      token: refreshToken,
+      deviceInfo: req.headers['user-agent'] || '',
+      ipAddress: req.ip || '',
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Facebook authentication successful.',
+      token,
+      refreshToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone || '',
+        role: user.role,
+        authProvider: user.authProvider,
+        isEmailVerified: true
       }
     });
   } catch (error) {
@@ -204,7 +360,6 @@ export const refreshToken = async (req, res, next) => {
       });
     }
 
-    // Check database record
     const storedToken = await RefreshToken.findOne({
       token: incomingToken,
       isRevoked: false
@@ -254,7 +409,6 @@ export const logoutUser = async (req, res, next) => {
     }
 
     if (req.user) {
-      // Revoke latest token for current user
       await RefreshToken.updateMany(
         { userId: req.user._id, isRevoked: false },
         { $set: { isRevoked: true } }
@@ -271,108 +425,6 @@ export const logoutUser = async (req, res, next) => {
 };
 
 /**
- * @desc    Verify email address using token
- * @route   GET /api/auth/verify-email
- * @access  Public
- */
-export const verifyEmail = async (req, res, next) => {
-  try {
-    const token = req.query.token || req.body.token;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Verification token is required.'
-      });
-    }
-
-    const tokenDoc = await VerificationToken.findOne({ token });
-
-    if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired verification token.'
-      });
-    }
-
-    const user = await User.findById(tokenDoc.userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User account not found.'
-      });
-    }
-
-    user.isEmailVerified = true;
-    await user.save();
-
-    await VerificationToken.deleteOne({ _id: tokenDoc._id });
-
-    return res.json({
-      success: true,
-      message: 'Your email address has been verified successfully.'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Resend email verification link
- * @route   POST /api/auth/resend-verification
- * @access  Public
- */
-export const resendVerification = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email address is required.'
-      });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'No account found with this email address.'
-      });
-    }
-
-    if (user.isEmailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: 'Your email address is already verified.'
-      });
-    }
-
-    // Delete existing verification tokens for this user
-    await VerificationToken.deleteMany({ userId: user._id });
-
-    // Create new token
-    const rawVerificationToken = crypto.randomBytes(32).toString('hex');
-    await VerificationToken.create({
-      userId: user._id,
-      token: rawVerificationToken,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
-    });
-
-    sendVerificationEmail(user.email, rawVerificationToken, `${user.firstName} ${user.lastName}`);
-
-    return res.json({
-      success: true,
-      message: 'Verification email has been sent successfully.'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
  * @desc    Forgot password — Generate reset token & send email
  * @route   POST /api/auth/forgot-password
  * @access  Public
@@ -381,7 +433,6 @@ export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
 
-    // Always return generic response to prevent email enumeration
     const genericResponse = {
       success: true,
       message: 'If an account exists with this email, a password reset link has been sent.'
@@ -401,17 +452,16 @@ export const forgotPassword = async (req, res, next) => {
       return res.json(genericResponse);
     }
 
-    // Delete any old unused reset tokens for this user
     await PasswordResetToken.deleteMany({ userId: user._id });
 
-    // Create new password reset token
     const rawResetToken = crypto.randomBytes(32).toString('hex');
     await PasswordResetToken.create({
       userId: user._id,
       token: rawResetToken,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000)
     });
 
+    // Send email asynchronously
     sendPasswordResetEmail(user.email, rawResetToken);
 
     return res.json(genericResponse);
@@ -464,15 +514,12 @@ export const resetPassword = async (req, res, next) => {
       });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
-    // Mark token as used
     resetDoc.isUsed = true;
     await resetDoc.save();
 
-    // Revoke existing refresh sessions for security
     await RefreshToken.updateMany(
       { userId: user._id, isRevoked: false },
       { $set: { isRevoked: true } }
@@ -481,56 +528,6 @@ export const resetPassword = async (req, res, next) => {
     return res.json({
       success: true,
       message: 'Password reset successfully. You can now log in with your new password.'
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * @desc    Change password for logged in user
- * @route   POST /api/auth/change-password
- * @access  Private
- */
-export const changePassword = async (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password and new password are required.'
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters long.'
-      });
-    }
-
-    const user = await User.findById(req.user._id).select('+password');
-
-    if (!user || !(await user.matchPassword(currentPassword))) {
-      return res.status(400).json({
-        success: false,
-        message: 'Current password is incorrect.'
-      });
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    // Revoke existing refresh tokens
-    await RefreshToken.updateMany(
-      { userId: user._id, isRevoked: false },
-      { $set: { isRevoked: true } }
-    );
-
-    return res.json({
-      success: true,
-      message: 'Password updated successfully.'
     });
   } catch (error) {
     next(error);
@@ -554,6 +551,7 @@ export const getMe = async (req, res) => {
       email: user.email,
       phone: user.phone,
       role: user.role,
+      authProvider: user.authProvider || 'local',
       isEmailVerified: user.isEmailVerified,
       createdAt: user.createdAt
     }

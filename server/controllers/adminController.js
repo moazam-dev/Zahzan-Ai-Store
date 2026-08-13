@@ -7,6 +7,7 @@ import NewsletterSubscriber from '../models/NewsletterSubscriber.js';
 import AuditLog from '../models/AuditLog.js';
 import { generateToken } from '../utils/jwt.js';
 import { recordAuditLog } from '../utils/auditLogger.js';
+import { sendCustomerPaymentVerifiedEmail, sendCustomerOrderStatusEmail } from '../services/emailService.js';
 
 // @desc    Admin Dedicated Login
 // @route   POST /api/admin/auth/login
@@ -332,6 +333,16 @@ export const updateOrderStatus = async (req, res, next) => {
       ipAddress: req.ip || '',
       metadata: { orderNumber: order.orderNumber, previousStatus, newStatus: orderStatus }
     });
+
+    // Dispatch status update email if status actually changed
+    if (previousStatus !== orderStatus) {
+      sendCustomerOrderStatusEmail(order, orderStatus, {
+        courier: req.body.courier,
+        trackingNumber: req.body.trackingNumber
+      }).catch((emailErr) => {
+        console.warn('Warning: Order status email dispatch error:', emailErr.message);
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -876,6 +887,15 @@ export const verifyAdminPayment = async (req, res, next) => {
         transactionReference: payment.transactionReference
       }
     });
+
+    if (order) {
+      Promise.all([
+        sendCustomerPaymentVerifiedEmail(order, payment),
+        sendCustomerOrderStatusEmail(order, 'Confirmed')
+      ]).catch((emailErr) => {
+        console.warn('Warning: Payment verified email dispatch error:', emailErr.message);
+      });
+    }
 
     return res.status(200).json({
       success: true,

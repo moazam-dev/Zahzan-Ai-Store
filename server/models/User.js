@@ -23,9 +23,21 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
       minlength: [6, 'Password must be at least 6 characters long'],
       select: false
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google', 'facebook'],
+      default: 'local'
+    },
+    googleId: {
+      type: String,
+      default: ''
+    },
+    facebookId: {
+      type: String,
+      default: ''
     },
     phone: {
       type: String,
@@ -39,7 +51,7 @@ const userSchema = new mongoose.Schema(
     },
     isEmailVerified: {
       type: Boolean,
-      default: false
+      default: true
     },
     isActive: {
       type: Boolean,

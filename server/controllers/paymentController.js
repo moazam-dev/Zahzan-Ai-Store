@@ -2,6 +2,7 @@ import Order from '../models/Order.js';
 import Payment from '../models/Payment.js';
 import { PAYMENT_METHODS } from '../config/paymentMethods.js';
 import { uploadPaymentProofToCloudinary, deletePaymentProofFromCloudinary } from '../utils/cloudinary.js';
+import { sendAdminPaymentProofEmail } from '../services/emailService.js';
 
 // @desc    Get active payment methods config
 // @route   GET /api/payments/methods
@@ -109,6 +110,11 @@ export const submitPaymentProof = async (req, res, next) => {
     // Update order payment status
     order.paymentStatus = 'submitted';
     await order.save();
+
+    // Dispatch email notification to admin asynchronously
+    sendAdminPaymentProofEmail(order, payment).catch((emailErr) => {
+      console.warn('Warning: Failed to send payment proof email to admin:', emailErr.message);
+    });
 
     return res.status(201).json({
       success: true,

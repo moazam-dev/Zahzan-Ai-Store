@@ -5,6 +5,7 @@ import Cart from '../models/Cart.js';
 import User from '../models/User.js';
 import Payment from '../models/Payment.js';
 import { uploadPaymentProofToCloudinary, deletePaymentProofFromCloudinary } from '../utils/cloudinary.js';
+import { sendAdminNewOrderEmail, sendCustomerOrderConfirmationEmail } from '../services/emailService.js';
 
 // Helper function to generate human-readable unique order number: ZHZ-YYYYMMDD-XXXX
 const generateOrderNumber = async () => {
@@ -288,6 +289,14 @@ export const createOrder = async (req, res) => {
         await cart.save();
       }
     }
+
+    // 11. Dispatch Email Notifications asynchronously
+    Promise.all([
+      sendAdminNewOrderEmail(order),
+      sendCustomerOrderConfirmationEmail(order)
+    ]).catch((emailErr) => {
+      console.warn('Warning: Order email dispatching error:', emailErr.message);
+    });
 
     return res.status(201).json({
       success: true,
