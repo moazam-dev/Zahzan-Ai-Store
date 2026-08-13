@@ -11,7 +11,8 @@ const auditLogSchema = new mongoose.Schema(
     action: {
       type: String,
       required: [true, 'Audit action is required'],
-      trim: true
+      trim: true,
+      index: true
     },
     entity: {
       type: String,
@@ -19,6 +20,11 @@ const auditLogSchema = new mongoose.Schema(
       trim: true
     },
     entityId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    ipAddress: {
       type: String,
       trim: true,
       default: ''
@@ -32,6 +38,14 @@ const auditLogSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+auditLogSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    ret.id = ret._id.toString();
+    return ret;
+  }
+});
 
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 

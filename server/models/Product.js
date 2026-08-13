@@ -129,6 +129,16 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+// Pre-validate hook to auto-generate slug if missing
+productSchema.pre('validate', function (next) {
+  if (!this.slug && this.name) {
+    const baseSlug = this.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const skuPart = this.sku ? `-${this.sku.toLowerCase()}` : '';
+    this.slug = `${baseSlug}${skuPart}`;
+  }
+  next();
+});
+
 productSchema.set('toJSON', {
   virtuals: true,
   transform: (doc, ret) => {
@@ -148,4 +158,3 @@ productSchema.set('toObject', {
 const Product = mongoose.model('Product', productSchema);
 
 export default Product;
-
