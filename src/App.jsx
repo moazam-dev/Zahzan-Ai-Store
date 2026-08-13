@@ -9,6 +9,7 @@ import Account from './pages/Account'
 import AdminLogin from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminOrders from './pages/admin/AdminOrders'
+import AdminPayments from './pages/admin/AdminPayments'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminCustomers from './pages/admin/AdminCustomers'
 import AdminNewsletter from './pages/admin/AdminNewsletter'
@@ -37,6 +38,7 @@ function App() {
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/payments" element={<AdminPayments />} />
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/customers" element={<AdminCustomers />} />
             <Route path="/admin/newsletter" element={<AdminNewsletter />} />

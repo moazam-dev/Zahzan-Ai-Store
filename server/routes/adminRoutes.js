@@ -15,7 +15,11 @@ import {
   deleteAdminProduct,
   getAdminNewsletterSubscribers,
   exportAdminNewsletterSubscribers,
-  getAdminAuditLogs
+  getAdminAuditLogs,
+  getAdminPayments,
+  getAdminPaymentById,
+  verifyAdminPayment,
+  rejectAdminPayment
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { requireAdmin } from '../middleware/adminMiddleware.js';
@@ -39,6 +43,12 @@ router.get('/dashboard', getAdminDashboardStats);
 router.get('/orders', getAllOrders);
 router.get('/orders/:id', getAdminOrderById);
 router.patch('/orders/:id/status', updateOrderStatus);
+
+// Payment Verification Management
+router.get('/payments', getAdminPayments);
+router.get('/payments/:id', getAdminPaymentById);
+router.patch('/payments/:id/verify', verifyAdminPayment);
+router.patch('/payments/:id/reject', rejectAdminPayment);
 
 // Customers Management
 router.get('/customers', getAllUsers);

@@ -12,7 +12,11 @@ import {
   Truck,
   MapPin,
   Calendar,
-  Clock
+  Clock,
+  ExternalLink,
+  CreditCard,
+  Check,
+  XCircle
 } from 'lucide-react'
 import AdminLayout from './AdminLayout'
 
@@ -33,6 +37,8 @@ export default function AdminOrders() {
   // Order Details Modal State
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [verifyingPayment, setVerifyingPayment] = useState(false)
 
   const fetchOrders = () => {
     const token = localStorage.getItem('zahzan_token')
@@ -96,12 +102,11 @@ export default function AdminOrders() {
       const data = await res.json()
 
       if (res.ok && data.success && data.order) {
-        // Update local state
         setOrders((prev) =>
-          prev.map((o) => (o._id === orderId || o.id === orderId ? data.order : o))
+          prev.map((o) => (o._id === orderId || o.id === orderId ? { ...data.order, payment: o.payment } : o))
         )
         if (selectedOrder && (selectedOrder._id === orderId || selectedOrder.id === orderId)) {
-          setSelectedOrder(data.order)
+          setSelectedOrder({ ...data.order, payment: selectedOrder.payment })
         }
       } else {
         alert(data.message || 'Failed to update order status.')
@@ -111,6 +116,76 @@ export default function AdminOrders() {
       alert('Error updating status on server.')
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  // Verify Payment directly from Order Details popup
+  const handleVerifyPaymentFromOrder = async (paymentId) => {
+    const token = localStorage.getItem('zahzan_token')
+    if (!token || !paymentId) return
+
+    if (!window.confirm('Are you sure you want to APPROVE & VERIFY this payment proof?')) return
+
+    try {
+      setVerifyingPayment(true)
+      const res = await fetch(`${API_BASE}/admin/payments/${paymentId}/verify`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        alert('Payment verified successfully! Order status advanced to Confirmed.')
+        setSelectedOrder(null)
+        fetchOrders()
+      } else {
+        alert(data.message || 'Failed to verify payment.')
+      }
+    } catch (err) {
+      console.error('Error verifying payment:', err)
+      alert('Error connecting to backend server.')
+    } finally {
+      setVerifyingPayment(false)
+    }
+  }
+
+  // Reject Payment directly from Order Details popup
+  const handleRejectPaymentFromOrder = async (paymentId) => {
+    const token = localStorage.getItem('zahzan_token')
+    if (!token || !paymentId) return
+
+    if (!rejectionReason || !rejectionReason.trim()) {
+      alert('Please enter a rejection reason (e.g. Invalid reference ID, incorrect amount, unclear receipt screenshot).')
+      return
+    }
+
+    if (!window.confirm('Are you sure you want to REJECT this payment proof?')) return
+
+    try {
+      setVerifyingPayment(true)
+      const res = await fetch(`${API_BASE}/admin/payments/${paymentId}/reject`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ rejectionReason: rejectionReason.trim() })
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        alert('Payment proof rejected.')
+        setSelectedOrder(null)
+        setRejectionReason('')
+        fetchOrders()
+      } else {
+        alert(data.message || 'Failed to reject payment.')
+      }
+    } catch (err) {
+      console.error('Error rejecting payment:', err)
+      alert('Error connecting to backend server.')
+    } finally {
+      setVerifyingPayment(false)
     }
   }
 
@@ -195,15 +270,18 @@ export default function AdminOrders() {
                     <th className="py-3 px-4">Order #</th>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Items</th>
+                    <th className="py-3 px-4">Payment Method</th>
                     <th className="py-3 px-4">Total</th>
-                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Order Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#262931]">
                   {orders.map((ord) => {
                     const status = ord.orderStatus || 'Pending'
+                    const payMethod = ord.paymentMethod || ord.payment?.paymentMethod || 'Cash on Delivery'
+                    const isCOD = payMethod === 'Cash on Delivery'
+
                     return (
                       <tr key={ord._id || ord.id} className="hover:bg-[#1c1f26]">
                         <td className="py-3.5 px-4 font-semibold text-white">{ord.orderNumber}</td>
@@ -215,7 +293,10 @@ export default function AdminOrders() {
                           <div className="text-[10px] text-[#707482]">{ord.customerEmail}</div>
                         </td>
                         <td className="py-3.5 px-4 text-[#c2c5ce]">
-                          {ord.items?.length || 0} articles
+                          <span className="font-medium text-white block">{payMethod}</span>
+                          <span className="text-[10px] text-[#8c9472]">
+                            {isCOD ? 'COD (No Proof Required)' : ord.payment ? `Ref: ${ord.payment.transactionReference}` : 'Proof Submitted'}
+                          </span>
                         </td>
                         <td className="py-3.5 px-4 font-serif text-sm text-white">
                           PKR {ord.total.toLocaleString()}
@@ -243,7 +324,10 @@ export default function AdminOrders() {
                         <td className="py-3.5 px-4 text-right">
                           <button
                             type="button"
-                            onClick={() => setSelectedOrder(ord)}
+                            onClick={() => {
+                              setSelectedOrder(ord)
+                              setRejectionReason('')
+                            }}
                             className="inline-flex items-center gap-1 bg-[#222630] border border-[#343845] text-white text-[10px] uppercase tracking-wider px-3 py-1.5 hover:bg-[#8c9472] transition-colors cursor-pointer"
                           >
                             <Eye size={12} />
@@ -289,10 +373,10 @@ export default function AdminOrders() {
           </div>
         )}
 
-        {/* ORDER DETAILS MODAL */}
+        {/* ORDER DETAILS MODAL (WITH CLOUDINARY PAYMENT PROOF & VERIFICATION) */}
         {selectedOrder && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-            <div className="bg-[#16181d] border border-[#262931] rounded-sm max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl text-xs font-mono">
+            <div className="bg-[#16181d] border border-[#262931] rounded-sm max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl text-xs font-mono">
               
               {/* Header */}
               <div className="p-6 border-b border-[#262931] flex items-center justify-between bg-[#121317]">
@@ -333,6 +417,146 @@ export default function AdminOrders() {
                     </span>
                   </div>
                 </div>
+
+                {/* PAYMENT INFORMATION & CLOUDINARY PROOF SECTION */}
+                {(() => {
+                  const payMethod = selectedOrder.paymentMethod || selectedOrder.payment?.paymentMethod || 'Cash on Delivery'
+                  const isCOD = payMethod === 'Cash on Delivery'
+                  const paymentObj = selectedOrder.payment
+                  const proofUrl = paymentObj?.proofUrl
+                  const payStatus = paymentObj?.status || selectedOrder.paymentStatus || (isCOD ? 'not_required' : 'pending')
+
+                  return (
+                    <div className="bg-[#0f1012] p-5 border border-[#262931] space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#262931] pb-3">
+                        <div>
+                          <span className="text-[10px] uppercase tracking-wider text-[#8c9472] font-semibold block">
+                            PAYMENT INFORMATION
+                          </span>
+                          <span className="text-white text-sm font-bold block mt-0.5">{payMethod}</span>
+                        </div>
+
+                        <span className={`px-2.5 py-0.5 text-[10px] uppercase font-bold border ${
+                          payStatus === 'Verified' || payStatus === 'verified'
+                            ? 'bg-green-950 text-green-300 border-green-800'
+                            : payStatus === 'Rejected' || payStatus === 'rejected'
+                            ? 'bg-red-950 text-red-300 border-red-800'
+                            : isCOD || payStatus === 'not_required'
+                            ? 'bg-[#222630] text-[#c2c5ce] border-[#343845]'
+                            : 'bg-yellow-950 text-yellow-300 border-yellow-800'
+                        }`}>
+                          {isCOD ? 'Cash on Delivery (Not Required)' : payStatus}
+                        </span>
+                      </div>
+
+                      {/* Advance Payment Details & Cloudinary Proof Display */}
+                      {!isCOD ? (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4 text-xs font-mono text-[#c2c5ce]">
+                            <div>
+                              <span className="text-[10px] text-[#8a8e98] uppercase block">Transaction Reference ID</span>
+                              <strong className="text-[#8c9472] font-mono text-sm">{paymentObj?.transactionReference || 'N/A'}</strong>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-[#8a8e98] uppercase block">Payable Order Amount</span>
+                              <strong className="text-white font-serif text-sm">PKR {selectedOrder.total?.toLocaleString()}</strong>
+                            </div>
+                          </div>
+
+                          {/* CLOUDINARY SCREENSHOT VIEWER */}
+                          <div className="space-y-2 pt-2 border-t border-[#262931]">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] uppercase text-[#8a8e98]">CLOUDINARY PAYMENT SCREENSHOT / RECEIPT</span>
+                              {proofUrl && (
+                                <a
+                                  href={proofUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] uppercase text-[#8c9472] hover:underline flex items-center gap-1"
+                                >
+                                  <span>View Full Size Image</span>
+                                  <ExternalLink size={12} />
+                                </a>
+                              )}
+                            </div>
+
+                            {proofUrl ? (
+                              <div className="bg-[#16181d] border border-[#262931] p-3 text-center rounded-xs overflow-hidden max-h-72 flex items-center justify-center">
+                                {proofUrl.toLowerCase().endsWith('.pdf') ? (
+                                  <div className="py-6 space-y-2">
+                                    <span className="text-white font-semibold block">PDF Document Receipt</span>
+                                    <a
+                                      href={proofUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-block bg-[#222630] border border-[#343845] text-white px-4 py-2 hover:bg-[#8c9472]"
+                                    >
+                                      Open PDF Document →
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={proofUrl}
+                                    alt="Uploaded Payment Proof Screenshot"
+                                    className="max-h-64 object-contain mx-auto border border-[#262931]"
+                                  />
+                                )}
+                              </div>
+                            ) : (
+                              <div className="p-4 bg-[#1a1717] border border-[#3d2424] text-red-300 text-xs font-mono rounded-xs">
+                                Payment Proof Screenshot: Not Available (No proof file uploaded for this transaction).
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Inline Admin Verification Actions */}
+                          {paymentObj && paymentObj.status === 'Pending' && (
+                            <div className="space-y-3 pt-3 border-t border-[#262931]">
+                              <div className="space-y-1">
+                                <label className="block text-[10px] text-[#8a8e98] uppercase">
+                                  Rejection Reason (Required ONLY if rejecting payment)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rejectionReason}
+                                  onChange={(e) => setRejectionReason(e.target.value)}
+                                  placeholder="e.g. Invalid reference ID, incorrect amount, unclear receipt"
+                                  className="w-full bg-[#16181d] border border-[#262931] p-2.5 text-xs font-mono text-white placeholder-[#505462] focus:outline-none focus:border-red-500"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  disabled={verifyingPayment}
+                                  onClick={() => handleRejectPaymentFromOrder(paymentObj._id || paymentObj.id)}
+                                  className="flex-1 bg-red-950 border border-red-800 text-red-300 text-xs font-mono uppercase px-4 py-2 hover:bg-red-900 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {verifyingPayment ? 'Processing...' : 'REJECT PAYMENT'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={verifyingPayment}
+                                  onClick={() => handleVerifyPaymentFromOrder(paymentObj._id || paymentObj.id)}
+                                  className="flex-1 bg-[#8c9472] text-[#0f1012] font-bold text-xs font-mono uppercase px-5 py-2 hover:bg-white transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {verifyingPayment ? 'Processing...' : 'APPROVE & VERIFY PAYMENT ✓'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      ) : (
+                        <div className="text-[#8a8e98] text-xs">
+                          Payment Method is <strong>Cash on Delivery</strong>. No advance payment proof screenshot required.
+                        </div>
+                      )}
+
+                    </div>
+                  )
+                })()}
 
                 {/* Permanent Shipping Address Snapshot */}
                 <div className="bg-[#0f1012] p-4 border border-[#262931] space-y-1">

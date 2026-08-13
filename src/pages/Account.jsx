@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { User, Lock, Mail, Phone, MapPin, Plus, Trash2, CheckCircle, AlertCircle, LogOut, Key, ShieldCheck } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import SubmitPaymentModal from '../components/SubmitPaymentModal'
 
 const API_BASE = '/api'
 
@@ -19,6 +20,8 @@ export default function Account() {
   // Orders State
   const [orders, setOrders] = useState([])
   const [ordersLoading, setOrdersLoading] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null)
 
   // Auth Form State
   const [loginData, setLoginData] = useState({ email: '', password: '' })
@@ -803,6 +806,12 @@ export default function Account() {
                   <div className="space-y-6">
                     {orders.map((ord) => {
                       const status = ord.orderStatus || 'Pending'
+                      const payStatus = ord.paymentStatus || 'pending'
+                      const isCOD = ord.paymentMethod === 'Cash on Delivery' || payStatus === 'not_required'
+                      const isPayVerified = payStatus === 'verified'
+                      const isPayRejected = payStatus === 'rejected'
+                      const isPaySubmitted = payStatus === 'submitted'
+                      const canResubmitRejected = !isCOD && isPayRejected && status.toLowerCase() !== 'cancelled'
                       const canCancel = status.toLowerCase() === 'pending' || status.toLowerCase() === 'confirmed'
 
                       return (
@@ -810,7 +819,7 @@ export default function Account() {
                           {/* Order Header */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e8e4dc] pb-4">
                             <div>
-                              <div className="flex items-center gap-3">
+                              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                                 <h4 className="font-serif text-xl font-normal text-[#1c1b18]">
                                   Order #{ord.orderNumber}
                                 </h4>
@@ -822,6 +831,25 @@ export default function Account() {
                                     : 'bg-white border-[#e8e4dc] text-[#1c1b18]'
                                 }`}>
                                   {status}
+                                </span>
+
+                                {/* Payment Status Badge */}
+                                <span className={`px-2.5 py-0.5 text-[9px] font-sans font-semibold uppercase tracking-widest border ${
+                                  isCOD
+                                    ? 'bg-[#faf8f5] border-[#e8e4dc] text-[#1c1b18]'
+                                    : isPayVerified
+                                    ? 'bg-[#f0f4ec] border-[#b4c4a4] text-[#5a5e4b]'
+                                    : isPayRejected
+                                    ? 'bg-[#fdf2f2] border-[#f4c7c7] text-[#8a2222]'
+                                    : 'bg-[#edf2f7] border-[#cbd5e1] text-[#334155]'
+                                }`}>
+                                  {isCOD
+                                    ? 'Cash on Delivery (Payment Upon Delivery)'
+                                    : isPayVerified
+                                    ? '✓ Payment Verified'
+                                    : isPayRejected
+                                    ? 'Payment Proof Rejected'
+                                    : 'Payment Submitted — Pending Verification'}
                                 </span>
                               </div>
                               <span className="text-[11px] font-sans text-[#706c64] block mt-1">
@@ -861,22 +889,37 @@ export default function Account() {
                             </div>
                           </div>
 
-                          {/* Order Details Footer */}
+                          {/* Order Details & Actions Footer */}
                           <div className="pt-3 border-t border-[#e8e4dc] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-sans text-[#706c64]">
                             <div>
                               <span className="font-medium text-[#1c1b18] block uppercase tracking-wider text-[10px]">Deliver To:</span>
                               <span>{ord.shippingAddress.fullName} • {ord.shippingAddress.addressLine1}, {ord.shippingAddress.city}</span>
                             </div>
 
-                            {canCancel && (
-                              <button
-                                type="button"
-                                onClick={() => handleCancelOrder(ord._id || ord.id)}
-                                className="self-start sm:self-auto text-[10px] font-sans uppercase tracking-[0.2em] text-[#8a2222] hover:text-[#1c1b18] border border-[#f4c7c7] px-3 py-1.5 hover:border-[#1c1b18] transition-colors cursor-pointer"
-                              >
-                                CANCEL ORDER
-                              </button>
-                            )}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {canResubmitRejected && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedOrderForPayment(ord)
+                                    setShowPaymentModal(true)
+                                  }}
+                                  className="text-[10px] font-sans font-medium uppercase tracking-[0.2em] bg-[#1c1b18] text-[#faf8f5] px-4 py-2 hover:bg-[#5a5e4b] transition-colors cursor-pointer"
+                                >
+                                  RESUBMIT PAYMENT PROOF →
+                                </button>
+                              )}
+
+                              {canCancel && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelOrder(ord._id || ord.id)}
+                                  className="text-[10px] font-sans uppercase tracking-[0.2em] text-[#8a2222] hover:text-[#1c1b18] border border-[#f4c7c7] px-3 py-1.5 hover:border-[#1c1b18] transition-colors cursor-pointer"
+                                >
+                                  CANCEL ORDER
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )
@@ -1241,6 +1284,16 @@ export default function Account() {
         )}
 
       </main>
+
+      {/* SUBMIT PAYMENT MODAL */}
+      <SubmitPaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        order={selectedOrderForPayment}
+        onPaymentSubmitted={() => {
+          fetchOrders()
+        }}
+      />
 
       <Footer />
     </div>

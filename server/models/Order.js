@@ -67,9 +67,14 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    paymentMethod: {
+      type: String,
+      enum: ['Cash on Delivery', 'JazzCash', 'Easypaisa', 'Bank Transfer'],
+      default: 'Cash on Delivery'
+    },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'submitted', 'verified', 'rejected'],
+      enum: ['pending', 'submitted', 'verified', 'rejected', 'not_required'],
       default: 'pending'
     },
     orderStatus: {

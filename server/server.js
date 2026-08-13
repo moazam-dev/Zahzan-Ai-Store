@@ -1,7 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -20,8 +22,6 @@ import tryOnRoutes from './routes/tryOnRoutes.js';
 import newsletterRoutes from './routes/newsletterRoutes.js';
 import storyRoutes from './routes/storyRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

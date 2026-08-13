@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Address from '../models/Address.js';
+import Payment from '../models/Payment.js';
 import NewsletterSubscriber from '../models/NewsletterSubscriber.js';
 import AuditLog from '../models/AuditLog.js';
 import { generateToken } from '../utils/jwt.js';
@@ -135,7 +136,17 @@ export const getAdminDashboardStats = async (req, res, next) => {
     // 5. Newsletter statistics
     const totalSubscribers = await NewsletterSubscriber.countDocuments({ status: 'subscribed' });
 
-    // 6. Recent orders
+    // 6. Payment statistics
+    const pendingPaymentsCount = await Payment.countDocuments({ status: 'Pending' });
+    const verifiedPaymentsCount = await Payment.countDocuments({ status: 'Verified' });
+    const rejectedPaymentsCount = await Payment.countDocuments({ status: 'Rejected' });
+    const verifiedPaymentSumAgg = await Payment.aggregate([
+      { $match: { status: 'Verified' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const verifiedPaymentAmount = verifiedPaymentSumAgg.length > 0 ? verifiedPaymentSumAgg[0].total : 0;
+
+    // 7. Recent orders
     const recentOrders = await Order.find()
       .sort({ createdAt: -1 })
       .limit(5);
@@ -162,6 +173,12 @@ export const getAdminDashboardStats = async (req, res, next) => {
           lowStockCount,
           outOfStockCount,
           lowStockProducts
+        },
+        payments: {
+          pending: pendingPaymentsCount,
+          verified: verifiedPaymentsCount,
+          rejected: rejectedPaymentsCount,
+          verifiedAmount: verifiedPaymentAmount
         },
         newsletter: {
           totalSubscribers
@@ -201,10 +218,20 @@ export const getAllOrders = async (req, res, next) => {
     }
 
     const total = await Order.countDocuments(query);
-    const orders = await Order.find(query)
+    const rawOrders = await Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // Attach linked payment records to orders
+    const orders = await Promise.all(
+      rawOrders.map(async (ord) => {
+        const ordObj = ord.toObject();
+        const payment = await Payment.findOne({ orderId: ord._id }).sort({ createdAt: -1 });
+        ordObj.payment = payment || null;
+        return ordObj;
+      })
+    );
 
     return res.status(200).json({
       success: true,
@@ -224,25 +251,30 @@ export const getAllOrders = async (req, res, next) => {
 export const getAdminOrderById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    let order;
+    let orderDoc;
 
     if (id.match(/^[0-9a-fA-F]{24}$/)) {
-      order = await Order.findById(id);
+      orderDoc = await Order.findById(id);
     }
-    if (!order) {
-      order = await Order.findOne({ orderNumber: id.toUpperCase() });
+    if (!orderDoc) {
+      orderDoc = await Order.findOne({ orderNumber: id.toUpperCase() });
     }
 
-    if (!order) {
+    if (!orderDoc) {
       return res.status(404).json({
         success: false,
         message: 'Order not found'
       });
     }
 
+    const order = orderDoc.toObject();
+    const payment = await Payment.findOne({ orderId: orderDoc._id }).sort({ createdAt: -1 });
+    order.payment = payment || null;
+
     return res.status(200).json({
       success: true,
-      order
+      order,
+      payment: payment || null
     });
   } catch (error) {
     next(error);
@@ -720,3 +752,204 @@ export const getAdminAuditLogs = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Get All Payments (Admin)
+// @route   GET /api/admin/payments
+// @access  Private (Admin)
+export const getAdminPayments = async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit, 10) || 15);
+    const skip = (page - 1) * limit;
+
+    const { status, search } = req.query;
+    const query = {};
+
+    if (status && status !== 'all') {
+      query.status = new RegExp(`^${status}$`, 'i');
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      const matchingOrders = await Order.find({
+        $or: [{ orderNumber: searchRegex }, { customerEmail: searchRegex }]
+      }).select('_id');
+      const orderIds = matchingOrders.map((o) => o._id);
+
+      query.$or = [
+        { transactionReference: searchRegex },
+        { orderId: { $in: orderIds } }
+      ];
+    }
+
+    const total = await Payment.countDocuments(query);
+    const payments = await Payment.find(query)
+      .populate('orderId', 'orderNumber total orderStatus paymentStatus items shippingAddress')
+      .populate('userId', 'firstName lastName email phone')
+      .populate('verifiedBy', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    return res.status(200).json({
+      success: true,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      payments
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get Payment By ID (Admin)
+// @route   GET /api/admin/payments/:id
+// @access  Private (Admin)
+export const getAdminPaymentById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const payment = await Payment.findById(id)
+      .populate('orderId')
+      .populate('userId', 'firstName lastName email phone')
+      .populate('verifiedBy', 'firstName lastName email');
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      payment
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify Payment Proof (Admin)
+// @route   PATCH /api/admin/payments/:id/verify
+// @access  Private (Admin)
+export const verifyAdminPayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const payment = await Payment.findById(id);
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
+    }
+
+    // Concurrency / Status check: Ensure payment is currently Pending
+    if (payment.status !== 'Pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Payment has already been processed and is currently "${payment.status}".`
+      });
+    }
+
+    payment.status = 'Verified';
+    payment.verifiedBy = req.user._id;
+    payment.verifiedAt = new Date();
+    await payment.save();
+
+    // Update associated Order status
+    const order = await Order.findById(payment.orderId);
+    if (order) {
+      order.paymentStatus = 'verified';
+      if (order.orderStatus === 'Pending') {
+        order.orderStatus = 'Confirmed';
+      }
+      await order.save();
+    }
+
+    await recordAuditLog({
+      adminId: req.user._id,
+      action: 'PAYMENT_VERIFIED',
+      entity: 'Payment',
+      entityId: payment._id.toString(),
+      ipAddress: req.ip || '',
+      metadata: {
+        orderId: order ? order._id.toString() : '',
+        orderNumber: order ? order.orderNumber : '',
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        transactionReference: payment.transactionReference
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      payment,
+      order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reject Payment Proof (Admin)
+// @route   PATCH /api/admin/payments/:id/reject
+// @access  Private (Admin)
+export const rejectAdminPayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason || !rejectionReason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'A rejection reason is required (e.g. Invalid reference ID, incorrect amount, unclear receipt).'
+      });
+    }
+
+    const payment = await Payment.findById(id);
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
+    }
+
+    // Concurrency / Status check: Ensure payment is currently Pending
+    if (payment.status !== 'Pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Payment has already been processed and is currently "${payment.status}".`
+      });
+    }
+
+    payment.status = 'Rejected';
+    payment.rejectionReason = rejectionReason.trim();
+    payment.verifiedBy = req.user._id;
+    payment.verifiedAt = new Date();
+    await payment.save();
+
+    // Update associated Order status
+    const order = await Order.findById(payment.orderId);
+    if (order) {
+      order.paymentStatus = 'rejected';
+      await order.save();
+    }
+
+    await recordAuditLog({
+      adminId: req.user._id,
+      action: 'PAYMENT_REJECTED',
+      entity: 'Payment',
+      entityId: payment._id.toString(),
+      ipAddress: req.ip || '',
+      metadata: {
+        orderId: order ? order._id.toString() : '',
+        orderNumber: order ? order.orderNumber : '',
+        rejectionReason: payment.rejectionReason
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Payment rejected',
+      payment,
+      order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

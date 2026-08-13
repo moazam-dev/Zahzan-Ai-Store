@@ -71,6 +71,7 @@ export default function AdminLayout({ children }) {
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Orders', path: '/admin/orders', icon: ShoppingBag },
+    { label: 'Payments', path: '/admin/payments', icon: ShieldCheck },
     { label: 'Products', path: '/admin/products', icon: Package },
     { label: 'Customers', path: '/admin/customers', icon: Users },
     { label: 'Newsletter', path: '/admin/newsletter', icon: Mail },

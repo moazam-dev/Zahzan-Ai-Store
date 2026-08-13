@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, CheckCircle, Truck, MapPin, AlertCircle, ShoppingBag, ShieldCheck } from 'lucide-react'
+import { X, CheckCircle, Truck, MapPin, AlertCircle, ShoppingBag, ShieldCheck, ArrowLeft, Upload, CreditCard, Building, Smartphone } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 
 const API_BASE = '/api'
@@ -15,11 +15,17 @@ export default function CheckoutModal({
   onOrderSuccess = () => {}
 }) {
   const { cartItems, cartTotal, clearCart, fetchCart } = useCart()
+  
+  // Step Navigation: 1 = Delivery Details, 2 = Payment Details, 3 = Confirmation
+  const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [savedAddresses, setSavedAddresses] = useState([])
   const [selectedAddressId, setSelectedAddressId] = useState(null)
+
+  // Payment Channels Config
+  const [paymentMethodsConfig, setPaymentMethodsConfig] = useState([])
 
   // Customer Contact Info
   const [customerInfo, setCustomerInfo] = useState({
@@ -42,22 +48,34 @@ export default function CheckoutModal({
     deliveryInstructions: ''
   })
 
+  // Step 2 Payment State
+  const [paymentChoice, setPaymentChoice] = useState('cod') // 'cod' | 'advance'
+  const [selectedAdvanceChannel, setSelectedAdvanceChannel] = useState('jazzcash')
+  const [transactionRef, setTransactionRef] = useState('')
+  const [proofFile, setProofFile] = useState(null)
+
   // Confirmation state
   const [confirmedOrder, setConfirmedOrder] = useState(null)
+  const [submittedPaymentRecord, setSubmittedPaymentRecord] = useState(null)
 
   const getAuthToken = () => localStorage.getItem('zahzan_token')
 
-  // Fetch user profile and saved addresses on mount/open
+  // Fetch user profile, saved addresses & payment methods on mount/open
   useEffect(() => {
     if (isOpen) {
       const token = getAuthToken()
       if (!token) return
 
-      // Reset state
+      // Reset state on modal open
+      setStep(1)
       setErrorMsg(null)
       setConfirmedOrder(null)
+      setSubmittedPaymentRecord(null)
+      setPaymentChoice('cod')
+      setTransactionRef('')
+      setProofFile(null)
 
-      // Fetch Profile
+      // Fetch Profile & Addresses
       fetch(`${API_BASE}/users/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -71,7 +89,6 @@ export default function CheckoutModal({
               phone: data.user.phone || ''
             })
 
-            // If addresses available
             if (data.addresses && data.addresses.length > 0) {
               setSavedAddresses(data.addresses)
               const defaultAddr = data.addresses.find((a) => a.isDefault) || data.addresses[0]
@@ -82,6 +99,19 @@ export default function CheckoutModal({
           }
         })
         .catch((err) => console.error('Failed to load checkout user info:', err))
+
+      // Fetch Payment Channels config
+      fetch(`${API_BASE}/payments/methods`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.methods)) {
+            setPaymentMethodsConfig(data.methods)
+            if (data.methods.length > 0) {
+              setSelectedAdvanceChannel(data.methods[0].id)
+            }
+          }
+        })
+        .catch((err) => console.error('Failed to load payment channels:', err))
     }
   }, [isOpen])
 
@@ -127,60 +157,135 @@ export default function CheckoutModal({
   const shippingCost = subtotal >= 20000 ? 0 : 250
   const finalTotal = subtotal + shippingCost
 
-  const handlePlaceOrder = async (e) => {
+  // Active channel details object
+  const activeChannelObj = paymentMethodsConfig.find((m) => m.id === selectedAdvanceChannel) || paymentMethodsConfig[0]
+
+  // Step 1 -> Step 2 Validation
+  const handleProceedToPayment = (e) => {
+    e.preventDefault()
+    setErrorMsg(null)
+
+    if (!shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.addressLine1 || !shippingAddress.city) {
+      setErrorMsg('Please fill in all required delivery address fields.')
+      return
+    }
+
+    setStep(2)
+  }
+
+  // Handle File Upload Change
+  const handleProofFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMsg('File size exceeds 5MB limit. Please select a smaller file.')
+        setProofFile(null)
+        return
+      }
+      setErrorMsg(null)
+      setProofFile(file)
+    }
+  }
+
+  // Submit Final Order (COD or Advance Payment)
+  const handleFinalOrderSubmit = async (e) => {
     e.preventDefault()
     setErrorMsg(null)
     const token = getAuthToken()
 
     if (!token) {
-      setErrorMsg('Please sign in to place your order.')
+      setErrorMsg('Please sign in to complete your order.')
       return
     }
 
-    if (!shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.addressLine1 || !shippingAddress.city) {
-      setErrorMsg('Please fill in all required shipping address fields.')
-      return
+    if (paymentChoice === 'advance') {
+      if (!transactionRef || !transactionRef.trim()) {
+        setErrorMsg('Please enter your transaction reference / TRX ID.')
+        return
+      }
+      if (!proofFile) {
+        setErrorMsg('Please upload your payment proof screenshot or receipt PDF.')
+        return
+      }
     }
 
     try {
       setLoading(true)
-      const payload = {
-        customerInfo,
-        shippingAddress,
-        isBuyNow,
-        buyNowItem: isBuyNow && buyNowProduct
-          ? {
-              productId: buyNowProduct.id || buyNowProduct._id,
-              quantity: buyNowQuantity,
-              selectedSize: buyNowSize,
-              selectedColor: buyNowColor
-            }
-          : undefined
-      }
 
-      const res = await fetch(`${API_BASE}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
+      let res
+      if (paymentChoice === 'cod') {
+        // Submit JSON Payload for COD
+        const payload = {
+          customerInfo,
+          shippingAddress,
+          isBuyNow,
+          buyNowItem: isBuyNow && buyNowProduct
+            ? {
+                productId: buyNowProduct.id || buyNowProduct._id,
+                quantity: buyNowQuantity,
+                selectedSize: buyNowSize,
+                selectedColor: buyNowColor
+              }
+            : undefined,
+          paymentChoice: 'cod',
+          paymentMethod: 'Cash on Delivery'
+        }
+
+        res = await fetch(`${API_BASE}/orders`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        })
+      } else {
+        // Submit Multipart FormData for Pay in Advance
+        const formData = new FormData()
+        formData.append('customerInfo', JSON.stringify(customerInfo))
+        formData.append('shippingAddress', JSON.stringify(shippingAddress))
+        formData.append('isBuyNow', String(isBuyNow))
+        if (isBuyNow && buyNowProduct) {
+          formData.append('buyNowItem', JSON.stringify({
+            productId: buyNowProduct.id || buyNowProduct._id,
+            quantity: buyNowQuantity,
+            selectedSize: buyNowSize,
+            selectedColor: buyNowColor
+          }))
+        }
+        formData.append('paymentChoice', 'advance')
+        formData.append('paymentMethod', activeChannelObj ? activeChannelObj.name : 'JazzCash')
+        formData.append('transactionReference', transactionRef.trim())
+        formData.append('proof', proofFile)
+
+        res = await fetch(`${API_BASE}/orders`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: formData
+        })
+      }
 
       const data = await res.json()
 
       if (res.ok && data.success && data.order) {
         setConfirmedOrder(data.order)
+        if (data.payment) {
+          setSubmittedPaymentRecord(data.payment)
+        }
+        
+        // Clear cart only on successful order creation
         if (!isBuyNow) {
           clearCart()
         }
         fetchCart()
         onOrderSuccess(data.order)
       } else {
-        setErrorMsg(data.message || 'Failed to place order. Please try again.')
+        setErrorMsg(data.message || 'Failed to place order. Please check your information and try again.')
       }
     } catch (err) {
-      console.error('Order placement error:', err)
+      console.error('Order submission error:', err)
       setErrorMsg('Server connection error. Please check your network.')
     } finally {
       setLoading(false)
@@ -203,10 +308,12 @@ export default function CheckoutModal({
           <div className="sticky top-0 z-20 bg-[#faf8f5]/95 backdrop-blur-xs px-6 py-5 sm:px-8 flex items-center justify-between border-b border-[#e8e4dc]">
             <div>
               <span className="text-[10px] font-sans font-medium uppercase tracking-[0.35em] text-[#5a5e4b] block">
-                ZAHZAN BESPOKE CHECKOUT
+                {confirmedOrder
+                  ? 'ZAHZAN BESPOKE CHECKOUT'
+                  : `STEP ${step} OF 2 — ${step === 1 ? 'DELIVERY DETAILS' : 'PAYMENT SELECTION'}`}
               </span>
               <h2 className="font-serif text-2xl font-light text-[#1c1b18]">
-                {confirmedOrder ? 'Order Confirmed' : 'Complete Your Order'}
+                {confirmedOrder ? 'Order Confirmed' : step === 1 ? 'Delivery Information' : 'Payment & Complete Order'}
               </h2>
             </div>
 
@@ -223,7 +330,7 @@ export default function CheckoutModal({
           <div className="flex-1 px-6 py-6 sm:px-8 space-y-8">
             
             {/* ========================================================================= */}
-            {/* ORDER CONFIRMED SCREEN */}
+            {/* STEP 3: ORDER CONFIRMED SCREEN */}
             {/* ========================================================================= */}
             {confirmedOrder ? (
               <div className="py-8 space-y-6 text-center animate-fadeIn">
@@ -246,14 +353,21 @@ export default function CheckoutModal({
                 {/* Summary Card */}
                 <div className="bg-white border border-[#e8e4dc] p-5 rounded-xs text-left space-y-4 max-w-lg mx-auto text-xs font-sans">
                   <div className="flex items-center justify-between border-b border-[#e8e4dc] pb-3">
-                    <span className="uppercase tracking-wider text-[#5a5e4b] font-medium">Status</span>
+                    <span className="uppercase tracking-wider text-[#5a5e4b] font-medium">Order Status</span>
                     <span className="px-2.5 py-0.5 bg-[#f0f4ec] border border-[#b4c4a4] text-[#5a5e4b] uppercase tracking-widest text-[10px] font-semibold">
                       {confirmedOrder.orderStatus}
                     </span>
                   </div>
 
+                  <div className="flex items-center justify-between border-b border-[#e8e4dc] pb-3">
+                    <span className="uppercase tracking-wider text-[#5a5e4b] font-medium">Payment Choice</span>
+                    <span className="px-2.5 py-0.5 bg-[#faf8f5] border border-[#e8e4dc] text-[#1c1b18] uppercase tracking-widest text-[10px] font-semibold">
+                      {confirmedOrder.paymentMethod}
+                    </span>
+                  </div>
+
                   <div className="space-y-2 border-b border-[#e8e4dc] pb-3">
-                    <span className="uppercase tracking-wider text-[#5a5e4b] font-medium block">Delivery Address</span>
+                    <span className="uppercase tracking-wider text-[#5a5e4b] font-medium block">Delivery Destination</span>
                     <p className="text-[#1c1b18] font-normal leading-relaxed">
                       <strong>{confirmedOrder.shippingAddress.fullName}</strong><br />
                       {confirmedOrder.shippingAddress.addressLine1} {confirmedOrder.shippingAddress.addressLine2}<br />
@@ -277,14 +391,21 @@ export default function CheckoutModal({
                   >
                     CONTINUE SHOPPING
                   </button>
+                  <a
+                    href="/account?tab=orders"
+                    className="bg-white border border-[#1c1b18] text-[#1c1b18] text-xs font-sans uppercase tracking-[0.25em] py-3.5 px-8 hover:bg-[#1c1b18] hover:text-[#faf8f5] transition-colors text-center inline-block"
+                  >
+                    TRACK IN ORDER HISTORY →
+                  </a>
                 </div>
               </div>
-            ) : (
+
+            ) : step === 1 ? (
               
               /* ========================================================================= */
-              /* CHECKOUT FORM & SUMMARY */
+              /* STEP 1: DELIVERY & RECIPIENT INFORMATION */
               /* ========================================================================= */
-              <form onSubmit={handlePlaceOrder} className="space-y-8">
+              <form onSubmit={handleProceedToPayment} className="space-y-8">
                 
                 {/* Error Banner */}
                 {errorMsg && (
@@ -294,7 +415,7 @@ export default function CheckoutModal({
                   </div>
                 )}
 
-                {/* 01. ORDER ITEMS SUMMARY */}
+                {/* 01. ORDER ARTICLES SUMMARY */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-[#e8e4dc] pb-2">
                     <span className="text-[10px] font-sans font-medium uppercase tracking-[0.3em] text-[#5a5e4b]">
@@ -487,14 +608,230 @@ export default function CheckoutModal({
                   </div>
                 </div>
 
-                {/* SUBMIT BUTTON */}
+                {/* STEP 1 ACTION BUTTON */}
                 <div>
                   <button
                     type="submit"
-                    disabled={loading || checkoutItems.length === 0}
+                    disabled={checkoutItems.length === 0}
                     className="w-full bg-[#1c1b18] text-[#faf8f5] text-xs font-sans font-medium uppercase tracking-[0.3em] py-4 px-6 hover:bg-[#5a5e4b] transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {loading ? 'PROCESSING ORDER...' : `PLACE ORDER — PKR ${finalTotal.toLocaleString()} →`}
+                    CONTINUE TO PAYMENT — PKR {finalTotal.toLocaleString()} →
+                  </button>
+                </div>
+
+              </form>
+
+            ) : (
+
+              /* ========================================================================= */
+              /* STEP 2: PAYMENT CHOICE & PAYMENT SUBMISSION */
+              /* ========================================================================= */
+              <form onSubmit={handleFinalOrderSubmit} className="space-y-6">
+                
+                {/* Back Button */}
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); setErrorMsg(null); }}
+                  className="inline-flex items-center gap-2 text-xs font-sans uppercase tracking-wider text-[#5a5e4b] hover:text-[#1c1b18] cursor-pointer"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to Delivery Information</span>
+                </button>
+
+                {/* Error Banner */}
+                {errorMsg && (
+                  <div className="p-4 bg-[#fdf2f2] border border-[#f4c7c7] text-[#8a2222] text-xs font-sans flex items-start gap-2 rounded-xs">
+                    <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                {/* Order Summary Pill */}
+                <div className="bg-white p-4 border border-[#e8e4dc] flex items-center justify-between font-sans">
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-[#5a5e4b] block">Payable Total</span>
+                    <span className="font-serif text-xl font-light text-[#1c1b18]">PKR {finalTotal.toLocaleString()}</span>
+                  </div>
+                  <span className="text-[10px] font-sans uppercase tracking-widest bg-[#f0f4ec] text-[#5a5e4b] border border-[#b4c4a4] px-2.5 py-1 font-semibold">
+                    {shippingAddress.city}, Pakistan
+                  </span>
+                </div>
+
+                {/* 01. PAYMENT CHOICE SELECTOR */}
+                <div className="space-y-3">
+                  <span className="text-[10px] font-sans font-medium uppercase tracking-[0.3em] text-[#5a5e4b] block border-b border-[#e8e4dc] pb-1.5">
+                    SELECT PAYMENT METHOD
+                  </span>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* COD Option */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentChoice('cod')}
+                      className={`p-4 border text-left rounded-xs transition-all cursor-pointer ${
+                        paymentChoice === 'cod'
+                          ? 'border-[#1c1b18] bg-white shadow-xs'
+                          : 'border-[#e8e4dc] bg-transparent hover:border-[#1c1b18]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-sans font-medium text-xs text-[#1c1b18] uppercase tracking-wider">
+                          Cash on Delivery
+                        </span>
+                        {paymentChoice === 'cod' && <span className="text-[10px] text-[#5a5e4b]">✓ SELECTED</span>}
+                      </div>
+                      <p className="text-[11px] font-sans text-[#706c64]">
+                        Pay in cash upon physical delivery at your doorstep.
+                      </p>
+                    </button>
+
+                    {/* Pay in Advance Option */}
+                    <button
+                      type="button"
+                      onClick={() => setPaymentChoice('advance')}
+                      className={`p-4 border text-left rounded-xs transition-all cursor-pointer ${
+                        paymentChoice === 'advance'
+                          ? 'border-[#1c1b18] bg-white shadow-xs'
+                          : 'border-[#e8e4dc] bg-transparent hover:border-[#1c1b18]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-sans font-medium text-xs text-[#1c1b18] uppercase tracking-wider">
+                          Pay in Advance
+                        </span>
+                        {paymentChoice === 'advance' && <span className="text-[10px] text-[#5a5e4b]">✓ SELECTED</span>}
+                      </div>
+                      <p className="text-[11px] font-sans text-[#706c64]">
+                        JazzCash, Easypaisa, or Bank IBFT with proof upload.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* PAY IN ADVANCE SPECIFICS */}
+                {paymentChoice === 'advance' && (
+                  <div className="space-y-5 animate-fadeIn">
+                    
+                    {/* Advance Channel Choice */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b] block">
+                        Choose Advance Payment Channel
+                      </span>
+                      <div className="grid grid-cols-3 gap-3">
+                        {paymentMethodsConfig.map((m) => {
+                          const isSelected = selectedAdvanceChannel === m.id
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setSelectedAdvanceChannel(m.id)}
+                              className={`p-2.5 text-center border text-xs font-sans rounded-xs transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'border-[#1c1b18] bg-white shadow-xs font-medium text-[#1c1b18]'
+                                  : 'border-[#e8e4dc] bg-transparent text-[#706c64] hover:border-[#1c1b18]'
+                              }`}
+                            >
+                              <span className="block uppercase tracking-wider text-[11px]">{m.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Account Info Box */}
+                    {activeChannelObj && (
+                      <div className="bg-white p-4 border border-[#e8e4dc] space-y-2 text-xs font-sans">
+                        <span className="text-[10px] uppercase tracking-widest text-[#5a5e4b] font-medium block">
+                          ZAHZAN {activeChannelObj.name} Account Details
+                        </span>
+                        
+                        {activeChannelObj.bankName && (
+                          <div className="text-[#1c1b18] font-medium">Bank: {activeChannelObj.bankName}</div>
+                        )}
+                        <div className="text-[#1c1b18]">
+                          Account Title: <strong>{activeChannelObj.accountTitle}</strong>
+                        </div>
+                        {activeChannelObj.accountNumber && (
+                          <div className="text-[#1c1b18]">
+                            Account / Mobile #: <strong className="font-mono text-sm">{activeChannelObj.accountNumber}</strong>
+                          </div>
+                        )}
+                        {activeChannelObj.iban && (
+                          <div className="text-[#1c1b18]">
+                            IBAN: <strong className="font-mono">{activeChannelObj.iban}</strong>
+                          </div>
+                        )}
+
+                        <p className="text-[11px] text-[#706c64] leading-relaxed pt-1 border-t border-[#e8e4dc]/70">
+                          {activeChannelObj.instructions}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Transaction Reference ID */}
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b]">
+                        Transaction Reference / TRX ID *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={transactionRef}
+                        onChange={(e) => setTransactionRef(e.target.value)}
+                        placeholder="e.g. 12-digit JazzCash TID or IBFT reference"
+                        className="w-full bg-white border border-[#e8e4dc] p-3 text-xs font-mono text-[#1c1b18] focus:outline-none focus:border-[#1c1b18]"
+                      />
+                    </div>
+
+                    {/* Payment Proof File Upload */}
+                    <div className="space-y-2">
+                      <label className="block text-[10px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b]">
+                        Upload Payment Screenshot / Receipt PDF *
+                      </label>
+                      
+                      <div className="border border-dashed border-[#e8e4dc] bg-white p-4 text-center space-y-2">
+                        <input
+                          type="file"
+                          id="checkout-proof-upload"
+                          accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf"
+                          onChange={handleProofFileChange}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="checkout-proof-upload"
+                          className="inline-flex items-center gap-2 text-xs font-sans uppercase tracking-wider text-[#1c1b18] border border-[#1c1b18] px-4 py-2 hover:bg-[#1c1b18] hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Upload size={14} />
+                          <span>Choose File (Max 5MB)</span>
+                        </label>
+                        
+                        {proofFile ? (
+                          <span className="block text-xs font-mono text-[#5a5e4b] font-medium">
+                            ✓ Selected: {proofFile.name} ({(proofFile.size / 1024).toFixed(1)} KB)
+                          </span>
+                        ) : (
+                          <span className="block text-[11px] font-sans text-[#706c64]">
+                            Accepted formats: JPG, PNG, WEBP, PDF
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* SUBMIT ORDER BUTTON */}
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={loading || (paymentChoice === 'advance' && (!transactionRef || !proofFile))}
+                    className="w-full bg-[#1c1b18] text-[#faf8f5] text-xs font-sans font-medium uppercase tracking-[0.3em] py-4 px-6 hover:bg-[#5a5e4b] transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {loading
+                      ? 'PROCESSING ORDER...'
+                      : paymentChoice === 'cod'
+                      ? `PLACE ORDER (CASH ON DELIVERY) — PKR ${finalTotal.toLocaleString()} →`
+                      : `COMPLETE ORDER & SUBMIT PAYMENT — PKR ${finalTotal.toLocaleString()} →`}
                   </button>
                 </div>
 

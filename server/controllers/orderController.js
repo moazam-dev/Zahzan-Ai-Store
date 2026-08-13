@@ -3,6 +3,8 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Cart from '../models/Cart.js';
 import User from '../models/User.js';
+import Payment from '../models/Payment.js';
+import { uploadPaymentProofToCloudinary, deletePaymentProofFromCloudinary } from '../utils/cloudinary.js';
 
 // Helper function to generate human-readable unique order number: ZHZ-YYYYMMDD-XXXX
 const generateOrderNumber = async () => {
@@ -34,17 +36,35 @@ const generateOrderNumber = async () => {
   return `${prefix}${seqStr}`;
 };
 
-// @desc    Create a new order (Cart Checkout or Buy Now)
+// @desc    Create a new order (Cart Checkout or Buy Now with COD or Advance Payment)
 // @route   POST /api/orders
 // @access  Private
 export const createOrder = async (req, res) => {
   try {
-    const {
+    let {
       customerInfo,
       shippingAddress,
       isBuyNow,
-      buyNowItem
+      buyNowItem,
+      paymentChoice,
+      paymentMethod,
+      transactionReference
     } = req.body;
+
+    // Safely parse JSON strings if submitted via FormData
+    if (typeof customerInfo === 'string') {
+      try { customerInfo = JSON.parse(customerInfo); } catch (e) {}
+    }
+    if (typeof shippingAddress === 'string') {
+      try { shippingAddress = JSON.parse(shippingAddress); } catch (e) {}
+    }
+    if (typeof buyNowItem === 'string') {
+      try { buyNowItem = JSON.parse(buyNowItem); } catch (e) {}
+    }
+
+    isBuyNow = isBuyNow === true || isBuyNow === 'true';
+    paymentChoice = (paymentChoice || 'cod').toLowerCase();
+    const isCOD = paymentChoice === 'cod' || paymentMethod === 'Cash on Delivery';
 
     // 1. Validate Customer Info
     const customerName = customerInfo?.fullName || `${req.user.firstName} ${req.user.lastName}`.trim();
@@ -73,6 +93,37 @@ export const createOrder = async (req, res) => {
         success: false,
         message: 'Complete shipping address is required (fullName, phone, addressLine1, city, state, postalCode, country).'
       });
+    }
+
+    // Advance Payment Validation & Cloudinary Upload
+    let proofUrl = '';
+    let proofPublicId = '';
+    if (!isCOD) {
+      if (!paymentMethod || paymentMethod === 'Cash on Delivery') {
+        return res.status(400).json({
+          success: false,
+          message: 'Please select an advance payment channel (JazzCash, Easypaisa, or Bank Transfer).'
+        });
+      }
+      if (!transactionReference || !transactionReference.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Transaction reference ID is required for advance payment.'
+        });
+      }
+      if (req.file) {
+        const uploadResult = await uploadPaymentProofToCloudinary(req.file.path, 'order');
+        proofUrl = uploadResult.secure_url;
+        proofPublicId = uploadResult.public_id;
+      } else if (req.body.proofUrl) {
+        proofUrl = req.body.proofUrl;
+        proofPublicId = req.body.proofPublicId || '';
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment proof screenshot or receipt file is required for advance payment.'
+        });
+      }
     }
 
     // Prepare permanent shipping address snapshot
@@ -172,14 +223,17 @@ export const createOrder = async (req, res) => {
     }
 
     // 5. Calculate Shipping Cost & Total
-    // Standard nationwide shipping: Free above PKR 20,000, else PKR 250
     const shippingCost = subtotal >= 20000 ? 0 : 250;
     const total = subtotal + shippingCost;
 
     // 6. Generate Unique Order Number
     const orderNumber = await generateOrderNumber();
 
-    // 7. Create Order Record
+    // 7. Determine Order Payment Method and Payment Status
+    const selectedPaymentMethod = isCOD ? 'Cash on Delivery' : paymentMethod.trim();
+    const finalPaymentStatus = isCOD ? 'not_required' : 'submitted';
+
+    // Create Order Record
     const order = await Order.create({
       orderNumber,
       userId: req.user._id,
@@ -191,18 +245,42 @@ export const createOrder = async (req, res) => {
       subtotal,
       shippingCost,
       total,
-      paymentStatus: 'pending',
+      paymentMethod: selectedPaymentMethod,
+      paymentStatus: finalPaymentStatus,
       orderStatus: 'Pending'
     });
 
-    // 8. Deduct Stock from Products in Database
+    // 8. If Advance Payment, Create Payment record in Payment collection
+    let paymentRecord = null;
+    if (!isCOD) {
+      try {
+        paymentRecord = await Payment.create({
+          orderId: order._id,
+          userId: req.user._id,
+          paymentMethod: selectedPaymentMethod,
+          amount: total,
+          transactionReference: transactionReference.trim().toUpperCase(),
+          proofUrl,
+          proofPublicId,
+          status: 'Pending'
+        });
+      } catch (payErr) {
+        // Rollback Cloudinary asset if DB payment record fails
+        if (proofPublicId) {
+          await deletePaymentProofFromCloudinary(proofPublicId);
+        }
+        throw payErr;
+      }
+    }
+
+    // 9. Deduct Stock from Products in Database
     for (const update of stockUpdates) {
       await Product.findByIdAndUpdate(update.productId, {
         $inc: { stock: -update.deductQty }
       });
     }
 
-    // 9. Clear Purchased Items from Cart if Cart Checkout
+    // 10. Clear Purchased Items from Cart if Cart Checkout
     if (!isBuyNow) {
       const cart = await Cart.findOne({ user: req.user._id });
       if (cart) {
@@ -213,8 +291,9 @@ export const createOrder = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Order placed successfully',
-      order
+      message: isCOD ? 'Order placed successfully (Cash on Delivery)' : 'Order placed successfully. Payment proof submitted.',
+      order,
+      payment: paymentRecord
     });
   } catch (error) {
     return res.status(500).json({
