@@ -122,7 +122,7 @@ export default function ReviewCarousel() {
           </div>
 
           {/* Right Share Your Look Content */}
-          <div className="text-left md:text-right">
+          {/* <div className="text-left md:text-right">
             <p className="font-serif italic text-2xl sm:text-3xl text-[#1a1918] font-light">
               Your story could be next.
             </p>
@@ -138,7 +138,7 @@ export default function ReviewCarousel() {
             <p className="mt-3 text-[11px] text-[#706c64] font-light">
               Tag us <span className="font-medium text-[#1a1918]">@zahzan.official</span> or use <span className="font-mono text-[#5a5e4b]">#WornAndLoved</span> to be featured.
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* -------------------------------------------------- */}
