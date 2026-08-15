@@ -305,6 +305,65 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
       await expect(insertProduct({ stock: -1 })).rejects.toThrow();
       await expect(insertProduct({ price: 0, stock: 0 })).resolves.toMatch(UUID_RE);
     });
+
+    // Fix round 1 (post-review): the six CHECK constraints below existed in
+    // 0001_init.sql from the start and are correct there -- this round adds
+    // the test coverage the brief requires (task-3-brief.md:50, "each CHECK
+    // constraint rejects an invalid value and accepts every valid one")
+    // that was missing for them. Each asserts both directions: a violating
+    // value is rejected and the valid boundary value (0 for every `>= 0`
+    // check here, 1 for quantity's `>= 1`) is accepted -- getting a
+    // boundary backwards would be worse than no test at all.
+
+    it('products.original_price >= 0 (products_original_price_check)', async () => {
+      await expect(insertProduct({ original_price: -1 })).rejects.toThrow();
+      await expect(insertProduct({ original_price: 0 })).resolves.toMatch(UUID_RE);
+    });
+
+    it('orders.subtotal >= 0 (orders_subtotal_check)', async () => {
+      const userId = await insertUser();
+      await expect(insertRow('orders', baseOrderFields(userId, { subtotal: -1 }))).rejects.toThrow();
+      await expect(insertRow('orders', baseOrderFields(userId, { subtotal: 0 }))).resolves.toMatch(UUID_RE);
+    });
+
+    it('orders.shipping_cost >= 0 (orders_shipping_cost_check)', async () => {
+      const userId = await insertUser();
+      await expect(
+        insertRow('orders', baseOrderFields(userId, { shipping_cost: -1 }))
+      ).rejects.toThrow();
+      await expect(
+        insertRow('orders', baseOrderFields(userId, { shipping_cost: 0 }))
+      ).resolves.toMatch(UUID_RE);
+    });
+
+    it('orders.total >= 0 (orders_total_check)', async () => {
+      const userId = await insertUser();
+      await expect(insertRow('orders', baseOrderFields(userId, { total: -1 }))).rejects.toThrow();
+      await expect(insertRow('orders', baseOrderFields(userId, { total: 0 }))).resolves.toMatch(UUID_RE);
+    });
+
+    it('payments.amount >= 0 (payments_amount_check)', async () => {
+      const userId = await insertUser();
+      const orderId = await insertRow('orders', baseOrderFields(userId));
+      await expect(
+        insertRow('payments', await basePayment(userId, orderId, { amount: -1 }))
+      ).rejects.toThrow();
+      await expect(
+        insertRow('payments', await basePayment(userId, orderId, { amount: 0 }))
+      ).resolves.toMatch(UUID_RE);
+    });
+
+    it('cart_items.quantity >= 1 (cart_items_quantity_check)', async () => {
+      const userId = await insertUser();
+      const productId = await insertProduct();
+      const cartId = await insertRow('carts', { user_id: userId });
+      await expect(
+        insertRow('cart_items', { cart_id: cartId, product_id: productId, quantity: 0 })
+      ).rejects.toThrow();
+      await expect(
+        insertRow('cart_items', { cart_id: cartId, product_id: productId, quantity: 1 })
+      ).resolves.toMatch(UUID_RE);
+    });
   });
 
   // ---------------------------------------------------------------------
