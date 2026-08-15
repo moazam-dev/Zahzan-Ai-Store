@@ -12,10 +12,18 @@ dist
 dist-ssr
 *.local
 .env
+.env.local
 .env.*
 !.env.example
 uploads/
 server/uploads/
+
+# Next.js build output
+.next/
+
+# Task 15's regenerated golden baseline (tools/golden/ is the committed
+# regression oracle from Task 2 and must NOT be ignored)
+tools/golden-next/
 
 # Editor directories and files
 .vscode/*
