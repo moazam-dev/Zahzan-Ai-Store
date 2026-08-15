@@ -117,6 +117,41 @@ because the comparison is old-behaviour vs new-behaviour on identical inputs.
 
 ---
 
+## Ruling C15 — KNOWN DEVIATION FROM GC1 (accepted, documented, user-overridable)
+
+`cart_items.product_id` and `wishlist_items.product_id` are changed to `on delete cascade`.
+
+**Why the original schema was untenable.** They were written as plain `references products (id)`
+with no `on delete` clause, i.e. RESTRICT. The old MongoDB app had NO referential integrity, and
+`server/controllers/cartController.js:13` — `items.filter((item) => item.product != null)` — is
+direct proof the old code EXPECTED products to vanish out from under cart items and handled it by
+dropping them from the response. Meanwhile `adminController.js:710-736` implements a permanent
+product delete that the admin UI calls, and which always returned 200. Under RESTRICT, permanently
+deleting any product sitting in a cart or wishlist raises a Postgres 23503 that `withErrorHandler`
+turns into a raw 500. RESTRICT is the ONLY one of the three options that breaks a
+proven-working, golden-captured admin action.
+
+**What CASCADE achieves, stated honestly — this is NOT strict parity:**
+
+| Path | Old behaviour | Under CASCADE | Verdict |
+| --- | --- | --- | --- |
+| Admin permanent-delete of a referenced product | 200, always | 200, always | parity restored |
+| Subsequent cart GET | orphan line silently dropped by the `!= null` filter | row is gone, join returns nothing | observably identical |
+| Subsequent wishlist GET | **crashes** — `getUserWishlist` throws a TypeError on a null populate result, a pre-existing 500 bug | returns a shorter valid list, 200 | **accidental improvement, not parity** |
+| Wishlist toggle with a nonexistent productId | 200, Mongo stores any string | 500, FK rejects the insert | **divergence; unreachable from the shipped frontend** |
+
+Every UI call site sources `productId` from an already-fetched product object
+(`views/Product.jsx:308`, `components/ProductCard.jsx:56`, `components/WishlistDrawer.jsx:135`),
+so the last row is reachable only by a hand-crafted API call. No golden exercises it.
+
+**The alternative — dropping the product FKs entirely — was rejected.** It would preserve that one
+unreachable edge case at the cost of all referential integrity, including the guarantee CASCADE's
+correctness on the admin-delete path depends on.
+
+If the user prefers literal parity over integrity here, dropping both FKs is the change to make.
+
+---
+
 ## Task 1: Toolchain, database adapter, and test harness
 
 **Objective.** Stand up the build and test tooling every later task depends on. No application
