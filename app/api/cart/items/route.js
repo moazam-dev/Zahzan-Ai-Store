@@ -89,61 +89,72 @@ export const POST = withErrorHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
-  const body = await request.json().catch(() => ({}));
-  const { productId, quantity = 1, selectedSize, selectedColor } = body;
+  // addToCart's source (cartController.js:82-163) wraps its whole body in a
+  // local try/catch that builds `Failed to add item to cart: ${error.message}`
+  // on any unexpected failure. The early validation returns below (400/404)
+  // sit INSIDE that same try in the source and never reach its catch, so
+  // they stay unprefixed here too -- same precedent as
+  // app/api/products/route.js's POST (Task 9) and app/api/orders/route.js's
+  // POST (Task 11).
+  try {
+    const body = await request.json().catch(() => ({}));
+    const { productId, quantity = 1, selectedSize, selectedColor } = body;
 
-  if (!productId) {
-    return fail('Product ID is required', 400);
-  }
-
-  const { rows: productRows } = await query('select * from products where id = $1', [productId]);
-  const product = productRows[0];
-
-  if (!product || !product.is_active) {
-    return fail('Product not found or unavailable', 404);
-  }
-
-  const requestedQty = Math.max(1, Number(quantity) || 1);
-
-  // Validate size if provided -- cartController.js:105-112.
-  let finalSize = selectedSize;
-  if (product.sizes && product.sizes.length > 0) {
-    if (!finalSize || !product.sizes.includes(finalSize)) {
-      finalSize = product.sizes[0];
+    if (!productId) {
+      return fail('Product ID is required', 400);
     }
-  } else {
-    finalSize = finalSize || 'M';
-  }
 
-  const cart = await getOrCreateCart(user.id);
+    const { rows: productRows } = await query('select * from products where id = $1', [productId]);
+    const product = productRows[0];
 
-  const { rows: existingItemRows } = await query('select * from cart_items where cart_id = $1', [cart.id]);
+    if (!product || !product.is_active) {
+      return fail('Product not found or unavailable', 404);
+    }
 
-  const existingItem = existingItemRows.find(
-    (item) =>
-      item.product_id === productId &&
-      item.selected_size === finalSize &&
-      (selectedColor ? item.selected_color === selectedColor : true)
-  );
+    const requestedQty = Math.max(1, Number(quantity) || 1);
 
-  const existingQty = existingItem ? existingItem.quantity : 0;
-  const newTotalQty = existingQty + requestedQty;
+    // Validate size if provided -- cartController.js:105-112.
+    let finalSize = selectedSize;
+    if (product.sizes && product.sizes.length > 0) {
+      if (!finalSize || !product.sizes.includes(finalSize)) {
+        finalSize = product.sizes[0];
+      }
+    } else {
+      finalSize = finalSize || 'M';
+    }
 
-  if (newTotalQty > product.stock) {
-    return fail(`Cannot add items. Available stock is ${product.stock} (currently in cart: ${existingQty}).`, 400);
-  }
+    const cart = await getOrCreateCart(user.id);
 
-  if (existingItem) {
-    await query('update cart_items set quantity = $1 where id = $2', [newTotalQty, existingItem.id]);
-  } else {
-    await query(
-      `insert into cart_items (cart_id, product_id, quantity, selected_size, selected_color)
-       values ($1, $2, $3, $4, $5)`,
-      [cart.id, productId, requestedQty, finalSize, selectedColor || '']
+    const { rows: existingItemRows } = await query('select * from cart_items where cart_id = $1', [cart.id]);
+
+    const existingItem = existingItemRows.find(
+      (item) =>
+        item.product_id === productId &&
+        item.selected_size === finalSize &&
+        (selectedColor ? item.selected_color === selectedColor : true)
     );
+
+    const existingQty = existingItem ? existingItem.quantity : 0;
+    const newTotalQty = existingQty + requestedQty;
+
+    if (newTotalQty > product.stock) {
+      return fail(`Cannot add items. Available stock is ${product.stock} (currently in cart: ${existingQty}).`, 400);
+    }
+
+    if (existingItem) {
+      await query('update cart_items set quantity = $1 where id = $2', [newTotalQty, existingItem.id]);
+    } else {
+      await query(
+        `insert into cart_items (cart_id, product_id, quantity, selected_size, selected_color)
+         values ($1, $2, $3, $4, $5)`,
+        [cart.id, productId, requestedQty, finalSize, selectedColor || '']
+      );
+    }
+
+    const items = await loadCartItems(cart.id);
+
+    return ok({ success: true, message: 'Item added to cart', cart: serializeCart(cart, items) });
+  } catch (error) {
+    return fail(`Failed to add item to cart: ${error.message}`, 500);
   }
-
-  const items = await loadCartItems(cart.id);
-
-  return ok({ success: true, message: 'Item added to cart', cart: serializeCart(cart, items) });
 });

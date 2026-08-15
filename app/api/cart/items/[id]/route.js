@@ -87,108 +87,129 @@ export const PATCH = withErrorHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
-  const { id } = await context.params;
-  const body = await request.json().catch(() => ({}));
-  const { quantity, delta, selectedSize } = body;
+  // updateCartItem's source (cartController.js:168-244) wraps its whole body
+  // in a local try/catch that builds
+  // `Failed to update cart item: ${error.message}` on any unexpected
+  // failure. The early 404/400 returns below sit INSIDE that same try in the
+  // source and never reach its catch, so they stay unprefixed here too --
+  // same precedent as app/api/products/route.js's POST (Task 9) and
+  // app/api/orders/route.js's POST (Task 11).
+  try {
+    const { id } = await context.params;
+    const body = await request.json().catch(() => ({}));
+    const { quantity, delta, selectedSize } = body;
 
-  const { rows: cartRows } = await query('select * from carts where user_id = $1', [user.id]);
-  const cart = cartRows[0];
+    const { rows: cartRows } = await query('select * from carts where user_id = $1', [user.id]);
+    const cart = cartRows[0];
 
-  if (!cart) {
-    return fail('Cart not found', 404);
-  }
-
-  const items = await loadCartItems(cart.id);
-
-  // Match by cartItemId or by productId (+ size if given) --
-  // cartController.js:183-195.
-  const itemIndex = items.findIndex((item) => {
-    const itemIdStr = item.id;
-    const prodIdStr = item.product ? item.product.id : '';
-
-    if (itemIdStr === id) return true;
-    if (prodIdStr === id) {
-      if (selectedSize) return item.selected_size === selectedSize;
-      return true;
+    if (!cart) {
+      return fail('Cart not found', 404);
     }
-    return false;
-  });
 
-  if (itemIndex === -1) {
-    return fail('Item not found in cart', 404);
-  }
+    const items = await loadCartItems(cart.id);
 
-  const item = items[itemIndex];
-  let newQty = item.quantity;
+    // Match by cartItemId or by productId (+ size if given) --
+    // cartController.js:183-195.
+    const itemIndex = items.findIndex((item) => {
+      const itemIdStr = item.id;
+      const prodIdStr = item.product ? item.product.id : '';
 
-  if (typeof quantity === 'number') {
-    newQty = quantity;
-  } else if (typeof delta === 'number') {
-    newQty = item.quantity + delta;
-  }
+      if (itemIdStr === id) return true;
+      if (prodIdStr === id) {
+        if (selectedSize) return item.selected_size === selectedSize;
+        return true;
+      }
+      return false;
+    });
 
-  if (newQty <= 0) {
-    await query('delete from cart_items where id = $1', [item.id]);
-  } else {
-    const { rows: productRows } = await query('select * from products where id = $1', [item.product_id]);
-    const product = productRows[0];
+    if (itemIndex === -1) {
+      return fail('Item not found in cart', 404);
+    }
 
-    if (!product) {
+    const item = items[itemIndex];
+    let newQty = item.quantity;
+
+    if (typeof quantity === 'number') {
+      newQty = quantity;
+    } else if (typeof delta === 'number') {
+      newQty = item.quantity + delta;
+    }
+
+    if (newQty <= 0) {
       await query('delete from cart_items where id = $1', [item.id]);
     } else {
-      if (newQty > product.stock) {
-        return fail(`Requested quantity exceeds available stock of ${product.stock}`, 400);
+      const { rows: productRows } = await query('select * from products where id = $1', [item.product_id]);
+      const product = productRows[0];
+
+      if (!product) {
+        await query('delete from cart_items where id = $1', [item.id]);
+      } else {
+        if (newQty > product.stock) {
+          return fail(`Requested quantity exceeds available stock of ${product.stock}`, 400);
+        }
+        await query('update cart_items set quantity = $1 where id = $2', [newQty, item.id]);
       }
-      await query('update cart_items set quantity = $1 where id = $2', [newQty, item.id]);
     }
+
+    const updatedItems = await loadCartItems(cart.id);
+
+    return ok({ success: true, cart: serializeCart(cart, updatedItems) });
+  } catch (error) {
+    return fail(`Failed to update cart item: ${error.message}`, 500);
   }
-
-  const updatedItems = await loadCartItems(cart.id);
-
-  return ok({ success: true, cart: serializeCart(cart, updatedItems) });
 });
 
 export const DELETE = withErrorHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
-  const { id } = await context.params;
-  const { searchParams } = new URL(request.url);
-  const size = searchParams.get('size');
+  // removeCartItem's source (cartController.js:249-289) wraps its whole body
+  // in a local try/catch that builds
+  // `Failed to remove cart item: ${error.message}` on any unexpected
+  // failure -- reproduced here for the same reason as PATCH above. Note this
+  // prefix ("remove cart item") differs from clearCart's ("clear cart") in
+  // app/api/cart/route.js's DELETE, despite both being deletes.
+  try {
+    const { id } = await context.params;
+    const { searchParams } = new URL(request.url);
+    const size = searchParams.get('size');
 
-  const { rows: cartRows } = await query('select * from carts where user_id = $1', [user.id]);
-  const cart = cartRows[0];
+    const { rows: cartRows } = await query('select * from carts where user_id = $1', [user.id]);
+    const cart = cartRows[0];
 
-  if (!cart) {
-    return fail('Cart not found', 404);
+    if (!cart) {
+      return fail('Cart not found', 404);
+    }
+
+    const items = await loadCartItems(cart.id);
+
+    // cartController.js:263-273. `item.product` here is NOT populated in the
+    // source (removeCartItem never calls formatCartResponse before this
+    // filter), so its productId compare is against the raw, unpopulated
+    // product reference -- equivalent to comparing against `product_id`
+    // directly here.
+    const idsToDelete = items
+      .filter((item) => {
+        const itemIdStr = item.id;
+        const prodIdStr = item.product_id;
+
+        if (itemIdStr === id) return true;
+        if (prodIdStr === id) {
+          if (size) return item.selected_size === size;
+          return true;
+        }
+        return false;
+      })
+      .map((item) => item.id);
+
+    if (idsToDelete.length > 0) {
+      await query('delete from cart_items where id = any($1::uuid[])', [idsToDelete]);
+    }
+
+    const remainingItems = await loadCartItems(cart.id);
+
+    return ok({ success: true, message: 'Item removed from cart', cart: serializeCart(cart, remainingItems) });
+  } catch (error) {
+    return fail(`Failed to remove cart item: ${error.message}`, 500);
   }
-
-  const items = await loadCartItems(cart.id);
-
-  // cartController.js:263-273. `item.product` here is NOT populated in the
-  // source (removeCartItem never calls formatCartResponse before this
-  // filter), so its productId compare is against the raw, unpopulated
-  // product reference -- equivalent to comparing against `product_id`
-  // directly here.
-  const idsToDelete = items
-    .filter((item) => {
-      const itemIdStr = item.id;
-      const prodIdStr = item.product_id;
-
-      if (itemIdStr === id) return true;
-      if (prodIdStr === id) {
-        if (size) return item.selected_size === size;
-        return true;
-      }
-      return false;
-    })
-    .map((item) => item.id);
-
-  if (idsToDelete.length > 0) {
-    await query('delete from cart_items where id = any($1::uuid[])', [idsToDelete]);
-  }
-
-  const remainingItems = await loadCartItems(cart.id);
-
-  return ok({ success: true, message: 'Item removed from cart', cart: serializeCart(cart, remainingItems) });
 });

@@ -502,6 +502,82 @@ describe('app/api/cart/* route handlers (Task 10)', () => {
     });
   });
 
+  describe('cart isolation between users -- mutating endpoints (Finding 2)', () => {
+    it("user B cannot PATCH user A's cart item -- 404 'Item not found in cart', and user A's item is unchanged", async () => {
+      const userA = await insertUser();
+      const userB = await insertUser();
+      const product = await insertProduct({ stock: 25 });
+
+      const added = await cartAddRoute(
+        postRequest('/api/cart/items', { productId: product.id, quantity: 3, selectedSize: 'M' }, authHeader(userA))
+      ).then((r) => r.json());
+      const cartItemId = added.cart.items[0].id;
+
+      // user B has their own cart row (auto-created), so the PATCH handler's
+      // `select * from carts where user_id = $1` scopes to B's cart, which
+      // does not contain A's cart_items row -- it falls into the 404 "Item
+      // not found in cart" branch, not "Cart not found" (which would only
+      // fire if B had no cart row at all) and never touches A's row.
+      await cartGetRoute(getRequest('/api/cart', authHeader(userB)));
+
+      const res = await cartPatchRoute(
+        patchRequest(`/api/cart/items/${cartItemId}`, { quantity: 999 }, authHeader(userB)),
+        paramsContext({ id: cartItemId })
+      );
+      expect(res.status).toBe(404);
+      await expect(res.json()).resolves.toEqual({ success: false, message: 'Item not found in cart' });
+
+      // Assert at the database level: A's item still exists, unchanged.
+      const { rows } = await query('select quantity from cart_items where id = $1', [cartItemId]);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].quantity).toBe(3);
+    });
+
+    it("user B cannot DELETE user A's cart item -- 404 'Item not found in cart' is not returned (falls through as a no-op removal count of 0), and user A's item still exists", async () => {
+      const userA = await insertUser();
+      const userB = await insertUser();
+      const product = await insertProduct({ stock: 25 });
+
+      const added = await cartAddRoute(
+        postRequest('/api/cart/items', { productId: product.id, quantity: 2, selectedSize: 'M' }, authHeader(userA))
+      ).then((r) => r.json());
+      const cartItemId = added.cart.items[0].id;
+
+      // user B has their own (empty) cart row -- removeCartItem's source
+      // scopes by `carts where user_id = $1` and then filters B's OWN items,
+      // which never include A's cart_items row, so the filter is a no-op and
+      // the handler returns its normal 200 success envelope for B's
+      // (unaffected, still-empty) cart -- it does NOT reach into A's cart.
+      const resB = await cartGetRoute(getRequest('/api/cart', authHeader(userB)));
+      const bodyB = await resB.json();
+
+      const res = await cartDeleteItemRoute(
+        deleteRequest(`/api/cart/items/${cartItemId}`, authHeader(userB)),
+        paramsContext({ id: cartItemId })
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body).toEqual({
+        success: true,
+        message: 'Item removed from cart',
+        cart: { id: bodyB.cart.id, user: userB.id, items: [], subtotal: 0, totalCount: 0 }
+      });
+
+      // Assert at the database level: A's item still exists, unchanged.
+      const { rows } = await query('select quantity from cart_items where id = $1', [cartItemId]);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].quantity).toBe(2);
+
+      // And a genuine GET as user A confirms the item is still there and
+      // unchanged from A's own point of view too.
+      const resA = await cartGetRoute(getRequest('/api/cart', authHeader(userA)));
+      const bodyA = await resA.json();
+      expect(bodyA.cart.items).toHaveLength(1);
+      expect(bodyA.cart.items[0].id).toBe(cartItemId);
+      expect(bodyA.cart.items[0].quantity).toBe(2);
+    });
+  });
+
   describe('cart isolation between users', () => {
     it("user A's cart is invisible to user B", async () => {
       const userA = await insertUser();
