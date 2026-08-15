@@ -36,7 +36,7 @@
 
 import 'dotenv/config';
 import { MongoClient } from 'mongodb';
-import { query, close as closePg } from '../lib/db.js';
+import { query, tx, close as closePg } from '../lib/db.js';
 
 const DEFAULT_MONGO_URI = 'mongodb://localhost:27017/zahzan_db';
 
@@ -96,6 +96,13 @@ export function mapAdminProfileDoc(doc) {
  * `adminUsers`: raw `users` documents with role: 'admin'.
  * `adminProfiles`: raw `adminusers` documents (matched to their owning
  * admin user by `userId`).
+ *
+ * A real (non-dry-run) run's writes -- both `users` and `admin_users` rows,
+ * across every document -- are wrapped in a single `db.tx()` call, so a
+ * constraint violation partway through leaves the target tables exactly as
+ * they were before this call started, rather than some admins migrated and
+ * others not. The idempotent upsert-by-email behaviour is unchanged; it
+ * still works exactly the same way on the next (successful) re-run.
  */
 export async function migrateAdmins(db, { adminUsers, adminProfiles }, { dryRun = false } = {}) {
   const summary = {
@@ -103,77 +110,84 @@ export async function migrateAdmins(db, { adminUsers, adminProfiles }, { dryRun 
     adminProfiles: { read: adminProfiles.length, inserted: 0, updated: 0, skipped: 0 }
   };
 
-  for (const userDoc of adminUsers) {
-    const row = mapAdminUserDoc(userDoc);
-
-    if (dryRun) {
-      summary.users.skipped += 1;
-      continue;
+  if (dryRun) {
+    for (const userDoc of adminUsers) {
+      // Still exercise the mapper so a genuinely malformed document is
+      // caught (fails loudly) even in dry-run mode -- only the write is
+      // skipped.
+      mapAdminUserDoc(userDoc);
     }
-
-    const { rows: userRows } = await db.query(
-      `insert into users (
-         first_name, last_name, email, password, auth_provider, google_id,
-         facebook_id, phone, role, is_email_verified, is_active, created_at
-       ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-       on conflict (lower(email)) do update set
-         first_name = excluded.first_name,
-         last_name = excluded.last_name,
-         password = excluded.password,
-         auth_provider = excluded.auth_provider,
-         google_id = excluded.google_id,
-         facebook_id = excluded.facebook_id,
-         phone = excluded.phone,
-         role = excluded.role,
-         is_email_verified = excluded.is_email_verified,
-         is_active = excluded.is_active
-       returning id, (xmax = 0) as inserted`,
-      [
-        row.first_name, row.last_name, row.email, row.password, row.auth_provider,
-        row.google_id, row.facebook_id, row.phone, row.role, row.is_email_verified,
-        row.is_active, row.created_at
-      ]
-    );
-
-    const newUserId = userRows[0].id;
-    if (userRows[0].inserted === true || userRows[0].inserted === 't') {
-      summary.users.inserted += 1;
-    } else {
-      summary.users.updated += 1;
-    }
-
-    const profileDoc = adminProfiles.find((p) => String(p.userId) === String(userDoc._id));
-    if (!profileDoc) {
-      // Nothing to copy -- do not fabricate a metadata row for an admin
-      // that never had one in Mongo.
-      continue;
-    }
-
-    const profileRow = mapAdminProfileDoc(profileDoc);
-    const { rows: profileRows } = await db.query(
-      `insert into admin_users (user_id, permissions, department, created_at)
-       values ($1,$2,$3,$4)
-       on conflict (user_id) do update set
-         permissions = excluded.permissions,
-         department = excluded.department
-       returning id, (xmax = 0) as inserted`,
-      [newUserId, profileRow.permissions, profileRow.department, profileRow.created_at]
-    );
-
-    if (profileRows[0].inserted === true || profileRows[0].inserted === 't') {
-      summary.adminProfiles.inserted += 1;
-    } else {
-      summary.adminProfiles.updated += 1;
-    }
+    summary.users.skipped = adminUsers.length;
+    summary.adminProfiles.skipped = adminProfiles.length;
+    return { summary };
   }
+
+  await db.tx(async (txDb) => {
+    for (const userDoc of adminUsers) {
+      const row = mapAdminUserDoc(userDoc);
+
+      const { rows: userRows } = await txDb.query(
+        `insert into users (
+           first_name, last_name, email, password, auth_provider, google_id,
+           facebook_id, phone, role, is_email_verified, is_active, created_at
+         ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         on conflict (lower(email)) do update set
+           first_name = excluded.first_name,
+           last_name = excluded.last_name,
+           password = excluded.password,
+           auth_provider = excluded.auth_provider,
+           google_id = excluded.google_id,
+           facebook_id = excluded.facebook_id,
+           phone = excluded.phone,
+           role = excluded.role,
+           is_email_verified = excluded.is_email_verified,
+           is_active = excluded.is_active
+         returning id, (xmax = 0) as inserted`,
+        [
+          row.first_name, row.last_name, row.email, row.password, row.auth_provider,
+          row.google_id, row.facebook_id, row.phone, row.role, row.is_email_verified,
+          row.is_active, row.created_at
+        ]
+      );
+
+      const newUserId = userRows[0].id;
+      if (userRows[0].inserted === true || userRows[0].inserted === 't') {
+        summary.users.inserted += 1;
+      } else {
+        summary.users.updated += 1;
+      }
+
+      const profileDoc = adminProfiles.find((p) => String(p.userId) === String(userDoc._id));
+      if (!profileDoc) {
+        // Nothing to copy -- do not fabricate a metadata row for an admin
+        // that never had one in Mongo.
+        continue;
+      }
+
+      const profileRow = mapAdminProfileDoc(profileDoc);
+      const { rows: profileRows } = await txDb.query(
+        `insert into admin_users (user_id, permissions, department, created_at)
+         values ($1,$2,$3,$4)
+         on conflict (user_id) do update set
+           permissions = excluded.permissions,
+           department = excluded.department
+         returning id, (xmax = 0) as inserted`,
+        [newUserId, profileRow.permissions, profileRow.department, profileRow.created_at]
+      );
+
+      if (profileRows[0].inserted === true || profileRows[0].inserted === 't') {
+        summary.adminProfiles.inserted += 1;
+      } else {
+        summary.adminProfiles.updated += 1;
+      }
+    }
+  });
 
   // Any adminusers documents whose owning admin user wasn't in `adminUsers`
   // at all (e.g. role since changed away from 'admin') are read but not
   // migrated -- counted as skipped, not silently dropped.
   const matchedProfileCount = summary.adminProfiles.inserted + summary.adminProfiles.updated;
-  summary.adminProfiles.skipped = dryRun
-    ? adminProfiles.length
-    : adminProfiles.length - matchedProfileCount;
+  summary.adminProfiles.skipped = adminProfiles.length - matchedProfileCount;
 
   return { summary };
 }
@@ -182,7 +196,19 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   console.log(`[migrate-admins] Mongo source: ${args.mongoUri}${args.dryRun ? ' (DRY RUN -- read-only, no Postgres writes)' : ''}`);
 
-  const client = new MongoClient(args.mongoUri);
+  const client = new MongoClient(args.mongoUri, {
+    // Defence in depth, NOT a write barrier: this is a read-routing hint,
+    // not a permission. It steers reads toward a secondary when the source
+    // is a replica set (secondaries physically cannot accept writes); on a
+    // single-node standalone (the default local `mongodb://localhost:27017`
+    // dev setup) there is no secondary, so it has no effect there. The real
+    // guarantee against writing to the user's irreplaceable zahzan_db is a
+    // read-only Mongo credential -- see docs/DATA_MIGRATION.md's "MongoDB
+    // safety" section. This is the higher-stakes script (a mis-run here
+    // risks locking the user out of their own admin panel), so it matters
+    // just as much here as in migrate-products.mjs.
+    readPreference: 'secondaryPreferred'
+  });
   let adminUsers;
   let adminProfiles;
   try {
@@ -195,7 +221,7 @@ async function main() {
     await client.close();
   }
 
-  const { summary } = await migrateAdmins({ query }, { adminUsers, adminProfiles }, { dryRun: args.dryRun });
+  const { summary } = await migrateAdmins({ query, tx }, { adminUsers, adminProfiles }, { dryRun: args.dryRun });
 
   console.log('[migrate-admins] Summary:', JSON.stringify(summary, null, 2));
 }

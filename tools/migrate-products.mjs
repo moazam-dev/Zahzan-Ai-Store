@@ -43,7 +43,7 @@ import { MongoClient } from 'mongodb';
 import { writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { query, close as closePg } from '../lib/db.js';
+import { query, tx, close as closePg } from '../lib/db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IDMAP_PATH = path.resolve(__dirname, 'migration-idmap.json');
@@ -110,75 +110,86 @@ export function mapProductDoc(doc) {
  * `--dry-run`: maps and counts every document but issues no Postgres
  * writes at all (not even inside a rolled-back transaction) and returns an
  * empty idmap.
+ *
+ * A real (non-dry-run) run's writes are wrapped in a single `db.tx()` call,
+ * so a constraint violation partway through leaves the catalogue exactly as
+ * it was before this call started -- not a partial write of whichever
+ * documents happened to be processed first. The idempotent upsert-by-slug
+ * behaviour is unchanged; it still works exactly the same way on the next
+ * (successful) re-run.
  */
 export async function migrateProducts(db, mongoDocs, { dryRun = false } = {}) {
   const summary = { read: mongoDocs.length, inserted: 0, updated: 0, skipped: 0 };
   const idmap = {};
 
-  for (const doc of mongoDocs) {
-    if (dryRun) {
+  if (dryRun) {
+    for (const doc of mongoDocs) {
       // Still exercise the mapper so a genuinely malformed document is
       // caught (fails loudly) even in dry-run mode -- only the write is
       // skipped.
       mapProductDoc(doc);
       summary.skipped += 1;
-      continue;
     }
-
-    const row = mapProductDoc(doc);
-
-    const { rows } = await db.query(
-      `insert into products (
-         name, slug, sku, description, quick_description, price, original_price,
-         category, badge, images, image, hover_image, colors, color, sizes,
-         fabric, work, breakdown, model_info, care_instructions, gallery, stock,
-         is_active, created_at
-       ) values (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
-       )
-       on conflict (slug) do update set
-         name = excluded.name,
-         sku = excluded.sku,
-         description = excluded.description,
-         quick_description = excluded.quick_description,
-         price = excluded.price,
-         original_price = excluded.original_price,
-         category = excluded.category,
-         badge = excluded.badge,
-         images = excluded.images,
-         image = excluded.image,
-         hover_image = excluded.hover_image,
-         colors = excluded.colors,
-         color = excluded.color,
-         sizes = excluded.sizes,
-         fabric = excluded.fabric,
-         work = excluded.work,
-         breakdown = excluded.breakdown,
-         model_info = excluded.model_info,
-         care_instructions = excluded.care_instructions,
-         gallery = excluded.gallery,
-         stock = excluded.stock,
-         is_active = excluded.is_active
-       returning id, (xmax = 0) as inserted`,
-      [
-        row.name, row.slug, row.sku, row.description, row.quick_description,
-        row.price, row.original_price, row.category, row.badge, row.images,
-        row.image, row.hover_image, JSON.stringify(row.colors), row.color,
-        row.sizes, row.fabric, row.work,
-        row.breakdown ? JSON.stringify(row.breakdown) : null,
-        row.model_info, row.care_instructions, row.gallery, row.stock,
-        row.is_active, row.created_at
-      ]
-    );
-
-    const newId = rows[0].id;
-    if (rows[0].inserted === true || rows[0].inserted === 't') {
-      summary.inserted += 1;
-    } else {
-      summary.updated += 1;
-    }
-    idmap[String(doc._id)] = newId;
+    return { summary, idmap };
   }
+
+  await db.tx(async (txDb) => {
+    for (const doc of mongoDocs) {
+      const row = mapProductDoc(doc);
+
+      const { rows } = await txDb.query(
+        `insert into products (
+           name, slug, sku, description, quick_description, price, original_price,
+           category, badge, images, image, hover_image, colors, color, sizes,
+           fabric, work, breakdown, model_info, care_instructions, gallery, stock,
+           is_active, created_at
+         ) values (
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
+         )
+         on conflict (slug) do update set
+           name = excluded.name,
+           sku = excluded.sku,
+           description = excluded.description,
+           quick_description = excluded.quick_description,
+           price = excluded.price,
+           original_price = excluded.original_price,
+           category = excluded.category,
+           badge = excluded.badge,
+           images = excluded.images,
+           image = excluded.image,
+           hover_image = excluded.hover_image,
+           colors = excluded.colors,
+           color = excluded.color,
+           sizes = excluded.sizes,
+           fabric = excluded.fabric,
+           work = excluded.work,
+           breakdown = excluded.breakdown,
+           model_info = excluded.model_info,
+           care_instructions = excluded.care_instructions,
+           gallery = excluded.gallery,
+           stock = excluded.stock,
+           is_active = excluded.is_active
+         returning id, (xmax = 0) as inserted`,
+        [
+          row.name, row.slug, row.sku, row.description, row.quick_description,
+          row.price, row.original_price, row.category, row.badge, row.images,
+          row.image, row.hover_image, JSON.stringify(row.colors), row.color,
+          row.sizes, row.fabric, row.work,
+          row.breakdown ? JSON.stringify(row.breakdown) : null,
+          row.model_info, row.care_instructions, row.gallery, row.stock,
+          row.is_active, row.created_at
+        ]
+      );
+
+      const newId = rows[0].id;
+      if (rows[0].inserted === true || rows[0].inserted === 't') {
+        summary.inserted += 1;
+      } else {
+        summary.updated += 1;
+      }
+      idmap[String(doc._id)] = newId;
+    }
+  });
 
   return { summary, idmap };
 }
@@ -200,7 +211,17 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   console.log(`[migrate-products] Mongo source: ${args.mongoUri}${args.dryRun ? ' (DRY RUN -- read-only, no Postgres writes)' : ''}`);
 
-  const client = new MongoClient(args.mongoUri);
+  const client = new MongoClient(args.mongoUri, {
+    // Defence in depth, NOT a write barrier: this is a read-routing hint,
+    // not a permission. It steers reads toward a secondary when the source
+    // is a replica set (secondaries physically cannot accept writes); on a
+    // single-node standalone (the default local `mongodb://localhost:27017`
+    // dev setup) there is no secondary, so it has no effect there. The real
+    // guarantee against writing to the user's irreplaceable zahzan_db is a
+    // read-only Mongo credential -- see docs/DATA_MIGRATION.md's "MongoDB
+    // safety" section.
+    readPreference: 'secondaryPreferred'
+  });
   let mongoDocs;
   try {
     await client.connect();
@@ -211,7 +232,7 @@ async function main() {
     await client.close();
   }
 
-  const { summary, idmap } = await migrateProducts({ query }, mongoDocs, { dryRun: args.dryRun });
+  const { summary, idmap } = await migrateProducts({ query, tx }, mongoDocs, { dryRun: args.dryRun });
 
   if (!args.dryRun && Object.keys(idmap).length > 0) {
     const idmapPath = await writeIdmap('products', idmap);

@@ -153,6 +153,24 @@ describe('migrate-products.mjs', () => {
     const { rows } = await db.query('select * from products');
     expect(rows).toHaveLength(0);
   });
+
+  it('a constraint violation partway through a real run rolls back EVERY row from that run, not just the bad one', async () => {
+    // Three documents: two would insert cleanly, one violates the
+    // `price >= 0` check constraint (supabase/migrations/0001_init.sql).
+    // The good documents are deliberately placed both before AND after the
+    // bad one, so a per-document (non-transactional) write path would leave
+    // at least the first good row committed.
+    const good1 = makeProductDoc({ _id: 'aaaaaaaaaaaaaaaaaaaaaaaa', slug: 'good-one', price: 1000 });
+    const bad = makeProductDoc({ _id: 'bbbbbbbbbbbbbbbbbbbbbbbb', slug: 'bad-price', price: -500 });
+    const good2 = makeProductDoc({ _id: 'cccccccccccccccccccccccc', slug: 'good-two', price: 2000 });
+
+    await expect(migrateProducts(db, [good1, bad, good2], {})).rejects.toThrow();
+
+    // Not merely "the process would exit non-zero" -- assert directly that
+    // NO rows exist, including the ones that would have inserted cleanly.
+    const { rows } = await db.query('select slug from products');
+    expect(rows).toHaveLength(0);
+  });
 });
 
 describe('migrate-admins.mjs', () => {
@@ -240,5 +258,36 @@ describe('migrate-admins.mjs', () => {
     expect(userRows).toHaveLength(0);
     const { rows: profileRows } = await db.query('select * from admin_users');
     expect(profileRows).toHaveLength(0);
+  });
+
+  it('a constraint violation partway through a real run rolls back EVERY row from that run, not just the bad one', async () => {
+    // Three admin documents: two would insert cleanly, one violates the
+    // `first_name not null` constraint (supabase/migrations/0001_init.sql)
+    // because its source document genuinely has no firstName. The good
+    // documents are deliberately placed both before AND after the bad one,
+    // so a per-document (non-transactional) write path would leave at
+    // least the first good row committed.
+    const good1 = makeAdminUserDoc({
+      _id: '111111111111111111111111',
+      email: 'good-one@zahzan.com'
+    });
+    const bad = makeAdminUserDoc({
+      _id: '222222222222222222222222',
+      email: 'bad-admin@zahzan.com',
+      firstName: null
+    });
+    const good2 = makeAdminUserDoc({
+      _id: '333333333333333333333333',
+      email: 'good-two@zahzan.com'
+    });
+
+    await expect(
+      migrateAdmins(db, { adminUsers: [good1, bad, good2], adminProfiles: [] }, {})
+    ).rejects.toThrow();
+
+    // Not merely "the process would exit non-zero" -- assert directly that
+    // NO rows exist, including the ones that would have inserted cleanly.
+    const { rows } = await db.query('select email from users');
+    expect(rows).toHaveLength(0);
   });
 });
