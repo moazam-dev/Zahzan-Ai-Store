@@ -152,6 +152,36 @@ If the user prefers literal parity over integrity here, dropping both FKs is the
 
 ---
 
+## Ruling C16 — KNOWN DEVIATION: whitespace-only required fields (accepted, documented)
+
+Found during the cross-cutting implicit-trim sweep. Not closed, deliberately.
+
+**The divergence.** For `POST /api/orders`, a `customerName` / `customerEmail` / `customerPhone`
+consisting only of whitespace behaves differently:
+
+| | Old (Mongoose) | New (Postgres) |
+| --- | --- | --- |
+| Route's truthy check | passes (`"   "` is truthy) | passes (identical check) |
+| After the schema's `trim` cast | becomes `""` | becomes `""` |
+| Required enforcement | `required: true` rejects `""` → ValidationError → **500** | `not null` is not a content check, `""` is allowed → **201** |
+
+The same shape applies to admin product create/update on the newly-trimmed fields.
+
+**Why it is NOT being fixed.** Every available option is a guess at behaviour no golden captures:
+- Reproducing the old 500 exactly would mean synthesising a Mongoose `ValidationError` message
+  string we have no capture of.
+- Adding a post-trim required check would return the route's own 400 — a *different* divergence
+  wearing the costume of a fix, and one that changes validation flow.
+No golden exercises this path, and it is unreachable from the shipped checkout, which validates
+before submitting. Inventing a plausible-looking behaviour here would be worse than recording the
+truth: **an order submitted through the API with a whitespace-only customer name now succeeds with
+a blank name, where it previously failed with a 500.**
+
+If the user wants this closed, the decision to make is which behaviour they actually want — reject
+with a 400, or keep the old 500 — since neither is recoverable from the captured baseline.
+
+---
+
 ## Task 1: Toolchain, database adapter, and test harness
 
 **Objective.** Stand up the build and test tooling every later task depends on. No application
