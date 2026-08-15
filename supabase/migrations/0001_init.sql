@@ -628,3 +628,46 @@ alter table story_submissions enable row level security;
 alter table tryon_jobs enable row level security;
 alter table wishlist_items enable row level security;
 alter table rate_limits enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- check_rate_limit(p_key, p_max, p_window_seconds): Task 5.
+-- server/middleware/rateLimiter.js + the apiLimiter block in
+-- server/server.js are express-rate-limit, which is in-memory per Express
+-- process -- there is no equivalent that survives ephemeral, horizontally-
+-- scaled serverless functions (MIGRATION_PLAN.md sec7.5). Replaced with
+-- this table + an atomic upsert-and-increment function.
+--
+-- Single statement (INSERT ... ON CONFLICT ... DO UPDATE ... RETURNING),
+-- so it is atomic under concurrent callers hitting the same key -- no
+-- separate read-then-write race window. Returns true when the caller is
+-- OVER the limit (the count captured by RETURNING, after this call's own
+-- increment, exceeds p_max), false otherwise. When the existing window has
+-- expired (window_start + p_window_seconds < now()), the window resets:
+-- window_start moves to now() and count restarts at 1 for this call.
+-- ---------------------------------------------------------------------------
+
+create or replace function check_rate_limit(p_key text, p_max integer, p_window_seconds integer)
+returns boolean
+language plpgsql
+as $$
+declare
+  v_count integer;
+begin
+  insert into rate_limits (key, window_start, count)
+  values (p_key, now(), 1)
+  on conflict (key) do update set
+    window_start = case
+      when rate_limits.window_start + (p_window_seconds || ' seconds')::interval < now()
+        then now()
+      else rate_limits.window_start
+    end,
+    count = case
+      when rate_limits.window_start + (p_window_seconds || ' seconds')::interval < now()
+        then 1
+      else rate_limits.count + 1
+    end
+  returning count into v_count;
+
+  return v_count > p_max;
+end;
+$$;
