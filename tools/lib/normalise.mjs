@@ -14,9 +14,10 @@
 //
 // One extra category was added beyond the brief's literal list (see
 // EPOCH_MS_RE below) because without it the double-run reproducibility
-// check (the task's acceptance criterion) cannot pass. This is called out
-// explicitly in tools/README-scope-note is not created; it is documented
-// in docs/CONTRACT_CAPTURE.md and in the Task 2 report instead.
+// check (the task's acceptance criterion) cannot pass. It is deliberately
+// KEY-SCOPED (applied only to a `proofPublicId` field), not global -- see
+// the comment on EPOCH_MS_RE for why. This is documented in
+// docs/CONTRACT_CAPTURE.md and in the Task 2 report.
 //
 // Normalisation walks the JSON recursively and preserves key order and
 // structure -- only string leaf values are rewritten (via regex
@@ -61,13 +62,35 @@ const ISO_TS_RE =
 // than \b: these values are typically embedded right after an underscore
 // (e.g. `payment_<orderNumber>_1755218381234`), and \b does not see a
 // boundary between two word characters like `_` and `1`.
+//
+// Deliberately KEY-SCOPED (see EPOCH_SCOPED_KEYS / normalise() below)
+// rather than applied to every string leaf. A global 13-digit-starting-
+// with-1 rule is too broad to reuse safely: Task 15 runs this exact
+// normaliser against the ported Next.js/Postgres stack, where a serialized
+// bigint id or a bank transactionReference could easily be 13 digits
+// starting with 1, and silently collapsing that to <TS> would mask a real
+// parity break rather than catch one. Scoping this rule to the one field
+// it exists for keeps it from ever touching unrelated data.
 const EPOCH_MS_RE = /(?<!\d)1\d{12}(?!\d)/g;
+
+// Fields whose value gets the epoch-ms substitution in addition to the
+// always-on rules above. Currently just the one field EPOCH_MS_RE exists
+// for; add here (not by broadening EPOCH_MS_RE itself) if another field is
+// ever found to need it.
+const EPOCH_SCOPED_KEYS = new Set(['proofPublicId']);
 
 /**
  * Normalises a single string leaf value by replacing every volatile
  * substring with its placeholder. Order matters only in that URL/PATH are
  * applied first so a full URL (which may itself embed a Mongo id) collapses
  * to a single <URL> token instead of a partially-substituted string.
+ *
+ * This is the always-on, key-independent rule set. It intentionally does
+ * NOT include EPOCH_MS_RE -- that one only fires for specific JSON keys via
+ * `normalise()`'s key-scoping, since called directly here (e.g. for the
+ * recorded `path` field, or a raw CSV/HTML body via `normaliseText`) there
+ * is no key to scope by, and none of those callers ever carry a
+ * `proofPublicId`-shaped value.
  */
 export function normaliseString(input) {
   if (typeof input !== 'string') return input;
@@ -80,7 +103,6 @@ export function normaliseString(input) {
   out = out.replace(UUID_RE, '<ID>');
   out = out.replace(OBJECTID_RE, '<ID>');
   out = out.replace(ISO_TS_RE, '<TS>');
-  out = out.replace(EPOCH_MS_RE, '<TS>');
   return out;
 }
 
@@ -88,16 +110,26 @@ export function normaliseString(input) {
  * Recursively normalises a JSON-compatible value (object / array / string /
  * number / boolean / null). Preserves key order and structure; only string
  * leaves are ever rewritten.
+ *
+ * @param {*} value
+ * @param {string} [key] the JSON key `value` was read from (undefined at
+ *        the root, or inside an array). Used only to key-scope EPOCH_MS_RE.
  */
-export function normalise(value) {
-  if (typeof value === 'string') return normaliseString(value);
+export function normalise(value, key) {
+  if (typeof value === 'string') {
+    let out = normaliseString(value);
+    if (key !== undefined && EPOCH_SCOPED_KEYS.has(key)) {
+      out = out.replace(EPOCH_MS_RE, '<TS>');
+    }
+    return out;
+  }
 
-  if (Array.isArray(value)) return value.map((item) => normalise(item));
+  if (Array.isArray(value)) return value.map((item) => normalise(item, key));
 
   if (value && typeof value === 'object') {
     const out = {};
-    for (const [key, val] of Object.entries(value)) {
-      out[key] = normalise(val);
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = normalise(v, k);
     }
     return out;
   }

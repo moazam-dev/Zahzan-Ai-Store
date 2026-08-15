@@ -36,6 +36,53 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 import { normalise, normaliseText, normaliseString } from './lib/normalise.mjs';
+import { MongoClient, ObjectId } from 'mongodb';
+
+/**
+ * Recursively replaces every occurrence of any string in `raws` with
+ * `<TOKEN>`, inside strings, object values and array elements alike. Used
+ * only for the handful of genuinely-random one-off values (see the `redact`
+ * option on Recorder.call) that don't fit any category in
+ * tools/lib/normalise.mjs and have no business being added there.
+ */
+function redactDeep(value, raws) {
+  if (typeof value === 'string') {
+    let out = value;
+    for (const raw of raws) {
+      if (raw) out = out.split(raw).join('<TOKEN>');
+    }
+    return out;
+  }
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v, raws));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = redactDeep(v, raws);
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Reads the current (single, since the controller deletes prior ones on
+ * each new request) email-change token for a user directly out of Mongo.
+ * The token is crypto.randomBytes(32).toString('hex') and the API never
+ * returns it to any client -- by design it only ever reaches the user by
+ * email, and email sending is disabled for capture (see
+ * docs/CONTRACT_CAPTURE.md) -- so this is the only way to exercise the
+ * `GET /api/users/me/confirm-email-change` success path at all. Same
+ * technique tools/seed-contract-db.mjs already uses for the newsletter
+ * unsubscribe token, just read live instead of seeded.
+ */
+async function fetchEmailChangeToken(mongoUri, userId) {
+  const client = new MongoClient(mongoUri);
+  await client.connect();
+  try {
+    const doc = await client.db().collection('emailchangetokens').findOne({ userId: new ObjectId(userId) });
+    return doc ? doc.token : null;
+  } finally {
+    await client.close();
+  }
+}
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -164,9 +211,16 @@ class Recorder {
    *        multipart/form-data request
    * @param {number|number[]} opts.expectStatus  status code(s) this call must return
    * @param {boolean} [opts.acceptHtml]   send Accept: text/html instead of application/json
+   * @param {string[]} [opts.redact]      raw substrings to blank out of the recorded path/body
+   *        (post-normalisation, simple string replace) as <TOKEN>. For one-off values that are
+   *        genuinely random per run but never appear in the brief's normaliser categories -- e.g.
+   *        a crypto.randomBytes() token read back out of Mongo to exercise a confirm-by-token
+   *        endpoint. Deliberately NOT added to tools/lib/normalise.mjs itself: that file's scope
+   *        was just narrowed (fix round 1, Finding 2) and a one-off capture-script value has no
+   *        business broadening it back out again.
    */
   async call(name, method, pathAndQuery, opts = {}) {
-    const { token, json, form, expectStatus, acceptHtml } = opts;
+    const { token, json, form, expectStatus, acceptHtml, redact } = opts;
 
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -219,6 +273,16 @@ class Recorder {
       }
     }
 
+    let recordedPath = normaliseString(pathAndQuery);
+    let recordedRequestBody = requestBodyForCapture;
+    let recordedResponseBody = normalisedBody;
+
+    if (redact && redact.length) {
+      recordedPath = redactDeep(recordedPath, redact);
+      recordedRequestBody = redactDeep(recordedRequestBody, redact);
+      recordedResponseBody = redactDeep(recordedResponseBody, redact);
+    }
+
     const record = {
       name,
       method,
@@ -230,10 +294,10 @@ class Recorder {
       // runs the acceptance check diffs against each other, and would also
       // make this record useless for comparing against a future stack
       // that mints its own, differently-shaped ids for the same resource.
-      path: normaliseString(pathAndQuery),
-      requestBody: requestBodyForCapture,
+      path: recordedPath,
+      requestBody: recordedRequestBody,
       status: res.status,
-      responseBody: normalisedBody
+      responseBody: recordedResponseBody
     };
 
     const fileName = this.nextFileName(name);
@@ -248,7 +312,7 @@ class Recorder {
 // The journey (Task 2 brief, section by section, in the specified order)
 // ---------------------------------------------------------------------------
 
-async function runJourney(rec) {
+async function runJourney(rec, mongoUri) {
   const ctx = {};
   const fixturePng = await readFile(path.join(REPO_ROOT, 'tools', 'fixtures', 'payment-proof.png'));
 
@@ -795,6 +859,137 @@ async function runJourney(rec) {
     json: { oldPassword: 'x', newPassword: 'y' },
     expectStatus: 404
   });
+
+  // ---- Coverage extension (fix round 1, Finding 1) --------------------------------------
+  // Controller ruling: the Task 2 brief's journey list is a floor, not a ceiling (the binding
+  // spec, MIGRATION_PLAN.md §3.1, says "must cover, at minimum"). These 11 endpoints were
+  // reachable with the harness's existing capability and are appended here -- additive only,
+  // after file 090, so the original 90 golden files are untouched.
+
+  // 1/11: POST /api/auth/google -- controller trusts the request body outright (no real
+  // Google call), so a fake body exercises real, deterministic server behaviour.
+  await rec.call('extra2.auth-google', 'POST', '/api/auth/google', {
+    json: {
+      googleId: 'journey-google-uid-001',
+      email: 'google.journey@zahzancontract.test',
+      firstName: 'Google',
+      lastName: 'Journey'
+    },
+    expectStatus: 200
+  });
+
+  // 2/11: POST /api/auth/facebook -- same pattern.
+  await rec.call('extra2.auth-facebook', 'POST', '/api/auth/facebook', {
+    json: {
+      facebookId: 'journey-facebook-uid-001',
+      email: 'facebook.journey@zahzancontract.test',
+      firstName: 'Facebook',
+      lastName: 'Journey'
+    },
+    expectStatus: 200
+  });
+
+  // 3/11: POST /api/users/me/email-change-request -- both 400 branches plus the 200 success.
+  await rec.call('extra2.users-email-change-request-same-as-current', 'POST', '/api/users/me/email-change-request', {
+    token: ctx.customerToken,
+    json: { newEmail: primary.email },
+    expectStatus: 400
+  });
+  await rec.call('extra2.users-email-change-request-duplicate', 'POST', '/api/users/me/email-change-request', {
+    token: ctx.customerToken,
+    json: { newEmail: 'customer1@zahzancontract.test' },
+    expectStatus: 400
+  });
+  await rec.call('extra2.users-email-change-request-success', 'POST', '/api/users/me/email-change-request', {
+    token: ctx.customerToken,
+    json: { newEmail: 'sara.newemail@zahzancontract.test' },
+    expectStatus: 200
+  });
+
+  // 4/11: GET /api/users/me/confirm-email-change -- the 400 branch is trivial (a garbage
+  // token). The 200 success branch needs the real crypto.randomBytes(32) token, which the API
+  // never returns to any client by design -- so it's read directly out of Mongo, the same
+  // technique tools/seed-contract-db.mjs already uses for the newsletter unsubscribe token. The
+  // real token is genuinely random per run and fits none of tools/lib/normalise.mjs's
+  // categories, so it's `redact`ed out of the recorded path (see Recorder.call's `redact`
+  // option) rather than left to leak into the golden file and break reproducibility.
+  await rec.call('extra2.users-confirm-email-change-invalid-token', 'GET',
+    '/api/users/me/confirm-email-change?token=deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef',
+    { expectStatus: 400 }
+  );
+
+  if (mongoUri) {
+    const realToken = await fetchEmailChangeToken(mongoUri, ctx.customerId);
+    if (realToken) {
+      await rec.call(
+        'extra2.users-confirm-email-change-success',
+        'GET',
+        `/api/users/me/confirm-email-change?token=${realToken}`,
+        { expectStatus: 200, redact: [realToken] }
+      );
+    } else {
+      console.warn(
+        '[contract-capture] extra2.users-confirm-email-change-success SKIPPED: no emailchangetokens document found for the primary customer.'
+      );
+    }
+  } else {
+    console.warn(
+      '[contract-capture] extra2.users-confirm-email-change-success SKIPPED: no --env MONGODB_URI available to read the token back. Only the 400 branch was captured for this endpoint.'
+    );
+  }
+
+  // 5/11: POST /api/products -- productController.createProduct, gated by protect+requireAdmin
+  // on productRoutes, distinct from POST /api/admin/products (createAdminProduct) captured
+  // earlier. This controller calls Product.create(req.body) directly with no field whitelisting,
+  // so the body must already satisfy every schema requirement itself.
+  await rec.call('extra2.products-create', 'POST', '/api/products', {
+    token: ctx.adminToken,
+    json: {
+      name: 'ZAHZAN Coverage Test Product',
+      slug: 'zahzan-coverage-test-product',
+      sku: 'zhz-cov-001',
+      category: 'Accessories',
+      price: 3000,
+      stock: 15
+    },
+    expectStatus: 201
+  });
+
+  // 6/11, 7/11, 8/11: admin get-by-id for orders/payments/customers -- every id used here
+  // already exists in ctx/local scope from earlier in this same journey.
+  await rec.call('extra2.admin-order-by-id', 'GET', `/api/admin/orders/${order3._id}`, {
+    token: ctx.adminToken,
+    expectStatus: 200
+  });
+  await rec.call('extra2.admin-payment-by-id', 'GET', `/api/admin/payments/${ctx.payment1Id}`, {
+    token: ctx.adminToken,
+    expectStatus: 200
+  });
+  await rec.call('extra2.admin-customer-by-id', 'GET', `/api/admin/customers/${CUSTOMER2_ID}`, {
+    token: ctx.adminToken,
+    expectStatus: 200
+  });
+
+  // 9/11: POST /api/newsletter/unsubscribe -- same controller as the already-captured
+  // GET /unsubscribe/:token route, reading the token from the request body instead of the URL.
+  // Reuses the seeded subscriber's token, already unsubscribed earlier in this journey, so this
+  // exercises the controller's idempotent "already unsubscribed" 200 branch deterministically.
+  await rec.call('extra2.newsletter-unsubscribe-post', 'POST', '/api/newsletter/unsubscribe', {
+    json: { token: SEED_NEWSLETTER_TOKEN },
+    expectStatus: 200
+  });
+
+  // 10/11: GET /api/try-on/:id -- unconditional 501, no DB lookup, any id works.
+  await rec.call('extra2.tryon-get-by-id', 'GET', '/api/try-on/000000000000000000000000', {
+    token: ctx.customerToken,
+    expectStatus: 501
+  });
+
+  // 11/11: POST /api/stories -- unconditional 501.
+  await rec.call('extra2.stories-post', 'POST', '/api/stories', {
+    token: ctx.customerToken,
+    expectStatus: 501
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -820,7 +1015,14 @@ async function main() {
 
     const rec = new Recorder(args.base, args.out);
     await rec.init();
-    await runJourney(rec);
+    // Only used to read back the one token the API never returns to a client
+    // (see fetchEmailChangeToken). Deliberately NOT defaulted when absent:
+    // this script is meant to be reusable against a future, Mongo-less
+    // Next.js/Postgres stack (docs/CONTRACT_CAPTURE.md), where silently
+    // trying to open a Mongo connection that was never asked for would be
+    // wrong, not just unnecessary. Pass --env MONGODB_URI=... to enable it.
+    const mongoUri = args.env.MONGODB_URI || undefined;
+    await runJourney(rec, mongoUri);
 
     console.log(`[contract-capture] Captured ${rec.files.length} interactions into ${args.out}`);
   } catch (err) {

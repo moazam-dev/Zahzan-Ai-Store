@@ -36,11 +36,28 @@ describe('normalise', () => {
     expect(normaliseString('C:\\Users\\zaeem\\repo\\tools\\golden\\001-health.json')).toBe('<PATH>');
   });
 
-  it('replaces a raw epoch-millisecond timestamp embedded in a string with <TS>', () => {
+  it('replaces a raw epoch-millisecond timestamp with <TS>, but only in the proofPublicId field', () => {
     // Not in the brief's literal list -- added because Cloudinary public_ids
     // embed Date.now() and are returned verbatim in payment responses; see
-    // the comment above EPOCH_MS_RE in tools/lib/normalise.mjs.
-    expect(normaliseString('payment_ZHZ-20260815-0001_1755218381234')).toBe('payment_<ORDERNO>_<TS>');
+    // the comment above EPOCH_MS_RE in tools/lib/normalise.mjs. Deliberately
+    // key-scoped (fix round 1, Finding 2): normaliseString() alone does NOT
+    // touch it -- only normalise() does, and only for this one key.
+    expect(normaliseString('payment_ZHZ-20260815-0001_1755218381234')).toBe(
+      'payment_<ORDERNO>_1755218381234'
+    );
+
+    const result = normalise({ proofPublicId: 'payment_ZHZ-20260815-0001_1755218381234' });
+    expect(result.proofPublicId).toBe('payment_<ORDERNO>_<TS>');
+  });
+
+  it('does NOT apply the epoch-ms rule to a 13-digit value outside proofPublicId (regression for over-normalisation)', () => {
+    // Fix round 1, Finding 2: this exact class of value -- a 13-digit run
+    // starting with 1 -- could legitimately be a bank transactionReference
+    // (or, once this normaliser is reused against the new stack in Task 15,
+    // a serialized Postgres bigint id). It must survive untouched so a real
+    // parity break in a field shaped like this is never silently masked.
+    const result = normalise({ transactionReference: '1755218381234' });
+    expect(result.transactionReference).toBe('1755218381234');
   });
 
   it('leaves stable values alone', () => {

@@ -1,0 +1,13 @@
+{
+  "name": "extra2.users-email-change-request-same-as-current",
+  "method": "POST",
+  "path": "/api/users/me/email-change-request",
+  "requestBody": {
+    "newEmail": "journey.customer@zahzancontract.test"
+  },
+  "status": 400,
+  "responseBody": {
+    "success": false,
+    "message": "New email address cannot be the same as your current email."
+  }
+}

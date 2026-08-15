@@ -1,0 +1,13 @@
+{
+  "name": "extra2.users-email-change-request-success",
+  "method": "POST",
+  "path": "/api/users/me/email-change-request",
+  "requestBody": {
+    "newEmail": "sara.newemail@zahzancontract.test"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "A confirmation link has been sent to sara.newemail@zahzancontract.test. Please check your inbox to complete the update."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "extra2.auth-facebook",
+  "method": "POST",
+  "path": "/api/auth/facebook",
+  "requestBody": {
+    "facebookId": "journey-facebook-uid-001",
+    "email": "facebook.journey@zahzancontract.test",
+    "firstName": "Facebook",
+    "lastName": "Journey"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Facebook authentication successful.",
+    "token": "<JWT>",
+    "refreshToken": "<JWT>",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Facebook",
+      "lastName": "Journey",
+      "name": "Facebook Journey",
+      "email": "facebook.journey@zahzancontract.test",
+      "phone": "",
+      "role": "customer",
+      "authProvider": "facebook",
+      "isEmailVerified": true
+    }
+  }
+}

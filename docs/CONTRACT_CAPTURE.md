@@ -11,7 +11,7 @@ against this baseline.
 
 - `tools/lib/normalise.mjs` — replaces volatile values (Mongo ObjectIds/UUIDs,
   ISO timestamps, JWTs, order numbers, absolute URLs, `tools/golden` absolute
-  paths, and raw epoch-millisecond timestamps embedded in strings) with
+  paths, and a key-scoped epoch-millisecond rule for one specific field) with
   stable placeholders, so two captures of the same journey diff cleanly even
   though every id, token and timestamp is different each time it runs.
 - `tools/seed-contract-db.mjs` — drops and re-seeds the `zahzan_contract_test`
@@ -19,11 +19,11 @@ against this baseline.
   newsletter subscriber. Every seeded value is a literal constant (no
   `Date.now()`, no randomness), and the script refuses to run against any
   database other than `zahzan_contract_test`.
-- `tools/contract-capture.mjs` — drives a ~90-step scripted journey over HTTP
-  against `--base` and writes one normalised JSON file per interaction into
-  `--out`. It can optionally boot the target server itself (`--start-cmd`,
-  `--cwd`, `--env ...`) and wait for `--health-path` before running, then
-  shuts it down afterwards.
+- `tools/contract-capture.mjs` — drives a ~104-step scripted journey over
+  HTTP against `--base`, covering all 67 endpoints, and writes one
+  normalised JSON file per interaction into `--out`. It can optionally boot
+  the target server itself (`--start-cmd`, `--cwd`, `--env ...`) and wait
+  for `--health-path` before running, then shuts it down afterwards.
 - `tools/contract-diff.mjs` — compares two golden directories file-by-file,
   printing a structural diff and exiting non-zero on any difference or any
   file missing from either side.
@@ -124,17 +124,26 @@ rm -rf tools/golden-run2   # scratch only; gitignored, never committed
 
 ## A normalisation rule beyond the brief's literal list
 
-`tools/lib/normalise.mjs` also strips raw 13-digit epoch-millisecond
-timestamps embedded inside strings (`EPOCH_MS_RE`), in addition to the six
-categories the brief lists verbatim. This exists because
-`server/utils/cloudinary.js` builds its Cloudinary `public_id` as
-`` `payment_${orderId}_${Date.now()}` ``, and that raw value -- not an
-ISO-8601 string, not a URL -- comes back to the client as
-`payment.proofPublicId`. Without normalising it, the double-run
-reproducibility check could never pass, since it's the one piece of every
-captured response body that isn't already covered by one of the brief's six
-listed categories. See the comment above `EPOCH_MS_RE` for the full
-reasoning.
+`tools/lib/normalise.mjs` also strips a raw 13-digit epoch-millisecond
+timestamp (`EPOCH_MS_RE`), in addition to the six categories the brief
+lists verbatim. This exists because `server/utils/cloudinary.js` builds its
+Cloudinary `public_id` as `` `payment_${orderId}_${Date.now()}` ``, and that
+raw value -- not an ISO-8601 string, not a URL -- comes back to the client
+as `payment.proofPublicId`. Without normalising it, the double-run
+reproducibility check could never pass.
+
+**This rule is key-scoped, not global** (fixed in fix round 1, Finding 2):
+it only fires when `normalise()` is walking the `proofPublicId` field
+specifically (see `EPOCH_SCOPED_KEYS` in `tools/lib/normalise.mjs`), not for
+every 13-digit string leaf anywhere in a captured body. A global version
+would have been unsafe to reuse in Task 15 against the ported stack: a
+serialized Postgres bigint id, or a bank `transactionReference`, can easily
+be 13 digits starting with `1`, and silently collapsing that to `<TS>` would
+mask a genuine parity break instead of catching one.
+`normaliseString()` (used directly for the recorded `path` field and for
+`normaliseText`'s raw CSV/HTML bodies) never applies this rule at all, since
+neither of those has a JSON key to scope by and neither ever carries a
+`proofPublicId`-shaped value.
 
 The capture harness also normalises the recorded **`path`** field itself
 (not just request/response bodies), because a handful of journey steps
@@ -145,45 +154,45 @@ make cross-stack (`tools/golden` vs `tools/golden-next`) comparison noisy
 once ids are shaped completely differently (Postgres UUIDs instead of Mongo
 ObjectIds).
 
-## Known gaps: endpoints the journey does not exercise
+## One-off random values that don't fit any normaliser category: `redact`
 
-The brief specifies the journey's steps verbatim, in order. Followed
-literally, it does not reach every one of the 67 endpoints. These are the
-ones left uncaptured, and why:
+`GET /api/users/me/confirm-email-change`'s success path needs the real
+`crypto.randomBytes(32)` email-change token as a query parameter -- the API
+never returns this token to any client (by design, it only ever reaches the
+user by email), so the capture script reads it directly out of Mongo
+(`fetchEmailChangeToken` in `tools/contract-capture.mjs`) the same way
+`tools/seed-contract-db.mjs` already does for the newsletter unsubscribe
+token, except this one is genuinely random per run rather than seeded.
+Rather than broadening `tools/lib/normalise.mjs` again right after
+narrowing it (Finding 2), `Recorder.call()` takes an optional `redact: [...]`
+array of raw strings to blank out of the recorded path/body as `<TOKEN>`,
+applied as a plain string replace after normalisation. This keeps the
+shared normaliser's scope exactly as fixed, while still keeping this one
+capture reproducible.
 
-- `POST /api/auth/google`, `POST /api/auth/facebook` -- not listed in the
-  brief's auth section (which only covers register/login/me/refresh/
-  forgot-password/reset-password/logout).
-- `POST /api/users/me/email-change-request`,
-  `GET /api/users/me/confirm-email-change` -- not listed in the brief's
-  users section.
-- `POST /api/products` (`server/controllers/productController.js`'s
-  `createProduct`, gated by `protect` + `requireAdmin` on `productRoutes`)
-  -- distinct from `POST /api/admin/products` (`createAdminProduct`), which
-  *is* captured. The brief's products section only exercises the public
-  `GET` endpoints.
-- `GET /api/admin/orders/:id`, `GET /api/admin/payments/:id`,
-  `GET /api/admin/customers/:id` -- the brief's admin section lists list
-  endpoints (with page/search/status) and specific actions (status update,
-  verify, reject, product CRUD, customer toggle, export, audit logs), but
-  no "get single record by id" step for orders/payments/customers. All the
-  ids the journey needs for those actions arrive already, embedded in
-  earlier responses, so nothing forced a call to these three endpoints.
-- `POST /api/newsletter/unsubscribe` (the body/query-token variant) -- the
-  brief's newsletter section says "unsubscribe by token", which this
-  journey interprets as the `GET /api/newsletter/unsubscribe/:token` route
-  (see below for why); the alternate `POST` route sharing the same
-  controller is not separately exercised.
-- `POST /api/stories` (`submitStory`) and `GET /api/try-on/:id`
-  (`getTryOnJobStatus`) -- both are 501 stubs, like the two the brief does
-  list (`POST /api/try-on`, `GET /api/stories`), but the brief only names
-  those two.
+## Endpoint coverage: 67/67
 
-None of these are behaviour the harness got wrong -- they're simply outside
-the literal journey the brief specifies. A future task extending this
-journey can add them; `tools/contract-capture.mjs`'s `runJourney()` function
-is a plain, linear sequence of `rec.call(...)` steps, so adding a step is
-additive and low-risk.
+The Task 2 brief's journey list, followed literally, reached 56 of the 67
+endpoints -- it names a specific, ordered sequence of steps and several
+endpoints (Google/Facebook social auth, the email-change flow, the plain
+`productController.createProduct`, three admin get-by-id routes, the `POST`
+newsletter-unsubscribe variant, and two more 501 stubs beyond the two the
+brief names) simply weren't in that list. The controller ruling on this
+(fix round 1, Finding 1): the *binding spec*, `MIGRATION_PLAN.md` §3.1, says
+the journey must cover these steps "at minimum" -- the brief's list is a
+floor, not a ceiling, so extending it to full coverage is spec-compliant,
+not scope creep. That extension is now done: all 11 previously-missing
+endpoints are captured (interactions `091`-`104`, appended after the
+original 90 so that baseline stayed untouched and stable while this was
+being fixed). See `tools/contract-capture.mjs`'s "Coverage extension" block
+for the calls themselves.
+
+One of the eleven, `GET /api/users/me/confirm-email-change`'s success
+branch, needs a token the API never returns to any client; it's read back
+live from Mongo (see `fetchEmailChangeToken` / the `redact` note above). If
+capture ever runs without `--env MONGODB_URI=...` set, that one branch is
+skipped with a clear console warning and only the 400 branch is captured --
+the endpoint itself is still exercised, just not both of its branches.
 
 ## A deliberate interpretation: "unsubscribe by token"
 
@@ -211,7 +220,7 @@ interaction `053-newsletter.unsubscribe-by-token.json`.
 - Rate limiting (`server/middleware/rateLimiter.js`,
   `server/server.js`'s `apiLimiter`) is in-memory per Express process. Since
   `contract-capture.mjs --start-cmd` starts a brand new process for every
-  invocation, the limiter's counters reset every run; the ~90-step journey
+  invocation, the limiter's counters reset every run; the ~104-step journey
   is nowhere close to any of the configured limits (200 general / 10 login /
   10 register / 5 password-reset / 15 newsletter, all per 15-60 minutes)
   regardless.

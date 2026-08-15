@@ -1,0 +1,30 @@
+{
+  "name": "extra2.admin-customer-by-id",
+  "method": "GET",
+  "path": "/api/admin/customers/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "customer": {
+      "_id": "<ID>",
+      "firstName": "Bilal",
+      "lastName": "Chaudhry",
+      "email": "customer2@zahzancontract.test",
+      "authProvider": "local",
+      "googleId": "",
+      "facebookId": "",
+      "phone": "03000000003",
+      "role": "customer",
+      "isEmailVerified": true,
+      "isActive": false,
+      "wishlist": [],
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "name": "Bilal Chaudhry",
+      "id": "<ID>"
+    },
+    "addresses": [],
+    "orders": []
+  }
+}

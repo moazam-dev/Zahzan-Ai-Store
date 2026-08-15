@@ -1,0 +1,29 @@
+{
+  "name": "extra2.auth-google",
+  "method": "POST",
+  "path": "/api/auth/google",
+  "requestBody": {
+    "googleId": "journey-google-uid-001",
+    "email": "google.journey@zahzancontract.test",
+    "firstName": "Google",
+    "lastName": "Journey"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Google authentication successful.",
+    "token": "<JWT>",
+    "refreshToken": "<JWT>",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Google",
+      "lastName": "Journey",
+      "name": "Google Journey",
+      "email": "google.journey@zahzancontract.test",
+      "phone": "",
+      "role": "customer",
+      "authProvider": "google",
+      "isEmailVerified": true
+    }
+  }
+}

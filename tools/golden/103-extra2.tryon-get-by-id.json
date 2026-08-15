@@ -1,0 +1,11 @@
+{
+  "name": "extra2.tryon-get-by-id",
+  "method": "GET",
+  "path": "/api/try-on/<ID>",
+  "requestBody": null,
+  "status": 501,
+  "responseBody": {
+    "success": false,
+    "message": "Endpoint not implemented yet"
+  }
+}

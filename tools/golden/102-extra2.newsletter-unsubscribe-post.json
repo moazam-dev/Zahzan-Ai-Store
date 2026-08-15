@@ -1,0 +1,13 @@
+{
+  "name": "extra2.newsletter-unsubscribe-post",
+  "method": "POST",
+  "path": "/api/newsletter/unsubscribe",
+  "requestBody": {
+    "token": "abababababababababababababababababababababababababababababababab"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "You have already been unsubscribed from the ZAHZAN newsletter."
+  }
+}

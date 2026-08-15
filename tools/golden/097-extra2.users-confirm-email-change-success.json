@@ -1,0 +1,11 @@
+{
+  "name": "extra2.users-confirm-email-change-success",
+  "method": "GET",
+  "path": "/api/users/me/confirm-email-change?token=<TOKEN>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Email address updated successfully."
+  }
+}

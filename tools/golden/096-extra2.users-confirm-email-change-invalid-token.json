@@ -1,0 +1,11 @@
+{
+  "name": "extra2.users-confirm-email-change-invalid-token",
+  "method": "GET",
+  "path": "/api/users/me/confirm-email-change?token=deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+  "requestBody": null,
+  "status": 400,
+  "responseBody": {
+    "success": false,
+    "message": "Invalid or expired email change token."
+  }
+}

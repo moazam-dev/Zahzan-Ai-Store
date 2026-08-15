@@ -1,0 +1,89 @@
+{
+  "name": "extra2.admin-payment-by-id",
+  "method": "GET",
+  "path": "/api/admin/payments/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "payment": {
+      "_id": "<ID>",
+      "orderId": {
+        "_id": "<ID>",
+        "orderNumber": "<ORDERNO>",
+        "userId": "<ID>",
+        "customerName": "Sara Malik",
+        "customerEmail": "journey.customer@zahzancontract.test",
+        "customerPhone": "03007654321",
+        "items": [
+          {
+            "productId": "<ID>",
+            "productName": "ZAHZAN Ivory Silk Kurta",
+            "sku": "ZHZ-001",
+            "image": "<URL>",
+            "color": "Ivory",
+            "size": "M",
+            "quantity": 1,
+            "unitPrice": 8500,
+            "totalPrice": 8500,
+            "_id": "<ID>",
+            "createdAt": "<TS>",
+            "updatedAt": "<TS>",
+            "id": "<ID>"
+          }
+        ],
+        "shippingAddress": {
+          "fullName": "Sara Malik",
+          "phone": "03007654321",
+          "email": "journey.customer@zahzancontract.test",
+          "addressLine1": "123 Gulberg Boulevard",
+          "addressLine2": "",
+          "city": "Lahore",
+          "state": "Punjab",
+          "postalCode": "54000",
+          "country": "Pakistan",
+          "deliveryInstructions": ""
+        },
+        "subtotal": 8500,
+        "shippingCost": 250,
+        "total": 8750,
+        "paymentMethod": "JazzCash",
+        "paymentStatus": "rejected",
+        "orderStatus": "Confirmed",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      "userId": {
+        "_id": "<ID>",
+        "firstName": "Sara",
+        "lastName": "Malik-Updated",
+        "email": "sara.newemail@zahzancontract.test",
+        "phone": "03007654321",
+        "name": "Sara Malik-Updated",
+        "id": "<ID>"
+      },
+      "paymentMethod": "JazzCash",
+      "amount": 8750,
+      "transactionReference": "TXNADV0001",
+      "proofUrl": "<URL>",
+      "proofPublicId": "zahzan/payment-proofs/payment_order_<TS>",
+      "status": "Verified",
+      "rejectionReason": "",
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "verifiedAt": "<TS>",
+      "verifiedBy": {
+        "_id": "<ID>",
+        "firstName": "Contract",
+        "lastName": "Admin",
+        "email": "admin@zahzancontract.test",
+        "name": "Contract Admin",
+        "id": "<ID>"
+      },
+      "id": "<ID>"
+    }
+  }
+}

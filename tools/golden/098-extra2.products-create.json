@@ -1,0 +1,38 @@
+{
+  "name": "extra2.products-create",
+  "method": "POST",
+  "path": "/api/products",
+  "requestBody": {
+    "name": "ZAHZAN Coverage Test Product",
+    "slug": "zahzan-coverage-test-product",
+    "sku": "zhz-cov-001",
+    "category": "Accessories",
+    "price": 3000,
+    "stock": 15
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "product": {
+      "name": "ZAHZAN Coverage Test Product",
+      "slug": "zahzan-coverage-test-product",
+      "sku": "ZHZ-COV-001",
+      "description": "",
+      "quickDescription": "",
+      "price": 3000,
+      "category": "Accessories",
+      "images": [],
+      "sizes": [],
+      "careInstructions": [],
+      "gallery": [],
+      "stock": 15,
+      "isActive": true,
+      "_id": "<ID>",
+      "colors": [],
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    }
+  }
+}

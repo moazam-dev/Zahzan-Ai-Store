@@ -1,0 +1,13 @@
+{
+  "name": "extra2.users-email-change-request-duplicate",
+  "method": "POST",
+  "path": "/api/users/me/email-change-request",
+  "requestBody": {
+    "newEmail": "customer1@zahzancontract.test"
+  },
+  "status": 400,
+  "responseBody": {
+    "success": false,
+    "message": "An account with this email address already exists."
+  }
+}
