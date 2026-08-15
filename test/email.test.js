@@ -33,6 +33,22 @@ const payment = {
   proofUrl: 'https://example.test/proof.png'
 };
 
+// Hoisted so the vi.mock('nodemailer', ...) factory below (itself hoisted
+// above these imports/consts by Vitest) can close over it. Used only by
+// the "HTML template regression guard" describe block further down --
+// routing a send through the Nodemailer branch is the only way to observe
+// the real `html` argument a sender produces, since the dev-log branch
+// that every other test in this file relies on only ever logs `text`.
+const { sendMailMock } = vi.hoisted(() => ({
+  sendMailMock: vi.fn().mockResolvedValue({ messageId: 'test-message-id' })
+}));
+
+vi.mock('nodemailer', () => ({
+  default: {
+    createTransport: vi.fn(() => ({ sendMail: sendMailMock }))
+  }
+}));
+
 describe('lib/email.js (no credentials configured -- degrades to DEV EMAIL SERVICE LOG)', () => {
   let logSpy;
 
@@ -117,18 +133,92 @@ describe('lib/email.js (no credentials configured -- degrades to DEV EMAIL SERVI
       await expect(dispatch(sendAdminNewOrderEmail(order))).resolves.toBe(true);
     });
 
-    it('in the default (async) mode, does not block the caller on the wrapped promise', async () => {
-      let resolved = false;
+    it('genuinely awaits the wrapped promise -- it has settled by the time dispatch() resolves (review Finding 1)', async () => {
+      // The old implementation returned `undefined` immediately and only
+      // attached a `.catch()`, so a naive test could be fooled by asserting
+      // the promise was merely *created/called*. This asserts the actually
+      // load-bearing property: a flag flipped *inside* the promise's own
+      // executor is observably true right after `await dispatch(p)` returns,
+      // which is only possible if dispatch() really waited for it.
+      let settled = false;
       const slow = new Promise((resolve) => {
         setTimeout(() => {
-          resolved = true;
+          settled = true;
           resolve(true);
         }, 20);
       });
 
       const result = await dispatch(slow);
-      expect(result).toBeUndefined();
-      expect(resolved).toBe(false); // dispatch returned before the 20ms timer fired
+      expect(settled).toBe(true); // dispatch() did not return before the 20ms timer fired
+      expect(result).toBe(true);
+    });
+
+    it('a rejecting promise does not make dispatch() reject -- the error is caught, logged, and swallowed', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const failing = Promise.reject(new Error('SMTP exploded'));
+
+      await expect(dispatch(failing)).resolves.toBeUndefined();
+      expect(warnSpy).toHaveBeenCalledWith('Warning: email dispatch error:', 'SMTP exploded');
+
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('HTML template regression guard (review Finding 2: templates had no content protection)', () => {
+    // Route through the Nodemailer branch instead of the dev console.log
+    // branch every other test in this file uses -- the dev-log branch only
+    // ever logs `text`, never `html`, so it can't see template drift at all.
+    // `vi.mock('nodemailer', ...)` above captures the real `html` argument
+    // sendMail() receives.
+    beforeEach(() => {
+      vi.stubEnv('EMAIL_HOST', 'smtp.example.test');
+      vi.stubEnv('EMAIL_USER', 'user@example.test');
+      sendMailMock.mockClear();
+    });
+
+    it('sendCustomerOrderConfirmationEmail: literal bullet/copyright characters, not HTML entities, and stable body text', async () => {
+      await sendCustomerOrderConfirmationEmail(order);
+      expect(sendMailMock).toHaveBeenCalledTimes(1);
+      const { html } = sendMailMock.mock.calls[0][0];
+
+      // Stable, meaningful substrings from the header/body -- catches
+      // reformatting or accidental deletion of a template section.
+      expect(html).toContain('ZAHZAN');
+      expect(html).toContain('Maison de Haute Couture');
+      expect(html).toContain(`Order Confirmation #${order.orderNumber}`);
+      expect(html).toContain('Dear <strong>Sara Malik</strong>');
+      expect(html).toContain('ZAHZAN CLIENT CONCIERGE');
+
+      // The exact drift that happened once during the port (transcribing
+      // `&bull;`/`&copy;` HTML entities in place of the source's literal
+      // Unicode characters) and was only caught by a throwaway script that
+      // was deleted -- this is the durable, committed replacement.
+      expect(html).toContain('•');
+      expect(html).toContain('©');
+      expect(html).toContain('Lahore, Pakistan • ');
+      expect(html).not.toContain('&bull;');
+      expect(html).not.toContain('&copy;');
+
+      // Copyright year is `new Date().getFullYear()` and legitimately
+      // varies -- assert the surrounding text, not a hardcoded year.
+      expect(html).toMatch(/© \d{4} ZAHZAN\. All rights reserved\./);
+    });
+
+    it('sendAdminNewOrderEmail: literal bullet/copyright characters, not HTML entities, and stable body text', async () => {
+      await sendAdminNewOrderEmail(order);
+      expect(sendMailMock).toHaveBeenCalledTimes(1);
+      const { html } = sendMailMock.mock.calls[0][0];
+
+      expect(html).toContain(`New Order Received #${order.orderNumber}`);
+      expect(html).toContain('A new customer order has been placed on ZAHZAN Store.');
+      expect(html).toContain('Order Articles');
+
+      expect(html).toContain('•');
+      expect(html).toContain('©');
+      expect(html).toContain('Lahore, Pakistan • ');
+      expect(html).not.toContain('&bull;');
+      expect(html).not.toContain('&copy;');
+      expect(html).toMatch(/© \d{4} ZAHZAN\. All rights reserved\./);
     });
   });
 });
