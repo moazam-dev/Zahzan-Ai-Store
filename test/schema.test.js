@@ -87,7 +87,7 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
   // Table existence
   // ---------------------------------------------------------------------
 
-  it('creates all nineteen tables', async () => {
+  it('creates all twenty tables', async () => {
     const { rows } = await db.query(`
       select table_name from information_schema.tables
       where table_schema = 'public' and table_type = 'BASE TABLE'
@@ -104,6 +104,13 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
       'email_change_tokens',
       'newsletter_subscribers',
       'notifications',
+      // Task 11 (task-11-brief.md): per-day counter table backing
+      // next_order_number()'s atomic INSERT ... ON CONFLICT ... DO UPDATE
+      // sequence allocation -- see supabase/migrations/0001_init.sql's Task
+      // 11 section. Not one of the original nineteen (spec sec5.2); added
+      // by the sanctioned race fix (spec sec8.2), same pattern as
+      // rate_limits backing check_rate_limit().
+      'order_number_counters',
       'orders',
       'password_reset_tokens',
       'payments',
@@ -117,7 +124,7 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
       'wishlist_items'
     ].sort();
 
-    expect(names).toHaveLength(19);
+    expect(names).toHaveLength(20);
     expect(names).toEqual(expected);
   });
 

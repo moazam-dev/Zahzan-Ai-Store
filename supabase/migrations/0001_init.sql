@@ -671,3 +671,260 @@ begin
   return v_count > p_max;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Task 11 (task-11-brief.md): order_number_counters + next_order_number() /
+-- create_order() / cancel_order() -- the atomic checkout path
+-- (MIGRATION_PLAN.md sec8.2/sec8.3).
+--
+-- next_order_number(): the source's generateOrderNumber()
+-- (server/controllers/orderController.js) does a read-latest-then-increment
+-- with NO lock -- two concurrent checkouts on the same day can both read the
+-- same "latest" order and mint the SAME orderNumber, colliding on the
+-- orders_order_number_idx unique index. Sanctioned fix (spec sec8.2, not
+-- scope creep): a per-day counter table plus a single atomic
+-- INSERT ... ON CONFLICT ... DO UPDATE ... RETURNING statement -- the exact
+-- same proven pattern check_rate_limit() above already uses for the
+-- identical reason (a single statement is inherently race-free; Postgres
+-- serializes concurrent INSERT ... ON CONFLICT callers on the same key via
+-- the unique index's row lock, no explicit advisory lock needed). The
+-- OUTPUT FORMAT is unchanged: ZHZ-YYYYMMDD-XXXX, a 4-digit zero-padded
+-- sequence that resets to 1 at midnight (a new day_key starts a new counter
+-- row).
+-- ---------------------------------------------------------------------------
+
+create table order_number_counters (
+  day_key text primary key,
+  seq integer not null default 0
+);
+
+alter table order_number_counters enable row level security;
+
+create or replace function next_order_number()
+returns text
+language plpgsql
+as $$
+declare
+  v_day_key text := to_char(now() at time zone 'utc', 'YYYYMMDD');
+  v_seq integer;
+begin
+  insert into order_number_counters (day_key, seq)
+  values (v_day_key, 1)
+  on conflict (day_key) do update set seq = order_number_counters.seq + 1
+  returning seq into v_seq;
+
+  return 'ZHZ-' || v_day_key || '-' || lpad(v_seq::text, 4, '0');
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- create_order(...): the source's createOrder does stock validation, the
+-- order insert, the optional payment insert, the stock-decrement loop and
+-- the cart-clear as separate, unguarded Mongoose calls with no transaction
+-- -- a crash or thrown error between any two of them (e.g. after
+-- Order.create but before the stock-decrement loop finishes) leaves
+-- inventory permanently wrong with no rollback (spec sec8.3). Folding all of
+-- it into one plpgsql function makes it atomic for free: a single
+-- `select create_order(...)` is exactly one Postgres statement, and Postgres
+-- always rolls back every effect of a failed statement -- including
+-- everything a function it calls did internally -- automatically. No
+-- explicit BEGIN/COMMIT is needed here, and lib/db.js's plain `query()`
+-- (autocommit) is sufficient, specifically because the entire operation is
+-- one statement from the driver's point of view.
+--
+-- `select ... for update` on each product row makes that product's stock
+-- CHECK and its stock DECREMENT part of one lock hold, closing the classic
+-- check-then-decrement race between two concurrent checkouts on the same
+-- product: a second overlapping call blocks on the row lock until the
+-- first's statement finishes (commits or rolls back), then reads the
+-- already-updated stock.
+--
+-- RAISEs the source's exact validation message strings so the route handler
+-- (app/api/orders/route.js) can pattern-match them back to the right HTTP
+-- status (404 for "is not available", 400 for "Insufficient stock" / "Your
+-- cart is empty") -- anything else it doesn't recognise falls through to
+-- that handler's generic `Failed to create order: <message>` 500, matching
+-- the source's own outer catch-all exactly.
+--
+-- p_items: jsonb array of {productId, quantity, selectedSize, selectedColor}
+-- -- already resolved by the route handler (the single buyNowItem, or the
+-- user's cart_items rows) exactly like the source's itemsToProcess. Price,
+-- product name, sku and image are NEVER taken from this input -- they are
+-- read from the locked, authoritative products row, matching
+-- orderController.js's explicit "NEVER trust client price" comment. Each
+-- item's own _id/createdAt/updatedAt/id are minted fresh here, reproducing
+-- OrderItem.js's `timestamps: true` + toJSON id-transform behaviour that
+-- lib/serialize.js's serializeOrder (a pure jsonb pass-through for `items`)
+-- deliberately does not -- see that function's JSDoc.
+-- ---------------------------------------------------------------------------
+
+create or replace function create_order(
+  p_user_id uuid,
+  p_customer_name text,
+  p_customer_email text,
+  p_customer_phone text,
+  p_items jsonb,
+  p_shipping_address jsonb,
+  p_is_buy_now boolean,
+  p_payment_method text,
+  p_payment_status text,
+  p_is_cod boolean,
+  p_transaction_reference text,
+  p_proof_url text,
+  p_proof_public_id text
+)
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_item jsonb;
+  v_product products%rowtype;
+  v_qty integer;
+  v_selected_size text;
+  v_selected_color text;
+  v_unit_price numeric(12, 2);
+  v_item_total numeric(12, 2);
+  v_subtotal numeric(12, 2) := 0;
+  v_shipping_cost numeric(12, 2);
+  v_total numeric(12, 2);
+  v_order_items jsonb := '[]'::jsonb;
+  v_order_number text;
+  v_order_id uuid;
+  v_payment_id uuid := null;
+  v_now timestamptz := now();
+  v_now_iso text;
+  v_item_id uuid;
+begin
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'Your cart is empty. Cannot process order.';
+  end if;
+
+  -- Matches Mongoose's Date -> JSON.stringify() output (`.toISOString()`):
+  -- always millisecond precision, always Z-suffixed UTC -- see
+  -- lib/serialize.js's toIso() header comment for the same requirement.
+  v_now_iso := to_char(v_now at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    select * into v_product from products where id = (v_item ->> 'productId')::uuid for update;
+
+    if not found or v_product.is_active is not true then
+      raise exception 'Product "%" is not available.', (v_item ->> 'productId');
+    end if;
+
+    v_qty := (v_item ->> 'quantity')::integer;
+
+    if v_qty > v_product.stock then
+      raise exception 'Insufficient stock for "%". Available stock is %, but % was requested.',
+        v_product.name, v_product.stock, v_qty;
+    end if;
+
+    -- selectedSize's 'M' fallback is already applied by the route handler
+    -- (pure JS, no DB access needed -- source: `item.selectedSize || 'M'`).
+    -- selectedColor's fallback DOES need the product row (source:
+    -- `itemReq.selectedColor || product.color || ''`), so it stays here.
+    v_selected_size := coalesce(nullif(v_item ->> 'selectedSize', ''), 'M');
+    v_selected_color := coalesce(nullif(v_item ->> 'selectedColor', ''), v_product.color, '');
+    v_unit_price := v_product.price;
+    v_item_total := v_unit_price * v_qty;
+    v_subtotal := v_subtotal + v_item_total;
+    v_item_id := gen_random_uuid();
+
+    v_order_items := v_order_items || jsonb_build_array(jsonb_build_object(
+      'productId', v_product.id,
+      'productName', v_product.name,
+      'sku', coalesce(v_product.sku, ''),
+      'image', coalesce(v_product.images[1], v_product.image, ''),
+      'color', v_selected_color,
+      'size', v_selected_size,
+      'quantity', v_qty,
+      'unitPrice', v_unit_price,
+      'totalPrice', v_item_total,
+      '_id', v_item_id,
+      'createdAt', v_now_iso,
+      'updatedAt', v_now_iso,
+      'id', v_item_id
+    ));
+
+    update products set stock = stock - v_qty where id = v_product.id;
+  end loop;
+
+  -- Shipping: subtotal >= 20000 ? 0 : 250 (orderController.js:227) -- free
+  -- AT exactly 20000, not above it.
+  v_shipping_cost := case when v_subtotal >= 20000 then 0 else 250 end;
+  v_total := v_subtotal + v_shipping_cost;
+  v_order_number := next_order_number();
+
+  insert into orders (
+    order_number, user_id, customer_name, customer_email, customer_phone,
+    items, shipping_address, subtotal, shipping_cost, total,
+    payment_method, payment_status, order_status
+  ) values (
+    v_order_number, p_user_id, p_customer_name, p_customer_email, p_customer_phone,
+    v_order_items, p_shipping_address, v_subtotal, v_shipping_cost, v_total,
+    p_payment_method, p_payment_status, 'Pending'
+  ) returning id into v_order_id;
+
+  if not p_is_cod then
+    insert into payments (
+      order_id, user_id, payment_method, amount, transaction_reference,
+      proof_url, proof_public_id, status
+    ) values (
+      v_order_id, p_user_id, p_payment_method, v_total, p_transaction_reference,
+      p_proof_url, coalesce(p_proof_public_id, ''), 'Pending'
+    ) returning id into v_payment_id;
+  end if;
+
+  if not p_is_buy_now then
+    delete from cart_items where cart_id in (select id from carts where user_id = p_user_id);
+  end if;
+
+  return jsonb_build_object('orderId', v_order_id, 'paymentId', v_payment_id);
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- cancel_order(...): the source's cancelOrder saves the status change and
+-- then restores stock in a second, separate, unguarded loop -- a crash
+-- between the two also corrupts inventory (spec sec8.3, same rationale as
+-- create_order above). `select ... for update` on the order row makes the
+-- status re-check and the status write atomic against a second concurrent
+-- cancel call racing on the SAME order: only one of two overlapping cancels
+-- can observe "Pending"/"Confirmed" and succeed; the other blocks on the row
+-- lock, then sees the now-"Cancelled" row and raises -- the ordinary
+-- "cancelling twice" 400 case the source already produces, just made
+-- race-safe too.
+-- ---------------------------------------------------------------------------
+
+create or replace function cancel_order(p_order_id uuid)
+returns orders
+language plpgsql
+as $$
+declare
+  v_order orders%rowtype;
+  v_item jsonb;
+begin
+  select * into v_order from orders where id = p_order_id for update;
+
+  if not found then
+    raise exception 'Order not found';
+  end if;
+
+  if lower(v_order.order_status) not in ('pending', 'confirmed') then
+    raise exception 'Order cannot be cancelled because it is already in "%" status.', v_order.order_status;
+  end if;
+
+  update orders set order_status = 'Cancelled' where id = p_order_id;
+
+  for v_item in select * from jsonb_array_elements(v_order.items)
+  loop
+    if (v_item ? 'productId') and (v_item ->> 'productId') is not null then
+      update products set stock = stock + (v_item ->> 'quantity')::integer
+      where id = (v_item ->> 'productId')::uuid;
+    end if;
+  end loop;
+
+  select * into v_order from orders where id = p_order_id;
+  return v_order;
+end;
+$$;
