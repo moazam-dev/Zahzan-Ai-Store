@@ -37,6 +37,16 @@ AdminUser, Notification, StorySubmission, TryOnJob, RefreshToken) emit `_id` ONL
 the goldens: `023-users.address-list.json` addresses have `_id` and NOT `id`;
 `082-admin.audit-logs.json` logs have BOTH.
 
+**THE DEFINITIVE MAP** (established by the Task 4 review against the goldens; binding for Tasks
+8-13 — do not re-derive it, and do not trust intuition over this table):
+
+| Entity | Emits | Authority |
+| --- | --- | --- |
+| User, Product, Order, Payment, NewsletterSubscriber, AuditLog | **`_id` AND `id`** | model sets `toJSON: { virtuals: true }` + id transform |
+| Cart, cart items | **`id` only, no `_id`** | `formatCartResponse` hand-builds `id`/`cartItemId`; golden `032-cart.add.json` |
+| Auth user payload (register/login/google/facebook/me) | **`id` only, no `_id`** | Ruling C8; golden `003-auth.login.json` |
+| Address, StorySubmission, TryOnJob | **`_id` only, no `id`** | no `toJSON` config; goldens `022`/`023` |
+
 Adding an `id` key where the old API never emitted one is a **GC1 violation** (key-for-key
 parity), not GC2 compliance. When GC1 and GC2 appear to conflict, GC1 wins and the golden file
 settles the question.
