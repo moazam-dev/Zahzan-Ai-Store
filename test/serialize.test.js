@@ -229,9 +229,11 @@ describe('lib/serialize.js', () => {
   });
 
   // -------------------------------------------------------------------
-  // _id === id (GC2), for the nine functions it applies to. Three
-  // functions deliberately do NOT carry `_id` at all -- see the dedicated
-  // tests for each further down, which document exactly why.
+  // _id === id (GC2), for the seven functions whose model has a custom
+  // toJSON({ virtuals: true }) transform. Ruling C12: serializeAddress,
+  // serializeStory and serializeTryOnJob deliberately do NOT carry `id` at
+  // all -- see the dedicated tests for each further down, which document
+  // exactly why.
   // -------------------------------------------------------------------
 
   it('_id and id are both present and equal, for every entity GC2 governs', () => {
@@ -240,11 +242,8 @@ describe('lib/serialize.js', () => {
       serializeProduct(productRow),
       serializeOrder(orderRow),
       serializePayment(paymentRow),
-      serializeAddress(addressRow),
       serializeNewsletterSubscriber(subscriberRow),
-      serializeAuditLog(auditLogRow),
-      serializeStory(storyRow),
-      serializeTryOnJob(tryOnJobRow)
+      serializeAuditLog(auditLogRow)
     ];
     for (const out of cases) {
       expect(out._id, JSON.stringify(out)).toBeTruthy();
@@ -477,12 +476,26 @@ describe('lib/serialize.js', () => {
     expect(verified.verifiedAt).toBe(NOW);
   });
 
-  it('serializeAddress: adds id alongside _id (GC2), even though the raw Mongoose shape today has _id only', () => {
+  it('serializeAddress: Ruling C12 -- _id only, NEVER id (Address has no custom toJSON transform)', () => {
     const out = serializeAddress(addressRow);
-    expect(out._id).toBe('addr-1');
-    expect(out.id).toBe('addr-1');
-    expect(out.__v).toBe(0);
-    expect(out.userId).toBe('u-1');
+    expect(out).toEqual({
+      _id: 'addr-1',
+      userId: 'u-1',
+      fullName: 'Sara Malik',
+      phone: '03001234567',
+      addressLine1: '123 Gulberg Boulevard',
+      addressLine2: '',
+      city: 'Lahore',
+      province: 'Punjab',
+      postalCode: '54000',
+      country: 'Pakistan',
+      label: 'Home',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+      __v: 0
+    });
+    expect('id' in out).toBe(false);
   });
 
   it('serializeNewsletterSubscriber: unsubscribedAt is null (not omitted) when unset; userId omitted when unset', () => {
@@ -536,15 +549,17 @@ describe('lib/serialize.js', () => {
     });
   });
 
-  it('serializeStory / serializeTryOnJob: _id and id both present (GC2), optional fields omitted when unset', () => {
+  it('serializeStory / serializeTryOnJob: Ruling C12 -- _id only, NEVER id (neither model has a custom toJSON transform); optional fields omitted when unset', () => {
     const story = serializeStory(storyRow);
-    expect(story._id).toBe(story.id);
+    expect(story._id).toBe('story-1');
+    expect('id' in story).toBe(false);
     expect('rating' in story).toBe(false);
     expect('productId' in story).toBe(false);
     expect('reviewedAt' in story).toBe(false);
 
     const job = serializeTryOnJob(tryOnJobRow);
-    expect(job._id).toBe(job.id);
+    expect(job._id).toBe('job-1');
+    expect('id' in job).toBe(false);
     expect('productId' in job).toBe(false);
     expect('completedAt' in job).toBe(false);
     expect('expiresAt' in job).toBe(false);
