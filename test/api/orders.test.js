@@ -894,6 +894,99 @@ describe('app/api/orders/* route handlers (Task 11)', () => {
       expect(body.order.customerEmail).toBe('mixed.case@zahzanmigrationtest.com');
       expect(body.order.shippingAddress.email).toBe('Mixed.Case@ZahzanMigrationTest.com');
     });
+
+    // Critical finding from review: the buy-now branch built itemsToProcess
+    // from buyNowItem.selectedSize/selectedColor without ever trimming --
+    // server/models/OrderItem.js declares BOTH `size` and `color` `trim:
+    // true`, so the old Mongoose cast silently stripped whitespace here too,
+    // exactly like it did for customerName/Email/Phone above. This is the
+    // one write path the original sweep's audit table (row for
+    // `POST /api/orders`) missed entirely.
+    it('trims a buy-now order item\'s selectedSize/selectedColor before persisting, matching OrderItem\'s Mongoose trim: true cast', async () => {
+      const user = await insertUser();
+      const product = await insertProduct({ price: 1000, stock: 10, color: 'Ivory' });
+
+      const res = await createOrderRoute(
+        postJsonRequest(
+          '/api/orders',
+          {
+            customerInfo: validCustomerInfo,
+            shippingAddress: validShippingAddress,
+            isBuyNow: true,
+            buyNowItem: { productId: product.id, quantity: 1, selectedSize: '  L  ', selectedColor: '  Navy  ' },
+            paymentChoice: 'cod'
+          },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+
+      // The response already reflects what create_order() persisted (a
+      // pure jsonb pass-through, lib/serialize.js), but the assertion that
+      // matters is the STORED row, not the response.
+      const { rows } = await query('select items from orders where id = $1', [body.order._id]);
+      expect(rows[0].items[0].size).toBe('L');
+      expect(rows[0].items[0].color).toBe('Navy');
+    });
+
+    it('a whitespace-only buy-now selectedSize/selectedColor trims to empty and falls back exactly like an omitted value ("M" / product color)', async () => {
+      // Old Mongoose flow: the JS `|| 'M'` / `|| ''` fallback ran on the RAW
+      // (pre-trim) value, so "   " -- truthy -- slipped past it and was only
+      // reduced to "" by the schema's trim: true cast afterwards. This port
+      // cannot reproduce that exact intermediate "" (create_order()'s own
+      // frozen `coalesce(nullif(x, ''), fallback)` logic treats a post-trim
+      // empty string as "absent" and re-applies the same fallback there) --
+      // but the FINAL stored value converges on the same answer either way,
+      // which is what this test pins down.
+      const user = await insertUser();
+      const product = await insertProduct({ price: 1000, stock: 10, color: 'Ivory' });
+
+      const res = await createOrderRoute(
+        postJsonRequest(
+          '/api/orders',
+          {
+            customerInfo: validCustomerInfo,
+            shippingAddress: validShippingAddress,
+            isBuyNow: true,
+            buyNowItem: { productId: product.id, quantity: 1, selectedSize: '   ', selectedColor: '   ' },
+            paymentChoice: 'cod'
+          },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+
+      const { rows } = await query('select items from orders where id = $1', [body.order._id]);
+      expect(rows[0].items[0].size).toBe('M');
+      expect(rows[0].items[0].color).toBe('Ivory');
+    });
+
+    it('cart-checkout order items are unaffected by the buy-now trim fix -- already-clean cart_items values pass through unchanged', async () => {
+      // Cart items are trimmed at cart-insert time (app/api/cart/items/
+      // route.js, CART_ITEM_TRIM_FIELDS) BEFORE they ever reach this route;
+      // the orders route's cart branch (itemsToProcess = cartItems.map(...))
+      // was not touched by this fix and must keep behaving exactly as
+      // before -- this is a regression check, not a new gap.
+      const user = await insertUser();
+      const product = await insertProduct({ price: 1000, stock: 10, color: 'Ivory' });
+      await addToCart(user, product, { selectedSize: 'L', selectedColor: 'Navy' });
+
+      const res = await createOrderRoute(
+        postJsonRequest(
+          '/api/orders',
+          { customerInfo: validCustomerInfo, shippingAddress: validShippingAddress, isBuyNow: false, paymentChoice: 'cod' },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+
+      const { rows } = await query('select items from orders where id = $1', [body.order._id]);
+      expect(rows[0].items[0].size).toBe('L');
+      expect(rows[0].items[0].color).toBe('Navy');
+    });
   });
 
   describe('next_order_number() concurrency', () => {

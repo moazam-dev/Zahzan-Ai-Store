@@ -232,11 +232,27 @@ export const POST = withErrorHandler(async (request) => {
       }
 
       const quantity = Math.max(1, Number(buyNowItem.quantity) || 1);
+      // OrderItem's `size`/`color` (server/models/OrderItem.js) both declare
+      // `trim: true` -- applied by Mongoose on assignment when
+      // Order.create() built the embedded item, downstream of this exact
+      // `|| 'M'` / `|| ''` fallback (orderController.js:159-160, then
+      // re-read as itemReq.selectedSize/selectedColor at :213-214). The
+      // fallback here intentionally still runs against the RAW,
+      // untrimmed buyNowItem value -- unchanged control flow -- with
+      // trimIfString wrapped around the *result*, matching the order the
+      // old cast actually happened in (fallback decided pre-cast, trim
+      // applied to what gets persisted). create_order()'s own
+      // `coalesce(nullif(..., ''), ...)` (supabase/migrations/0001_init.sql)
+      // already treats a post-trim empty string as "absent" and re-applies
+      // the same 'M' / product.color fallback there, so a whitespace-only
+      // submission converges on the identical final stored value regardless
+      // of whether trimming happens before or after this fallback -- see
+      // fix-implicit-trim-report.md for the full trace.
       itemsToProcess.push({
         productId: buyNowItem.productId,
         quantity,
-        selectedSize: buyNowItem.selectedSize || 'M',
-        selectedColor: buyNowItem.selectedColor || ''
+        selectedSize: trimIfString(buyNowItem.selectedSize || 'M'),
+        selectedColor: trimIfString(buyNowItem.selectedColor || '')
       });
     } else {
       // Cart Checkout: fetch the user's cart from the database.
