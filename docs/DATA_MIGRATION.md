@@ -35,7 +35,11 @@ things:
    at all against a single-node standalone (the default local
    `mongodb://localhost:27017` dev setup has no secondary), and nothing
    stops a determined mutating call from reaching the primary regardless of
-   this setting.
+   this setting. **Warning if this is ever pointed at a real replica set**:
+   `secondaryPreferred` can serve reads from a lagging secondary, so a
+   migration run immediately after a write to the primary could read
+   stale/missing data — harmless here only because the source is a
+   single-node standalone with no replication lag to be exposed to.
 2. **The credential (recommended)**: the guarantee that actually matters is
    running these scripts with a MongoDB user that holds only the `read`
    role on `zahzan_db` (not `readWrite`), via `MONGO_MIGRATION_URI`. With a

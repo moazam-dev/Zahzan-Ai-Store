@@ -1,6 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Task 15 (parity verification) addition. @electric-sql/pglite is the
+  // WASM-loading test/local-verification Postgres driver lib/db.js selects
+  // via ZAHZAN_DB_DRIVER=pglite (AR3/AR4) -- it is never imported at all on
+  // the real production path (SUPABASE_DB_URL + the `pg` driver). Without
+  // this, Next's server bundler (Turbopack) rewrites the dynamic
+  // `import('@electric-sql/pglite')` inside lib/db.js's getPglite() enough
+  // to break its WASM instantiation at request time ("h.instantiateWasm is
+  // not a function") -- confirmed empirically the app's route handlers are
+  // otherwise unreachable against PGlite when served via a built
+  // (`next build`) app, as opposed to a raw `node` script directly
+  // importing lib/db.js, which never goes through this bundling at all.
+  // Marking the package "external" tells the server bundle to `require()`/
+  // `import()` it at runtime unchanged instead of bundling it, which is
+  // exactly what an emscripten/WASM-loading package needs. Build-time
+  // bundling configuration only -- zero effect on any HTTP response, byte
+  // for byte, on either driver.
+  serverExternalPackages: ['@electric-sql/pglite'],
   async headers() {
     // Reproduces the headers the old Express server sent via `helmet()` with
     // `crossOriginResourcePolicy: { policy: 'cross-origin' }` (see server/server.js).

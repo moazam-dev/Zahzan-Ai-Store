@@ -14,6 +14,7 @@ import { ok, fail, withErrorHandler } from '../../../../../../lib/http.js';
 import { requireAuth, requireAdmin } from '../../../../../../lib/auth.js';
 import { serializePayment, serializeOrder } from '../../../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../../../lib/auditLogger.js';
+import { signProofUrl } from '../../../../../../lib/storage.js';
 
 export const PATCH = withErrorHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
@@ -76,10 +77,16 @@ export const PATCH = withErrorHandler(async (request, context) => {
     }
   });
 
+  // Re-sign, same reasoning as app/api/admin/payments/route.js's list
+  // endpoint (lib/storage.js's private-bucket design: proof_url stores a
+  // path, not a durable URL).
+  const serializedPayment = serializePayment(updatedPayment);
+  serializedPayment.proofUrl = await signProofUrl(updatedPayment.proof_public_id);
+
   return ok({
     success: true,
     message: 'Payment rejected',
-    payment: serializePayment(updatedPayment),
+    payment: serializedPayment,
     order: order ? serializeOrder(order) : null
   });
 });

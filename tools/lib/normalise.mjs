@@ -25,7 +25,15 @@
 // Cloudinary public_id, is replaced in place rather than requiring the
 // whole leaf to match).
 
-const URL_RE = /https?:\/\/[^\s"'<>]+/g;
+// Task 15 addition: also matches `memory://...` URLs, alongside http(s).
+// lib/storage.js's 'memory' driver (an in-process fake -- see its header
+// comment) is what tools/run-pglite-server.mjs uses to run the ported
+// stack locally, since no real Supabase project/credentials exist in this
+// environment; against a real Supabase project this driver is never
+// selected and every URL this matches is a genuine https:// signed Storage
+// URL, exactly as before. Scoped to a literal `memory://` prefix, so it
+// cannot accidentally swallow any other volatile-looking string.
+const URL_RE = /(?:https?|memory):\/\/[^\s"'<>]+/g;
 
 // Absolute filesystem path that contains `tools/golden` (or `tools\golden`),
 // Windows drive-letter or POSIX rooted. Matches `tools/golden-next` too,

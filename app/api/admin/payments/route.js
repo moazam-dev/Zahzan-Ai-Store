@@ -28,6 +28,7 @@ import {
   serializePaymentUserSummary,
   serializePopulatedUserSummary
 } from '../../../../lib/serialize.js';
+import { signProofUrl } from '../../../../lib/storage.js';
 
 export const GET = withErrorHandler(async (request) => {
   const { user, response } = await requireAuth(request);
@@ -89,6 +90,15 @@ export const GET = withErrorHandler(async (request) => {
       }
 
       const serialized = serializePayment(row);
+      // lib/storage.js's private-bucket design (header comment): the
+      // proof_url column stores a storage PATH, not a durable URL -- every
+      // read has to re-sign a fresh short-lived URL. serializePayment is a
+      // pure row pass-through (shared by write-path callers too, where the
+      // just-uploaded secure_url IS the right value), so this list endpoint
+      // does the re-signing itself, matching the pattern already used by
+      // app/api/orders/route.js, app/api/payments/order/[orderId]/route.js
+      // and app/api/payments/_submitPaymentProof.js.
+      serialized.proofUrl = await signProofUrl(row.proof_public_id);
       serialized.orderId = orderRows[0] ? serializeOrderSummaryForPayment(orderRows[0]) : row.order_id;
       serialized.userId = userRows[0] ? serializePaymentUserSummary(userRows[0]) : row.user_id;
       if (verifierRow) {

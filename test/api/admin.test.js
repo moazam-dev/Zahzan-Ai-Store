@@ -14,6 +14,15 @@ import bcrypt from 'bcryptjs';
 import { applyMigrationViaQuery } from '../helpers/applyMigration.js';
 
 process.env.ZAHZAN_DB_DRIVER = 'pglite';
+// Task 15 fix: the admin order/payment routes now re-sign payment proof
+// URLs on every read (lib/storage.js's private-bucket design -- proof_url
+// stores a storage PATH, not a durable URL, so every read has to sign a
+// fresh one; this test file's routes previously never touched lib/storage.js
+// at all, so it never needed this). Without it, signProofUrl defaults to
+// the 'supabase' driver and tries to construct a real Supabase client with
+// no credentials configured, same as test/api/orders.test.js and
+// test/api/payments.test.js already guard against.
+process.env.ZAHZAN_STORAGE_DRIVER = 'memory';
 
 const { query, close } = await import('../../lib/db.js');
 const { generateToken } = await import('../../lib/jwt.js');

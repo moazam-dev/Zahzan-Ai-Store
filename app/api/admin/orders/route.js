@@ -29,6 +29,7 @@ import { query } from '../../../../lib/db.js';
 import { ok, withErrorHandler } from '../../../../lib/http.js';
 import { requireAuth, requireAdmin } from '../../../../lib/auth.js';
 import { serializeOrderForAdminList } from '../../../../lib/serialize.js';
+import { signProofUrl } from '../../../../lib/storage.js';
 
 export const GET = withErrorHandler(async (request) => {
   const { user, response } = await requireAuth(request);
@@ -78,7 +79,14 @@ export const GET = withErrorHandler(async (request) => {
         [orderRow.id]
       );
       const paymentRow = paymentRows[0] || null;
-      return serializeOrderForAdminList(orderRow, { payment: paymentRow });
+      const serializedOrder = serializeOrderForAdminList(orderRow, { payment: paymentRow });
+      // Re-sign the nested payment's proof URL, same reasoning as
+      // app/api/admin/payments/route.js's list endpoint (lib/storage.js's
+      // private-bucket design: proof_url stores a path, not a durable URL).
+      if (serializedOrder.payment) {
+        serializedOrder.payment.proofUrl = await signProofUrl(paymentRow.proof_public_id);
+      }
+      return serializedOrder;
     })
   );
 

@@ -20,6 +20,7 @@ import { query } from '../../../../../lib/db.js';
 import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
 import { requireAuth, requireAdmin } from '../../../../../lib/auth.js';
 import { serializeOrderForAdminList, serializePayment } from '../../../../../lib/serialize.js';
+import { signProofUrl } from '../../../../../lib/storage.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -58,9 +59,21 @@ export const GET = withErrorHandler(async (request, context) => {
   );
   const paymentRow = paymentRows[0] || null;
 
+  const serializedOrder = serializeOrderForAdminList(orderRow, { payment: paymentRow });
+  const serializedPayment = paymentRow ? serializePayment(paymentRow) : null;
+  // Re-sign both copies of the proof URL (nested + top-level), same
+  // reasoning as app/api/admin/payments/route.js's list endpoint
+  // (lib/storage.js's private-bucket design: proof_url stores a path, not
+  // a durable URL).
+  if (paymentRow) {
+    const signedUrl = await signProofUrl(paymentRow.proof_public_id);
+    if (serializedOrder.payment) serializedOrder.payment.proofUrl = signedUrl;
+    serializedPayment.proofUrl = signedUrl;
+  }
+
   return ok({
     success: true,
-    order: serializeOrderForAdminList(orderRow, { payment: paymentRow }),
-    payment: paymentRow ? serializePayment(paymentRow) : null
+    order: serializedOrder,
+    payment: serializedPayment
   });
 });

@@ -63,6 +63,57 @@ function redactDeep(value, raws) {
 }
 
 /**
+ * Resolves a product's real id by slug (Task 15 addition). tools/seed-
+ * contract-db.mjs's fixture products are seeded with fixed, literal Mongo
+ * ObjectId-shaped `_id` values against the old stack; the Postgres port
+ * (tools/seed-contract-db-pg.mjs) cannot do the same -- `products.id` is a
+ * real `uuid` column (supabase/migrations/0001_init.sql), which rejects a
+ * 24-hex-char string outright, so the old stack's ids and the new stack's
+ * ids are NEVER the same literal value. This resolves the id the SAME way
+ * for both stacks -- one unrecorded GET by the fixture's own (stack-
+ * independent) slug -- rather than hardcoding either id scheme, so this
+ * script keeps working unmodified no matter which stack `--base` points at.
+ * For the OLD stack this returns exactly the same value the previous
+ * hardcoded literal did (the seed fixes both), so this is a pure
+ * generalisation, not a behaviour change for the baseline capture.
+ * Deliberately NOT recorded via `rec.call` -- it must not shift the
+ * sequential golden file numbering relative to tools/golden/.
+ */
+async function resolveProductIdBySlug(base, slug) {
+  const res = await fetch(`${base}/api/products/${slug}`);
+  if (!res.ok) {
+    throw new Error(`resolveProductIdBySlug(${slug}) failed: HTTP ${res.status}`);
+  }
+  const body = await res.json();
+  const id = body?.product?._id ?? body?.product?.id;
+  if (!id) throw new Error(`resolveProductIdBySlug(${slug}): no product._id/.id in response`);
+  return id;
+}
+
+/**
+ * Resolves a seeded customer's real user id by logging in (Task 15
+ * addition) -- same rationale as resolveProductIdBySlug above: `users.id`
+ * is a Postgres uuid, not the old stack's literal Mongo ObjectId, so the
+ * only stack-independent way to find "customer2's real id" is to ask the
+ * API itself, via credentials tools/seed-contract-db.mjs /
+ * tools/seed-contract-db-pg.mjs both fix identically. Unrecorded, same as
+ * resolveProductIdBySlug.
+ */
+async function resolveUserIdByLogin(base, email, password) {
+  const res = await fetch(`${base}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  if (!res.ok) {
+    throw new Error(`resolveUserIdByLogin(${email}) failed: HTTP ${res.status}`);
+  }
+  const body = await res.json();
+  if (!body?.user?.id) throw new Error(`resolveUserIdByLogin(${email}): no user.id in response`);
+  return body.user.id;
+}
+
+/**
  * Reads the current (single, since the controller deletes prior ones on
  * each new request) email-change token for a user directly out of Mongo.
  * The token is crypto.randomBytes(32).toString('hex') and the API never
@@ -82,6 +133,27 @@ async function fetchEmailChangeToken(mongoUri, userId) {
   } finally {
     await client.close();
   }
+}
+
+/**
+ * Task 15 addition: the Postgres-stack equivalent of fetchEmailChangeToken
+ * above. There is no Mongo to read from when `--base` points at the ported
+ * Next.js/Postgres stack, and PGlite (the local verification driver,
+ * AR3/AR4) is in-process WASM with no network listener a separate capture-
+ * script process could connect to directly -- so this calls
+ * app/api/test-email-change-token/route.js instead, a verification-only
+ * route gated to 404 (i.e. a no-op) unless the target server itself has
+ * ZAHZAN_DB_DRIVER=pglite set (see that route's header comment). Returns
+ * `null` on any non-200 response (same "not found -> null" contract as
+ * fetchEmailChangeToken), so the caller's existing skip-with-a-warning
+ * fallback covers both "no token exists yet" and "this endpoint isn't
+ * available on this target" uniformly.
+ */
+async function fetchEmailChangeTokenPg(base, userId) {
+  const res = await fetch(`${base}/api/test-email-change-token?userId=${encodeURIComponent(userId)}`);
+  if (!res.ok) return null;
+  const body = await res.json().catch(() => null);
+  return body?.token ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -409,10 +481,12 @@ async function runJourney(rec, mongoUri) {
   await rec.call('products.list-by-category', 'GET', '/api/products?category=Kurtas', { expectStatus: 200 });
   await rec.call('products.list-by-search', 'GET', '/api/products?search=Silk', { expectStatus: 200 });
 
-  const PRODUCT1_ID = '000000000000000000000011';
-  const PRODUCT2_ID = '000000000000000000000012';
-  const PRODUCT3_ID = '000000000000000000000013';
-  const PRODUCT4_ID = '000000000000000000000014';
+  // Task 15: resolved dynamically, not hardcoded -- see
+  // resolveProductIdBySlug's header comment for why.
+  const PRODUCT1_ID = await resolveProductIdBySlug(rec.base, 'ivory-silk-kurta-zhz-001');
+  const PRODUCT2_ID = await resolveProductIdBySlug(rec.base, 'emerald-velvet-shawl-zhz-002');
+  const PRODUCT3_ID = await resolveProductIdBySlug(rec.base, 'rose-chiffon-dupatta-zhz-003');
+  const PRODUCT4_ID = await resolveProductIdBySlug(rec.base, 'noir-formal-set-zhz-004');
 
   await rec.call('products.get-by-id', 'GET', `/api/products/${PRODUCT1_ID}`, { expectStatus: 200 });
   await rec.call('products.get-by-slug', 'GET', '/api/products/ivory-silk-kurta-zhz-001', { expectStatus: 200 });
@@ -806,7 +880,9 @@ async function runJourney(rec, mongoUri) {
   });
 
   // -- customer status toggle --
-  const CUSTOMER2_ID = '000000000000000000000003';
+  // Task 15: resolved dynamically, not hardcoded -- see
+  // resolveUserIdByLogin's header comment for why.
+  const CUSTOMER2_ID = await resolveUserIdByLogin(rec.base, 'customer2@zahzancontract.test', 'Customer@12345');
   await rec.call('admin.customer-status-toggle', 'PATCH', `/api/admin/customers/${CUSTOMER2_ID}/status`, {
     token: ctx.adminToken,
     json: { isActive: false },
@@ -918,23 +994,26 @@ async function runJourney(rec, mongoUri) {
     { expectStatus: 400 }
   );
 
-  if (mongoUri) {
-    const realToken = await fetchEmailChangeToken(mongoUri, ctx.customerId);
-    if (realToken) {
-      await rec.call(
-        'extra2.users-confirm-email-change-success',
-        'GET',
-        `/api/users/me/confirm-email-change?token=${realToken}`,
-        { expectStatus: 200, redact: [realToken] }
-      );
-    } else {
-      console.warn(
-        '[contract-capture] extra2.users-confirm-email-change-success SKIPPED: no emailchangetokens document found for the primary customer.'
-      );
-    }
+  // Task 15: try Mongo first (old stack, when --env MONGODB_URI is given),
+  // then fall back to the Postgres-stack verification route (see
+  // fetchEmailChangeTokenPg's header comment) -- whichever one applies to
+  // the target `--base` actually returns a token; the other is a no-op
+  // (unset mongoUri, or a 404 from a route gated off in any non-pglite
+  // environment).
+  const realToken = mongoUri
+    ? await fetchEmailChangeToken(mongoUri, ctx.customerId)
+    : await fetchEmailChangeTokenPg(rec.base, ctx.customerId);
+
+  if (realToken) {
+    await rec.call(
+      'extra2.users-confirm-email-change-success',
+      'GET',
+      `/api/users/me/confirm-email-change?token=${realToken}`,
+      { expectStatus: 200, redact: [realToken] }
+    );
   } else {
     console.warn(
-      '[contract-capture] extra2.users-confirm-email-change-success SKIPPED: no --env MONGODB_URI available to read the token back. Only the 400 branch was captured for this endpoint.'
+      '[contract-capture] extra2.users-confirm-email-change-success SKIPPED: no email-change token could be read back (neither --env MONGODB_URI nor the Postgres verification route returned one).'
     );
   }
 

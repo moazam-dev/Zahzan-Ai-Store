@@ -21,6 +21,7 @@ import { requireAuth, requireAdmin } from '../../../../../../lib/auth.js';
 import { serializePayment, serializeOrder } from '../../../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../../../lib/auditLogger.js';
 import { sendCustomerPaymentVerifiedEmail, sendCustomerOrderStatusEmail, dispatch } from '../../../../../../lib/email.js';
+import { signProofUrl } from '../../../../../../lib/storage.js';
 
 export const PATCH = withErrorHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
@@ -74,6 +75,10 @@ export const PATCH = withErrorHandler(async (request, context) => {
   });
 
   const serializedPayment = serializePayment(updatedPayment);
+  // Re-sign, same reasoning as app/api/admin/payments/route.js's list
+  // endpoint (lib/storage.js's private-bucket design: proof_url stores a
+  // path, not a durable URL).
+  serializedPayment.proofUrl = await signProofUrl(updatedPayment.proof_public_id);
   const serializedOrder = order ? serializeOrder(order) : null;
 
   if (order) {
