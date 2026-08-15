@@ -468,7 +468,19 @@ create table story_submissions (
   image text not null,
   caption text not null default '',
   rating integer check (rating >= 1 and rating <= 5),
-  product_id uuid references products (id),
+  -- on delete cascade: Task 13 controller ruling. Both stub tables' FKs
+  -- to products used to be plain (RESTRICT) references, which would block
+  -- DELETE /api/admin/products/:id?permanent=true with a 23503
+  -- foreign-key-violation where the old Mongo app always returned 200 --
+  -- the same reasoning Ruling C15 already applied to cart_items and
+  -- wishlist_items above. Both tables are unreachable today (their own
+  -- endpoints are permanent 501 stubs -- GC4, MIGRATION_PLAN.md sec6.2 item
+  -- 11), so the practical risk was nil, but the trap was real and latent;
+  -- closed here since Task 13 owns the permanent-delete endpoint. Proven by
+  -- test/api/admin.test.js's four-way cascade test (story_submissions,
+  -- tryon_jobs, cart_items, wishlist_items all referencing one product at
+  -- once).
+  product_id uuid references products (id) on delete cascade,
   color text not null default '',
   status text not null default 'pending'
     check (status in ('pending', 'approved', 'rejected')),
@@ -491,7 +503,9 @@ for each row execute function set_updated_at();
 create table tryon_jobs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users (id),
-  product_id uuid references products (id),
+  -- on delete cascade: see the identical comment on story_submissions.product_id
+  -- above -- same Task 13 controller ruling, same reasoning.
+  product_id uuid references products (id) on delete cascade,
   color text not null default '',
   input_image text not null,
   output_image text not null default '',
@@ -926,5 +940,124 @@ begin
 
   select * into v_order from orders where id = p_order_id;
   return v_order;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- admin_dashboard_stats(): Task 13 (task-13-brief.md). Replaces
+-- getAdminDashboardStats's THIRTEEN sequential Mongoose queries plus two
+-- aggregations with one round trip, returning a single jsonb blob that
+-- app/api/admin/dashboard/route.js reshapes into the exact nested `stats`
+-- envelope (spec sec6.4) -- this function does NOT itself build that final
+-- shape; the JS partition of lowStockProducts into lowStockCount
+-- (stock > 0) / outOfStockCount (stock === 0) explicitly stays in the route
+-- handler, matching the source's own JS-side `.filter(...)` calls exactly
+-- (task-13-brief.md is explicit that this split happens in JS, not SQL).
+--
+-- Every nested array below is built via `to_jsonb(t)` over a `select <cols>
+-- from <table> ...` subquery, so each element lands as a plain object with
+-- the SAME snake_case column names a raw table row would have -- directly
+-- compatible with lib/serialize.js's row-shaped serializers
+-- (serializeOrder, serializeDashboardRecentCustomer,
+-- serializeDashboardLowStockProduct), not a bespoke camelCase shape assembled
+-- in SQL. recentOrders/recentCustomers/lowStockProducts select exactly the
+-- source's own `.select(...)` field lists (getAdminDashboardStats:
+-- `.select('firstName lastName email createdAt phone')` for recentCustomers,
+-- `.select('name sku price stock image images category')` for
+-- lowStockProducts) plus `id` (always present on a Postgres row regardless
+-- of a Mongoose select string, matching `_id`'s own always-present
+-- behaviour) -- recentOrders selects every column since the source's
+-- `Order.find().sort().limit(5)` applies no select at all.
+-- ---------------------------------------------------------------------------
+
+create or replace function admin_dashboard_stats()
+returns jsonb
+language plpgsql
+as $$
+declare
+  v_orders jsonb;
+  v_revenue numeric(12, 2);
+  v_customers_total integer;
+  v_recent_customers jsonb;
+  v_total_products integer;
+  v_low_stock jsonb;
+  v_total_subscribers integer;
+  v_payments_pending integer;
+  v_payments_verified integer;
+  v_payments_rejected integer;
+  v_verified_amount numeric(12, 2);
+  v_recent_orders jsonb;
+begin
+  select jsonb_build_object(
+    'total', count(*),
+    'pending', count(*) filter (where order_status = 'Pending'),
+    'confirmed', count(*) filter (where order_status = 'Confirmed'),
+    'processing', count(*) filter (where order_status = 'Processing'),
+    'shipped', count(*) filter (where order_status = 'Shipped'),
+    'delivered', count(*) filter (where order_status = 'Delivered'),
+    'cancelled', count(*) filter (where order_status = 'Cancelled')
+  ) into v_orders
+  from orders;
+
+  -- Mirrors the source's Order.aggregate $match orderStatus $ne 'Cancelled'
+  -- exactly (not, e.g., "only Delivered" -- every non-cancelled order counts).
+  select coalesce(sum(total), 0) into v_revenue
+  from orders where order_status <> 'Cancelled';
+
+  select count(*) into v_customers_total from users where role = 'customer';
+
+  select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) into v_recent_customers
+  from (
+    select id, first_name, last_name, email, phone, created_at
+    from users
+    where role = 'customer'
+    order by created_at desc
+    limit 5
+  ) t;
+
+  select count(*) into v_total_products from products where is_active = true;
+
+  -- ALL rows at stock <= 3 (not just the ones the route later buckets as
+  -- "low") -- the JS partition into lowStockCount/outOfStockCount happens
+  -- against this same full set, per task-13-brief.md.
+  select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) into v_low_stock
+  from (
+    select id, name, sku, price, stock, image, images, category
+    from products
+    where is_active = true and stock <= 3
+  ) t;
+
+  select count(*) into v_total_subscribers
+  from newsletter_subscribers where status = 'subscribed';
+
+  select
+    count(*) filter (where status = 'Pending'),
+    count(*) filter (where status = 'Verified'),
+    count(*) filter (where status = 'Rejected')
+    into v_payments_pending, v_payments_verified, v_payments_rejected
+  from payments;
+
+  select coalesce(sum(amount), 0) into v_verified_amount
+  from payments where status = 'Verified';
+
+  select coalesce(jsonb_agg(to_jsonb(t)), '[]'::jsonb) into v_recent_orders
+  from (
+    select * from orders order by created_at desc limit 5
+  ) t;
+
+  return jsonb_build_object(
+    'orders', v_orders,
+    'revenue', v_revenue,
+    'customersTotal', v_customers_total,
+    'recentCustomers', v_recent_customers,
+    'totalProducts', v_total_products,
+    'lowStockProducts', v_low_stock,
+    'totalSubscribers', v_total_subscribers,
+    'paymentsPending', v_payments_pending,
+    'paymentsVerified', v_payments_verified,
+    'paymentsRejected', v_payments_rejected,
+    'verifiedPaymentAmount', v_verified_amount,
+    'recentOrders', v_recent_orders
+  );
 end;
 $$;
