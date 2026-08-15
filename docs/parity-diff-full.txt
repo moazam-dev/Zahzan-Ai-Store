@@ -1,0 +1,614 @@
+MISSING in tools/golden-next: 097-extra2.users-confirm-email-change-success.json
+
+DIFF in 001-health.json:
+  $.responseBody.data.environment
+    A: "development"
+    B: "production"
+
+DIFF in 013-products.list.json:
+  $.responseBody.products[0].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[0]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[1].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[1]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[2].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[2]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[3].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[3]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 014-products.list-by-category.json:
+  $.responseBody.products[0].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[0]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 015-products.list-by-search.json:
+  $.responseBody.products[0].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[0]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 016-products.get-by-id.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.data.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.data<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 017-products.get-by-slug.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.data.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.data<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 018-products.get-by-sku.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.data.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.data<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 022-users.address-create.json:
+  $.responseBody.address<key order>
+    A: "userId,fullName,phone,addressLine1,addressLine2,city,province,postalCode,country,label,isDefault,_id,createdAt,updatedAt,__v"
+    B: "_id,userId,fullName,phone,addressLine1,addressLine2,city,province,postalCode,country,label,isDefault,createdAt,updatedAt,__v"
+
+DIFF in 032-cart.add.json:
+  $.responseBody.cart.items[0].product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+
+DIFF in 033-cart.add-same-again.json:
+  $.responseBody.cart.items[0].product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+
+DIFF in 034-cart.patch-quantity.json:
+  $.responseBody.cart.items[0].product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+
+DIFF in 037-orders.create-cod-1.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+
+DIFF in 038-orders.list.json:
+  $.responseBody.orders[0].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[0].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[0]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 039-orders.my-orders.json:
+  $.responseBody.orders[0].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[0].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[0]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 040-orders.get-by-id.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 041-orders.get-by-order-number.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 042-orders.cancel-1.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 043-orders.create-cod-2.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+
+DIFF in 044-orders.cancel-2-first.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 047-payments.create-advance-order.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_order_<TS>"
+    B: "payment_order/1-payment-proof.png"
+  $.responseBody.payment<key order>
+    A: "orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,_id,createdAt,updatedAt,__v,id"
+    B: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,id"
+
+DIFF in 048-payments.submit-proof.json:
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/2-payment-proof.png"
+  $.responseBody.payment<key order>
+    A: "orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,_id,createdAt,updatedAt,__v,id"
+    B: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,id"
+
+DIFF in 049-payments.submit-proof-alias.json:
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.payment<key order>
+    A: "orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,_id,createdAt,updatedAt,__v,id"
+    B: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,id"
+
+DIFF in 050-payments.get-by-order-id.json:
+  $.responseBody.payments[0].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.payments[1].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/2-payment-proof.png"
+  $.responseBody.payments[2].proofPublicId
+    A: "zahzan/payment-proofs/payment_order_<TS>"
+    B: "payment_order/1-payment-proof.png"
+
+DIFF in 056-admin.dashboard.json:
+  $.responseBody.stats.orders<key order>
+    A: "total,pending,confirmed,processing,shipped,delivered,cancelled"
+    B: "total,pending,shipped,cancelled,confirmed,delivered,processing"
+  $.responseBody.stats.recentOrders[0].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.stats.recentOrders[0].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.stats.recentOrders[0]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+  $.responseBody.stats.recentOrders[1].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.stats.recentOrders[1].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.stats.recentOrders[1]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+  $.responseBody.stats.recentOrders[2].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.stats.recentOrders[2].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.stats.recentOrders[2]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 057-admin.orders-list-paged.json:
+  $.responseBody.orders[0].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[0].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[0].payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.orders[0]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+  $.responseBody.orders[1].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[1].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[1]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+
+DIFF in 058-admin.orders-list-search.json:
+  $.responseBody.orders[0].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[0].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[0].payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.orders[0]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+  $.responseBody.orders[1].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[1].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[1]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+  $.responseBody.orders[2].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[2].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[2]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+
+DIFF in 059-admin.orders-list-status.json:
+  $.responseBody.orders[0].items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.orders[0].shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.orders[0].payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.orders[0]<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+
+DIFF in 060-admin.payments-list-paged.json:
+  $.responseBody.payments[0].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[0].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[0].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.payments[1].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[1].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[1].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/2-payment-proof.png"
+
+DIFF in 061-admin.payments-list-search.json:
+  $.responseBody.payments[0].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[0].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[0].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.payments[1].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[1].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[1].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/2-payment-proof.png"
+  $.responseBody.payments[2].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[2].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[2].proofPublicId
+    A: "zahzan/payment-proofs/payment_order_<TS>"
+    B: "payment_order/1-payment-proof.png"
+
+DIFF in 062-admin.payments-list-status.json:
+  $.responseBody.payments[0].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[0].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[0].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.payments[1].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[1].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[1].proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/2-payment-proof.png"
+  $.responseBody.payments[2].orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payments[2].orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payments[2].proofPublicId
+    A: "zahzan/payment-proofs/payment_order_<TS>"
+    B: "payment_order/1-payment-proof.png"
+
+DIFF in 066-admin.products-list-paged.json:
+  $.responseBody.products[0].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[0]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[1].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[1]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 067-admin.products-list-search.json:
+  $.responseBody.products[0].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[0]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 068-admin.products-list-status.json:
+  $.responseBody.products[0].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[0]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[1].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[1]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[2].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[2]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+  $.responseBody.products[3].colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.products[3]<key order>
+    A: "_id,name,slug,sku,description,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,stock,isActive,quickDescription,gallery,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 069-admin.newsletter-list-paged.json:
+  $.responseBody.subscribers[1]<key order>
+    A: "_id,email,status,source,subscribedAt,createdAt,updatedAt,unsubscribedAt,id"
+    B: "_id,email,status,source,subscribedAt,unsubscribedAt,createdAt,updatedAt,id"
+
+DIFF in 070-admin.newsletter-list-search.json:
+  $.responseBody.subscribers[0]<key order>
+    A: "_id,email,status,source,subscribedAt,createdAt,updatedAt,unsubscribedAt,id"
+    B: "_id,email,status,source,subscribedAt,unsubscribedAt,createdAt,updatedAt,id"
+
+DIFF in 072-admin.order-status-update.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 073-admin.payment-verify.json:
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_order_<TS>"
+    B: "payment_order/1-payment-proof.png"
+  $.responseBody.payment<key order>
+    A: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,verifiedBy,verifiedAt,id"
+    B: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,id,verifiedBy,verifiedAt"
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 074-admin.payment-reject.json:
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/2-payment-proof.png"
+  $.responseBody.payment<key order>
+    A: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,verifiedBy,verifiedAt,id"
+    B: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,id,verifiedBy,verifiedAt"
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+
+DIFF in 075-admin.product-create.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "name,slug,sku,description,quickDescription,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,gallery,stock,isActive,_id,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 076-admin.product-update.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "_id,name,slug,sku,description,quickDescription,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 077-admin.product-status-toggle.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "_id,name,slug,sku,description,quickDescription,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 078-admin.product-soft-delete.json:
+  $.responseBody.product.colors[0]<key order>
+    A: "name,hex,image"
+    B: "hex,name,image"
+  $.responseBody.product<key order>
+    A: "_id,name,slug,sku,description,quickDescription,price,category,images,image,hoverImage,colors,color,sizes,fabric,work,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id,image,hoverImage,color,fabric,work"
+
+DIFF in 082-admin.audit-logs.json:
+  $.responseBody.logs[2].metadata<key order>
+    A: "name,sku"
+    B: "sku,name"
+  $.responseBody.logs[3].metadata<key order>
+    A: "name,sku"
+    B: "sku,name"
+  $.responseBody.logs[4].metadata<key order>
+    A: "name,sku,isActive"
+    B: "sku,name,isActive"
+  $.responseBody.logs[5].metadata<key order>
+    A: "name,prevPrice,newPrice,prevStock,newStock"
+    B: "name,newPrice,newStock,prevPrice,prevStock"
+  $.responseBody.logs[6].metadata<key order>
+    A: "name,sku,price,stock"
+    B: "sku,name,price,stock"
+  $.responseBody.logs[8].metadata<key order>
+    A: "orderId,orderNumber,amount,paymentMethod,transactionReference"
+    B: "amount,orderId,orderNumber,paymentMethod,transactionReference"
+  $.responseBody.logs[9].metadata<key order>
+    A: "orderNumber,previousStatus,newStatus"
+    B: "newStatus,orderNumber,previousStatus"
+
+DIFF in 098-extra2.products-create.json:
+  $.responseBody.product<key order>
+    A: "name,slug,sku,description,quickDescription,price,category,images,sizes,careInstructions,gallery,stock,isActive,_id,colors,createdAt,updatedAt,__v,id"
+    B: "_id,name,slug,sku,description,quickDescription,price,category,images,colors,sizes,careInstructions,gallery,stock,isActive,createdAt,updatedAt,__v,id"
+
+DIFF in 099-extra2.admin-order-by-id.json:
+  $.responseBody.order.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt"
+    B: "_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.order.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.order.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+  $.responseBody.order<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id,payment"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id,payment"
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_<ORDERNO>_<TS>"
+    B: "payment_<ORDERNO>/3-payment-proof.png"
+
+DIFF in 100-extra2.admin-payment-by-id.json:
+  $.responseBody.payment.orderId.items[0]<key order>
+    A: "productId,productName,sku,image,color,size,quantity,unitPrice,totalPrice,_id,createdAt,updatedAt,id"
+    B: "id,_id,sku,size,color,image,quantity,createdAt,productId,unitPrice,updatedAt,totalPrice,productName"
+  $.responseBody.payment.orderId.shippingAddress<key order>
+    A: "fullName,phone,email,addressLine1,addressLine2,city,state,postalCode,country,deliveryInstructions"
+    B: "city,email,phone,state,country,fullName,postalCode,addressLine1,addressLine2,deliveryInstructions"
+  $.responseBody.payment.orderId<key order>
+    A: "_id,orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,createdAt,updatedAt,__v,id"
+    B: "orderNumber,userId,customerName,customerEmail,customerPhone,items,shippingAddress,subtotal,shippingCost,total,paymentMethod,paymentStatus,orderStatus,_id,createdAt,updatedAt,__v,id"
+  $.responseBody.payment.userId.email
+    A: "sara.newemail@zahzancontract.test"
+    B: "journey.customer@zahzancontract.test"
+  $.responseBody.payment.proofPublicId
+    A: "zahzan/payment-proofs/payment_order_<TS>"
+    B: "payment_order/1-payment-proof.png"
+  $.responseBody.payment<key order>
+    A: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,verifiedAt,verifiedBy,id"
+    B: "_id,orderId,userId,paymentMethod,amount,transactionReference,proofUrl,proofPublicId,status,rejectionReason,createdAt,updatedAt,__v,id,verifiedBy,verifiedAt"
+
+Differences found between tools/golden and tools/golden-next.

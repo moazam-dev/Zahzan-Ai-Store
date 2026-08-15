@@ -2,17 +2,29 @@
 // tools/run-pglite-server.mjs
 //
 // Task 15 (parity verification). Boots the built Next.js app against an
-// in-process PGlite database, then triggers migration + Task 2 contract
-// fixture seeding through the app's own route-handler code path (see
-// app/api/test-bootstrap/route.js's header comment for exactly why
-// that indirection is required, not optional): PGlite is an in-process WASM
-// database with no network listener, and lib/db.js's "lazy module
-// singleton" (lib/db.js:24-29) turned out empirically to NOT be shared
-// between a plain top-level `node` script's own import of lib/db.js and the
-// SEPARATELY-BUNDLED copy every Next.js route handler imports, even within
-// one OS process -- calling the migration/seed logic through a real route
-// handler is what actually lands it in the instance every other endpoint
-// reads from.
+// in-process PGlite database. Migration + Task 2 contract fixture seeding is
+// done by calling the root `instrumentation.js` module's `register()`
+// function DIRECTLY (imported below) before the HTTP server starts
+// listening -- not left to Next's own automatic invocation of that hook.
+//
+// Why explicit, not automatic: empirically (Task 15), under the programmatic
+// custom-server API used below, Next does NOT reliably await `register()`
+// during `app.prepare()` before serving the first request -- it fires the
+// hook lazily, racing the first real request. Calling `register()` ourselves
+// and awaiting it before `server.listen()` makes bootstrap deterministic
+// regardless of Next's own internal timing; `register()`'s own globalThis-
+// cached idempotency guard (see instrumentation.js) makes it safe even if
+// Next's internal invocation also fires later on some request.
+//
+// This script used to trigger migration+seed via a dedicated
+// `POST /api/test-bootstrap` route; that route has been deleted (Task 15
+// Critical-2 fix) since instrumentation.js's register() now does the same
+// job with zero HTTP surface. See instrumentation.js's header comment for
+// the full story, including why a plain module-scope singleton in
+// lib/db.js was not enough on its own (lib/db.js now stores the PGlite
+// instance on `globalThis` instead, which is what makes register() calling
+// from this separate script land in the same instance every route handler
+// reads from).
 //
 // Requires `npm run build` to have already produced `.next/` (this uses
 // Next's programmatic API with `dev: false`, i.e. the production server
@@ -66,21 +78,17 @@ async function main() {
   const handler = app.getRequestHandler();
   await app.prepare();
 
+  console.log('[run-pglite-server] Running instrumentation.js\'s DB bootstrap (migration + seed) explicitly...');
+  const { register } = await import('../instrumentation.js');
+  await register();
+  console.log('[run-pglite-server] DB bootstrap complete.');
+
   const server = http.createServer((req, res) => handler(req, res));
 
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, 'localhost', () => resolve());
   });
-
-  console.log(`[run-pglite-server] Listening on http://localhost:${port}. Bootstrapping DB via the app's own route handler...`);
-
-  const res = await fetch(`http://localhost:${port}/api/test-bootstrap`, { method: 'POST' });
-  const body = await res.json().catch(() => null);
-  if (!res.ok || !body?.success) {
-    throw new Error(`Bootstrap failed: HTTP ${res.status} ${JSON.stringify(body)}`);
-  }
-  console.log('[run-pglite-server] Bootstrap OK:', JSON.stringify(body));
 
   console.log(`[run-pglite-server] READY http://localhost:${port}`);
 }

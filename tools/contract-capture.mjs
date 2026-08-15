@@ -271,6 +271,26 @@ class Recorder {
   }
 
   /**
+   * Task 15 addition. Reserves the next sequence number WITHOUT writing a
+   * file, for a journey step that legitimately cannot be captured against
+   * the current target (e.g. extra2.users-confirm-email-change-success when
+   * neither --env MONGODB_URI nor the Postgres verification route can
+   * supply a token -- see app/api/test-email-change-token/route.js's
+   * removal, Task 15 Critical-2). Without this, every step after a skipped
+   * one shifts down by one, which turns `tools/contract-diff.mjs` into a
+   * cascade of spurious "MISSING" entries for every later interaction (their
+   * content may be identical, but their FILENAME no longer lines up between
+   * two runs where only one skipped the step) instead of one clean, honest
+   * "this one interaction could not be captured" gap. Reserving the number
+   * keeps every other interaction's filename -- and therefore its
+   * comparability -- stable regardless of whether this one ran.
+   */
+  skip(name) {
+    const fileName = this.nextFileName(name);
+    console.warn(`[contract-capture] ${name} SKIPPED (reserved as ${fileName}, no file written).`);
+  }
+
+  /**
    * Performs one HTTP call and writes a normalised record to disk.
    *
    * @param {string} name          stable, unique-per-journey interaction name
@@ -1000,6 +1020,20 @@ async function runJourney(rec, mongoUri) {
   // the target `--base` actually returns a token; the other is a no-op
   // (unset mongoUri, or a 404 from a route gated off in any non-pglite
   // environment).
+  //
+  // Task 15 Critical-2 fix: `GET /api/test-email-change-token` (the
+  // Postgres-stack verification route fetchEmailChangeTokenPg calls) has
+  // been DELETED -- it was an unauthenticated, non-original route that
+  // shipped in the production route table (a GC4 violation), and unlike
+  // migration/seeding it could not be ported to instrumentation.js's
+  // register() hook (it's an on-demand mid-run read, not boot-time logic).
+  // fetchEmailChangeTokenPg is left in place -- its 404-on-any-non-200
+  // contract makes this branch a clean, honest skip against the current
+  // ported stack, not an error -- but it will now always return null when
+  // `--base` points at the Next.js stack. See docs/PARITY_REPORT.md's
+  // Critical-2 fix section for how a future engineer would re-enable this
+  // one journey step on a throwaway branch, if a full re-capture that
+  // includes it is ever needed again.
   const realToken = mongoUri
     ? await fetchEmailChangeToken(mongoUri, ctx.customerId)
     : await fetchEmailChangeTokenPg(rec.base, ctx.customerId);
@@ -1012,9 +1046,7 @@ async function runJourney(rec, mongoUri) {
       { expectStatus: 200, redact: [realToken] }
     );
   } else {
-    console.warn(
-      '[contract-capture] extra2.users-confirm-email-change-success SKIPPED: no email-change token could be read back (neither --env MONGODB_URI nor the Postgres verification route returned one).'
-    );
+    rec.skip('extra2.users-confirm-email-change-success');
   }
 
   // 5/11: POST /api/products -- productController.createProduct, gated by protect+requireAdmin

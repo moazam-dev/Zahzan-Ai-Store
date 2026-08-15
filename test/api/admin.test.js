@@ -26,6 +26,7 @@ process.env.ZAHZAN_STORAGE_DRIVER = 'memory';
 
 const { query, close } = await import('../../lib/db.js');
 const { generateToken } = await import('../../lib/jwt.js');
+const { signProofUrl } = await import('../../lib/storage.js');
 
 import { POST as adminLoginRoute } from '../../app/api/admin/auth/login/route.js';
 import { GET as adminMeRoute } from '../../app/api/admin/auth/me/route.js';
@@ -436,6 +437,16 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       const body = await res.json();
       expect(body.order.payment._id).toBe(payment.id);
       expect(body.payment._id).toBe(payment.id);
+
+      // Task 15 Critical-1 regression test (same pattern as
+      // test/api/orders.test.js:401): BOTH copies (nested under order, and
+      // the top-level sibling) must carry a freshly signed proof URL, never
+      // the raw stored path.
+      const resigned = await signProofUrl(payment.proof_public_id);
+      expect(body.order.payment.proofUrl).not.toBe(payment.proof_url);
+      expect(body.order.payment.proofUrl).toBe(resigned);
+      expect(body.payment.proofUrl).not.toBe(payment.proof_url);
+      expect(body.payment.proofUrl).toBe(resigned);
     });
 
     it('order not found -> 404', async () => {
@@ -930,6 +941,14 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       expect(found.userId._id).toBe(customer.id);
       expect(found.userId.phone).toBe(customer.phone);
 
+      // Task 15 Critical-1 regression test (same pattern as
+      // test/api/orders.test.js:401): proof_url stores a raw storage PATH
+      // (lib/storage.js's private-bucket design), so the list response must
+      // carry a freshly SIGNED url, never the stored path verbatim.
+      expect(found.proofUrl).not.toBe(payment.proof_url);
+      const resigned = await signProofUrl(payment.proof_public_id);
+      expect(found.proofUrl).toBe(resigned);
+
       const searchRes = await paymentsListRoute(
         getRequest('/api/admin/payments?search=FINDMEREF001', authHeader(admin))
       );
@@ -958,6 +977,13 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       expect(body.payment.orderId._id).toBe(order.id);
       expect(body.payment.orderId.customerName).toBe(order.customer_name);
       expect(body.payment.userId.email).toBe(customer.email);
+
+      // Task 15 Critical-1 regression test (same pattern as
+      // test/api/orders.test.js:401): the detail response must carry a
+      // freshly signed proof URL, never the raw stored path.
+      expect(body.payment.proofUrl).not.toBe(payment.proof_url);
+      const resigned = await signProofUrl(payment.proof_public_id);
+      expect(body.payment.proofUrl).toBe(resigned);
     });
 
     it('payment not found -> 404', async () => {

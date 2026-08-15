@@ -154,17 +154,22 @@ export async function submitPaymentProof(request, fieldName) {
   // Update order payment status.
   await query('update orders set payment_status = $1 where id = $2', ['submitted', order.id]);
 
+  // Sign the proof URL BEFORE building anything that leaves this function --
+  // the email and the HTTP response must both carry a working, freshly
+  // signed URL, never the raw storage path (lib/storage.js's own doc
+  // comment: the payment-proofs bucket is private, so the stored path 403s
+  // unless re-signed on every read).
+  const signedUrl = await signProofUrl(paymentRow.proof_public_id);
+  const responsePayment = { ...serializePayment(paymentRow), proofUrl: signedUrl };
+
   // Dispatch email notification to admin -- awaited via dispatch() (a
   // failed/rejected send can never fail this request; interface fact).
   await dispatch(
     sendAdminPaymentProofEmail(
       { orderNumber: order.order_number, customerName: order.customer_name, customerEmail: order.customer_email },
-      serializePayment(paymentRow)
+      responsePayment
     )
   );
-
-  const signedUrl = await signProofUrl(paymentRow.proof_public_id);
-  const responsePayment = { ...serializePayment(paymentRow), proofUrl: signedUrl };
 
   return ok(
     {

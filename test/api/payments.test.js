@@ -9,15 +9,26 @@
 // legitimately differ between the Mongo-seeded goldens and this PGlite
 // fixture data.
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { applyMigrationViaQuery } from '../helpers/applyMigration.js';
 
 process.env.ZAHZAN_DB_DRIVER = 'pglite';
 process.env.ZAHZAN_STORAGE_DRIVER = 'memory';
 
+// Task 15 Critical-1 regression test setup: spy on sendAdminPaymentProofEmail
+// (wrapping, not replacing, the real implementation -- it still runs and
+// still degrades to the dev-log fallback exactly as before) so the test
+// below can inspect the exact `payment` object _submitPaymentProof.js hands
+// to it, without needing to parse email HTML/text output.
+vi.mock('../../lib/email.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, sendAdminPaymentProofEmail: vi.fn(actual.sendAdminPaymentProofEmail) };
+});
+
 const { query, close } = await import('../../lib/db.js');
 const { generateToken } = await import('../../lib/jwt.js');
 const { PAYMENT_METHODS } = await import('../../lib/paymentMethods.js');
+const { sendAdminPaymentProofEmail } = await import('../../lib/email.js');
 
 import { GET as methodsRoute } from '../../app/api/payments/methods/route.js';
 import { POST as submitProofRoute } from '../../app/api/payments/route.js';
@@ -173,6 +184,44 @@ describe('app/api/payments/* route handlers (Task 12)', () => {
       // The order's paymentStatus is updated to 'submitted'.
       const { rows } = await query('select payment_status from orders where id = $1', [order.id]);
       expect(rows[0].payment_status).toBe('submitted');
+    });
+
+    it('Task 15 Critical-1 regression: the admin payment-proof email is handed a SIGNED proofUrl, never the raw stored path', async () => {
+      const user = await insertUser();
+      const order = await insertOrder(user, { total: 5000 });
+
+      sendAdminPaymentProofEmail.mockClear();
+
+      const res = await submitProofRoute(
+        postMultipartRequest(
+          '/api/payments',
+          {
+            orderId: order.id,
+            paymentMethod: 'JazzCash',
+            transactionReference: 'TXNEMAILSIGN01',
+            proof: pngBlob()
+          },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+
+      expect(sendAdminPaymentProofEmail).toHaveBeenCalledTimes(1);
+      const [emailedOrder, emailedPayment] = sendAdminPaymentProofEmail.mock.calls[0];
+      expect(emailedOrder.orderNumber).toBe(order.order_number);
+
+      const { rows: paymentDbRows } = await query('select proof_url, proof_public_id from payments where id = $1', [
+        body.payment._id
+      ]);
+      const storedPath = paymentDbRows[0].proof_url;
+
+      // The RAW stored path never appears as the email's proofUrl -- it must
+      // be the freshly-signed URL (memory driver's own `memory://` scheme),
+      // identical to what the HTTP response returns.
+      expect(emailedPayment.proofUrl).not.toBe(storedPath);
+      expect(emailedPayment.proofUrl).toBe(body.payment.proofUrl);
+      expect(emailedPayment.proofUrl).toMatch(/^memory:\/\//);
     });
 
     it('a lowercase transaction reference is stored uppercased', async () => {
