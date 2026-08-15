@@ -147,4 +147,28 @@ describe('lib/auth.js (requireAuth / requireAdmin)', () => {
     expect(requireAdmin(null).status).toBe(403);
     expect(requireAdmin(undefined).status).toBe(403);
   });
+
+  it('the resolved user carries no password hash, in any form', async () => {
+    // A real-shaped bcrypt hash (not a placeholder) -- if requireAuth's
+    // query ever regresses to `select *`, this exact string would show up
+    // verbatim in `user.password` and in JSON.stringify(user).
+    const seededHash = '$2b$10$abcdefghijklmnopqrstuvKZ1234567890abcdefghijklmnopqrstuv';
+
+    const { rows } = await query(
+      `insert into users (first_name, last_name, email, role, password) values ($1, $2, $3, $4, $5) returning id`,
+      ['Hashed', 'Person', 'hashed-person@example.com', 'customer', seededHash]
+    );
+    const hashedUserId = rows[0].id;
+
+    const { user, response } = await requireAuth(
+      requestWithAuthHeader(`Bearer ${generateToken(hashedUserId, 'customer')}`)
+    );
+
+    expect(response).toBeUndefined();
+    expect(user).toBeDefined();
+    expect(user.id).toBe(hashedUserId);
+    expect(user.password).toBeUndefined();
+    expect('password' in user).toBe(false);
+    expect(JSON.stringify(user)).not.toContain(seededHash);
+  });
 });
