@@ -25,17 +25,18 @@
 
 export const runtime = 'nodejs';
 
-import { fail, withErrorHandler } from '../../../lib/http.js';
+import { fail } from '../../../lib/http.js';
+import { withApiHandler } from '../../../lib/rateLimit.js';
 import { requireAuth } from '../../../lib/auth.js';
 
 function notImplemented() {
   return fail('Endpoint not implemented yet', 501);
 }
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { response } = await requireAuth(request);
   if (response) return response;
   return notImplemented();
 });
 
-export const GET = withErrorHandler(async () => notImplemented());
+export const GET = withApiHandler(async () => notImplemented());

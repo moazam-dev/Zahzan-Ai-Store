@@ -52,7 +52,7 @@ export default function Header({ variant }) {
       <div className="mx-auto flex max-w-7xl items-center justify-center px-2 py-2 sm:px-3 lg:px-4">
         
         {/* CENTER BRAND LOGO */}
-        <Link href="/" className="text-lg font-semibold uppercase tracking-[0.35em] text-black sm:text-xl">
+        <Link href="/" scroll={false} className="text-lg font-semibold uppercase tracking-[0.35em] text-black sm:text-xl">
           <img src={logo} alt="ZAHZAN" className="h-14 sm:h-16 w-auto object-contain" />
         </Link>
 

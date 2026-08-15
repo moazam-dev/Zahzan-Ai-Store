@@ -10,10 +10,10 @@
 
 export const runtime = 'nodejs';
 
-import { withErrorHandler } from '../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../lib/rateLimit.js';
 import { unsubscribeNewsletter } from '../../_unsubscribe.js';
 
-export const GET = withErrorHandler(async (request, context) => {
+export const GET = withApiHandler(async (request, context) => {
   const { token } = await context.params;
   return unsubscribeNewsletter(request, token);
 });

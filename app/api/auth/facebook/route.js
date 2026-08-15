@@ -7,11 +7,12 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
+import { ok, fail } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { serializeAuthUser } from '../../../../lib/serialize.js';
 import { generateToken, generateRefreshToken } from '../../../../lib/jwt.js';
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const body = await request.json().catch(() => ({}));
   const { facebookId, email, name, firstName, lastName } = body;
 

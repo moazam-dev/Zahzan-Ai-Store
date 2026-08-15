@@ -420,6 +420,29 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       const statusBody = await statusRes.json();
       expect(statusBody.order.items[0]).toHaveProperty('id');
     });
+
+    // Final whole-branch review, TEST + DOC ACCURACY item: this is one of
+    // four correctly-signed proofUrl sites that lacked a regression
+    // assertion (the other three: PATCH .../verify, PATCH .../reject, and
+    // GET /api/payments/order/:orderId). Same pattern as
+    // test/api/orders.test.js:401 and this file's own GET /api/admin/orders/:id
+    // test just above.
+    it('nested order.payment.proofUrl is freshly signed, not the raw stored path', async () => {
+      const admin = await insertAdmin();
+      const owner = await insertUser({ email: 'list-nested-payment-owner@zahzanmigrationtest.com' });
+      const order = await insertOrder(owner);
+      const payment = await insertPayment(order, owner);
+
+      const res = await ordersListRoute(getRequest('/api/admin/orders', authHeader(admin)));
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      const listedOrder = body.orders.find((o) => o._id === order.id);
+      expect(listedOrder.payment._id).toBe(payment.id);
+
+      const resigned = await signProofUrl(payment.proof_public_id);
+      expect(listedOrder.payment.proofUrl).not.toBe(payment.proof_url);
+      expect(listedOrder.payment.proofUrl).toBe(resigned);
+    });
   });
 
   describe('GET /api/admin/orders/:id -- shape matches tools/golden/099-extra2.admin-order-by-id.json', () => {
@@ -1015,6 +1038,13 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       expect(body.order.paymentStatus).toBe('verified');
       expect(body.order.orderStatus).toBe('Confirmed');
 
+      // Final whole-branch review, TEST + DOC ACCURACY item: this correctly-
+      // signed site lacked a regression assertion. Same pattern as
+      // test/api/orders.test.js:401.
+      const resignedVerify = await signProofUrl(payment.proof_public_id);
+      expect(body.payment.proofUrl).not.toBe(payment.proof_url);
+      expect(body.payment.proofUrl).toBe(resignedVerify);
+
       const { rows: orderRows } = await query('select payment_status, order_status from orders where id = $1', [
         order.id
       ]);
@@ -1064,6 +1094,13 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       expect(body.order.paymentStatus).toBe('rejected');
       // orderStatus is untouched by reject (unlike verify).
       expect(body.order.orderStatus).toBe('Confirmed');
+
+      // Final whole-branch review, TEST + DOC ACCURACY item: this correctly-
+      // signed site lacked a regression assertion. Same pattern as
+      // test/api/orders.test.js:401.
+      const resignedReject = await signProofUrl(payment.proof_public_id);
+      expect(body.payment.proofUrl).not.toBe(payment.proof_url);
+      expect(body.payment.proofUrl).toBe(resignedReject);
     });
 
     it('missing rejectionReason -> 400 exact message', async () => {

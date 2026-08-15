@@ -9,9 +9,7 @@
     "start": "next start",
     "lint": "oxlint",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "server": "npm --prefix server start",
-    "server:dev": "npm --prefix server run dev"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

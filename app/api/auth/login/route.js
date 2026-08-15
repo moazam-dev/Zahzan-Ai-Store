@@ -9,12 +9,12 @@ export const runtime = 'nodejs';
 
 import bcrypt from 'bcryptjs';
 import { query } from '../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
-import { checkRateLimit, loginRateLimit } from '../../../../lib/rateLimit.js';
+import { ok, fail } from '../../../../lib/http.js';
+import { withApiHandler, checkRateLimit, loginRateLimit } from '../../../../lib/rateLimit.js';
 import { serializeAuthUser } from '../../../../lib/serialize.js';
 import { generateToken, generateRefreshToken } from '../../../../lib/jwt.js';
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { limited, response } = await checkRateLimit(request, loginRateLimit);
   if (limited) return response;
 

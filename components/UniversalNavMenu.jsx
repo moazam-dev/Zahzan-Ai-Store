@@ -113,7 +113,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
         {/* DRAWER HEADER: BRAND LOGO + ELEGANT CLOSE BUTTON */}
         {/* ----------------------------------------------------------------------- */}
         <div className="sticky top-0 z-20 bg-[#faf8f5]/95 backdrop-blur-xs px-6 py-5 sm:px-8 flex items-center justify-between border-b border-[#e8e4dc]/70">
-          <Link href="/" onClick={onClose} className="flex items-center gap-2 group">
+          <Link href="/" onClick={onClose} scroll={false} className="flex items-center gap-2 group">
             <img src={logo} alt="ZAHZAN" className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
@@ -142,6 +142,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                 <Link
                   href="/collections"
                   onClick={onClose}
+                  scroll={false}
                   className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
                 >
                   <span>NEW ARRIVALS</span>
@@ -170,6 +171,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                           key={cat.id}
                           href="/collections"
                           onClick={onClose}
+                          scroll={false}
                           className="block text-sm font-sans tracking-wider text-[#706c64] hover:text-[#1c1b18] hover:translate-x-1 transition-all py-1"
                         >
                           {cat.name}
@@ -183,6 +185,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                 <Link
                   href="/shop"
                   onClick={onClose}
+                  scroll={false}
                   className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
                 >
                   <span>READY TO WEAR</span>
@@ -193,6 +196,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                 <Link
                   href="/shop"
                   onClick={onClose}
+                  scroll={false}
                   className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
                 >
                   <span>UNSTITCHED</span>
@@ -203,6 +207,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                 <Link
                   href="/shop"
                   onClick={onClose}
+                  scroll={false}
                   className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
                 >
                   <span>SALE</span>
@@ -344,7 +349,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
                         key={prodId}
                         onClick={() => {
                           onClose()
-                          router.push(`/product/${prodId}`)
+                          router.push(`/product/${prodId}`, { scroll: false })
                         }}
                         className="group flex items-center gap-4 p-2 rounded-xs hover:bg-[#f3efe8] transition-colors cursor-pointer"
                       >
@@ -392,6 +397,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
           <Link
             href="/account"
             onClick={onClose}
+            scroll={false}
             className="flex items-center justify-center gap-2 py-2 hover:text-[#5a5e4b] transition-colors"
           >
             <User size={14} />
@@ -401,6 +407,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
           <Link
             href="/shop"
             onClick={onClose}
+            scroll={false}
             className="flex items-center justify-center gap-2 py-2 hover:text-[#5a5e4b] transition-colors"
           >
             <ShoppingBag size={14} />

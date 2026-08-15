@@ -345,8 +345,11 @@ stays logged in.
 **Updated at the Final Parity Gate (§10.2/§10.3).** The two Task-15-only
 verification routes (`POST /api/test-bootstrap`,
 `GET /api/test-email-change-token`) no longer exist and no longer appear in
-the route table below. `npm run build` — clean, zero warnings, all 67
-governed route files plus the `[...catchAll]` fallback compile:
+the route table below. `npm run build` — clean, zero warnings, all 57
+governed route files (serving the 67 method-level endpoints — corrected at
+the final whole-branch review; the "67 governed route files" wording here
+previously conflated file count with endpoint count, several route files
+export more than one HTTP method) plus the `[...catchAll]` fallback compile:
 
 ```
 ▲ Next.js 16.3.1 (Turbopack)
@@ -660,6 +663,31 @@ what this run actually exercised:
    still squarely inside item 1's "real Supabase project was never used"
    gap, not something this diff pipeline was ever designed to catch.
 
+8. **Added at the final whole-branch review's fix wave: malformed JSON
+   request bodies now return the route's own 400, not Express's
+   500-with-SyntaxError.** In the original stack, `express.json()` throws a
+   `SyntaxError` (body-parser's `entity.parse.failed`) on an unparseable
+   body, which propagates to `errorHandler`
+   (`server/middleware/errorMiddleware.js`) — since nothing has called
+   `res.status(...)` yet at that point, `res.statusCode` is still its
+   default 200, so `errorHandler`'s `res.statusCode === 200 ? 500 : ...`
+   falls to 500, with the SyntaxError's own message in the body. Every route
+   handler in this port instead calls `request.json().catch(() => ({}))`,
+   swallowing a parse failure into an empty object, which then almost always
+   fails that route's own field-presence validation and returns a route-
+   specific 400 (e.g. "Please provide email and password.") instead. This is
+   a genuine status-code and message divergence for one specific malformed-
+   input shape — but no golden interaction in `tools/golden/` ever sends a
+   syntactically invalid JSON body (every captured request is well-formed,
+   even the ones testing missing/empty fields), so `contract-diff` has never
+   exercised, and cannot currently prove or disprove, either side of this
+   behaviour. Not fixed as part of this pass — GC4 draws no clear line here
+   (arguably the *old* 500 is the bug, not this port's 400), and inventing
+   either a reproduction of the exact old SyntaxError message or a decision
+   to keep the new 400 is a product call, not a mechanical parity fix; see
+   Ruling C16 for the precedent on leaving an unresolved, uncaptured
+   divergence documented rather than guessed at.
+
 ---
 
 ## 9. Files touched by this task
@@ -786,7 +814,7 @@ missed an instance:
 
 | Site | Signs before use? |
 | --- | --- |
-| `app/api/orders/route.js` (POST, COD/advance order create) | Yes — signs before building `responsePayment`, which is both the HTTP response and (indirectly, since it never emails) the only consumer. |
+| `app/api/orders/route.js` (POST, COD/advance order create) | **Conditionally** — corrected at the final whole-branch review; the row above previously read as unconditional. Signing (`signProofUrl(paymentRow.proof_public_id)`, building `responsePayment`) only runs when `proofFromUpload` is `true`, i.e. the client actually uploaded a file through this route (`app/api/orders/route.js:340-342`). When no file was uploaded and the client instead supplied `rawBody.proofUrl` directly in the JSON body (the `else if (rawBody.proofUrl)` branch, line 202), that value is kept verbatim, unsigned — there is no storage path in that branch to sign, since nothing was written to Storage; the source (`server/controllers/orderController.js`) never touched this value either in that case. This is parity-correct, not a missed signing site: it is a genuinely different code path from the upload branch, not an oversight of the same one. |
 | `app/api/payments/_submitPaymentProof.js` (POST /api/payments, POST /api/payments/proof) | **Was not; fixed here** (§10.1 above). Now signs before both the email and the HTTP response. |
 | `app/api/payments/order/[orderId]/route.js` (GET, customer payment history) | Yes — signs inline while mapping each row; no email sent from this route. |
 | `app/api/admin/payments/route.js` (GET, list) | Yes — re-signs `serialized.proofUrl` per row before responding; no email sent. |
@@ -990,3 +1018,240 @@ Folded directly into the sections they concern, with pointers back here:
   (`ZHZ-YYYYMMDD-XXXX`), not merely an internal/diagnostic value, if any
   date-bucketing logic (present or future) is ever written without an
   explicit UTC cast.
+
+---
+
+## 11. Final whole-branch review fix wave (DO-NOT-MERGE findings closed)
+
+This section records the single fix wave applied in response to the
+whole-branch review that recommended DO-NOT-MERGE on three blocking
+findings (B1, B2, B3), plus two more findings (M1, M2) and a set of smaller
+test/doc-accuracy items. There is no second fix wave planned; this is meant
+to leave the branch mergeable.
+
+### B1 — 62 of 67 endpoints had silently lost their rate limit
+
+`server/server.js:60`'s `app.use('/api', apiLimiter)` applied a global
+200-requests/15-minutes limiter to every `/api` route in the original stack.
+The port never reproduced it: only the five routes that already called
+`checkRateLimit` directly (register, login, forgot-password, reset-password,
+newsletter/subscribe) were throttled at all.
+
+**Fix**: a new composable wrapper, `withApiHandler` (`lib/rateLimit.js`),
+wraps `withErrorHandler` around a global `checkRateLimit(request,
+globalRateLimit)` call, then falls through to the route's own handler
+(whose own specific check, on the five routes that have one, still runs
+first thing inside that, unchanged). Every one of the **57 route.js
+files** (serving all 67 method-level endpoints, including the
+`[...catchAll]` 404 fallback and `payments/methods`, which previously had
+no wrapper of any kind) now uses `withApiHandler` in place of a bare
+`withErrorHandler`, via a one-shot mechanical script that rewrote each
+file's import and call site (verified by hand afterward, including merging
+the resulting duplicate `lib/rateLimit.js` import line on the five
+already-rate-limited routes).
+
+**Ordering preserved exactly**: `withApiHandler`'s global check runs before
+the wrapped handler is ever invoked, so on the five specific-limiter routes
+a single request now consumes BOTH the global counter and the specific one,
+in that order — reproducing Express's original double-consumption. The two
+counters are independent (`checkRateLimit`'s key is `${config.id}:${ip}`,
+and `'global'` never collides with `'login'`/`'register'`/`'passwordReset'`/
+`'newsletter'`).
+
+**Verified for real, not just unit-tested**: after `npm run build`, the
+built app was booted via `tools/run-pglite-server.mjs` and hit with 200 real
+HTTP requests to `GET /api/products` (a route with no specific limiter) from
+one IP — all 200 returned 200, and the 201st returned exactly:
+
+```
+HTTP 429
+{"success":false,"message":"Too many requests from this IP, please try again after 15 minutes"}
+```
+
+— byte-identical to `globalRateLimit.message`. The same exhausted IP was
+then confirmed to also 429 on the catch-all 404 route (proving the global
+limiter covers unmatched `/api/*` paths, matching Express mounting
+`apiLimiter` before `notFound`), while a brand-new IP got a normal 404/200
+on the catch-all and health routes respectively.
+
+**New tests** (`test/rateLimit.test.js`, real route handlers exercised
+end-to-end through `withApiHandler`, not just `checkRateLimit` in
+isolation):
+- `GET /api/products` (no specific limiter) returns 200 for
+  `globalRateLimit.max` requests from one IP, then 429 with the exact
+  configured message.
+- A single `POST /api/auth/login` request is proven, via direct
+  `rate_limits` table inspection, to increment BOTH the `global:<ip>` and
+  `login:<ip>` counters by exactly 1.
+- Exhausting `loginRateLimit.max` requests on `/api/auth/login` still
+  reports login's own message (not the global one) on the
+  `(max + 1)`-th request, while the global counter is shown to have
+  incremented on every one of those requests too (`loginRateLimit.max + 1`),
+  proving the global check runs unconditionally on every request rather
+  than being short-circuited once a route-specific limiter also exists.
+
+`test/rateLimit.test.js`'s original test (asserting only the five configs'
+shape) is unchanged and still present — it was correct as far as it went;
+it just never proved the wiring existed, which the three new tests above
+now do.
+
+### B2 — the production `pg` Pool is now on `globalThis`
+
+`lib/db.js`'s `pgPool` moved from a module-scope `let` to
+`globalThis['__zahzanPgPool']`, using exactly the pattern already applied to
+the PGlite singleton two keys below it (`getPgPool()`/`close()` updated to
+match; `query`/`tx` untouched). The stale comment asserting the `pg` Pool
+was "unaffected" by Turbopack's per-entry-point bundling has been corrected
+and now explains, and warns against reverting, the fix.
+
+**Verified at build-output level**, per the finding's own standard of
+evidence: after `npm run build`, `.next/server/chunks/*.js` (compiled
+output, not source maps) was grepped for `__zahzanPgPool` — it appears in
+every chunk that inlines `lib/db.js`'s compiled form, confirming the guard
+compiles into each of those independently-bundled copies and that they all
+key off the same `globalThis` slot.
+
+### B3 — 31 navigation sites restored to react-router's "no scroll reset" behaviour
+
+Every internal `router.push` and `<Link>` site across the app was enumerated
+by grepping `app/`, `components/`, `views/`, and `context/` directly (not
+trusted from the review's own partial list) and given `{ scroll: false }` /
+`scroll={false}` respectively, reproducing react-router v6's behaviour (it
+never auto-scrolled on navigation) against Next's App Router default (scroll
+to top on both `<Link>` and `router.push`). 15 `router.push` call sites and
+16 `<Link>` elements, 31 total, across 9 files:
+
+- `components/CartDrawer.jsx` (1 `router.push`)
+- `components/WishlistDrawer.jsx` (3 `router.push`)
+- `components/ProductCard.jsx` (1 `router.push`, 1 `<Link>`)
+- `components/UniversalNavMenu.jsx` (1 `router.push`, 8 `<Link>`)
+- `components/Header.jsx` (1 `<Link>`)
+- `views/Shop.jsx` (2 `router.push` — the sidebar category-filter clicks
+  called out by the review as the most visible instance of the regression)
+- `views/Product.jsx` (1 `router.push`, 2 `<Link>`)
+- `views/Account.jsx` (1 `<Link>`)
+- `views/admin/AdminLogin.jsx` (2 `router.push`)
+- `views/admin/AdminLayout.jsx` (4 `router.push`, 2 `<Link>`)
+- `views/admin/AdminDashboard.jsx` (2 `<Link>`)
+
+The admin panel sites were not named in the review's own list but were
+included on the same reasoning: it was also a react-router SPA before the
+port, with the same "no scroll reset" behaviour to preserve.
+
+**Preserved carefully, as instructed**: `views/Product.jsx`'s own explicit
+`window.scrollTo({ top: 0, behavior: 'instant' })` effect (keyed on `[id]`,
+original behaviour ported from `src/pages/Product.jsx:39`) was not touched.
+It fires independently of Next's router-level scroll restoration — with
+`scroll: false`/`scroll={false}` now set on every navigation that lands on
+this page, Next no longer scroll-jumps on arrival either, and the
+component's own effect still runs on mount/`id` change and puts the viewport
+at the top, exactly as before.
+
+### M1 — newsletter subscribe response now goes through `lib/serialize.js`
+
+`app/api/newsletter/subscribe/route.js`'s new-subscriber success branch
+hand-built `{ id, email, status, subscribedAt: newSubscriber.subscribed_at }`
+directly, passing `subscribed_at` through as a raw Date/driver value instead
+of through `toIso()`. A new narrow variant,
+`serializeNewsletterSubscribeResult` (`lib/serialize.js`, precedented by
+`serializeOrderSummaryForPayment`/`serializeDashboardRecentCustomer`),
+reproduces exactly that four-key shape — deliberately NOT
+`serializeNewsletterSubscriber`'s full shape, since the source never emitted
+`_id`/`source`/`unsubscribedAt`/`createdAt`/`updatedAt`/`userId` here
+(confirmed against `tools/golden/051-newsletter.subscribe.json`). The route
+now calls it instead of hand-building the object. The emitted JSON is
+unchanged (`JSON.stringify` already called `Date.prototype.toJSON` ==
+`toISOString()` on the raw Date, same as `toIso()` produces).
+
+### M2 — `.env.example` completed, with explicit data-loss warnings
+
+Added, each with a comment explaining the risk:
+- **`ZAHZAN_STORAGE_DRIVER`** — was undocumented; now documented with an
+  explicit warning that `memory` in production silently and permanently
+  loses every payment-proof upload on restart.
+- **`ZAHZAN_DB_DRIVER`** — same class of warning: `pglite` in production
+  would run the whole app against an in-memory database that resets to
+  empty on every restart/redeploy.
+- **`FRONTEND_URL`** — documented as taking priority over `CLIENT_URL` in
+  `lib/email.js:415` for password-reset/email-change links.
+- **`CLIENT_URL`**'s existing `localhost:5173` default is now annotated as a
+  faithful-but-stale carry-over (the dead Vite port) that still feeds email
+  link generation as a fallback.
+- **`AI_API_KEY`** — annotated as read by nothing in the codebase (grepped
+  `app/`, `lib/`, `server/`), kept rather than silently dropped in case a
+  real deployment already has it set.
+
+### Housekeeping
+
+- `README.md` — was still the stock Vite template ("# React + Vite").
+  Replaced with an accurate description of this Next.js + Supabase app, how
+  to run/test it, and pointers to `docs/PARITY_REPORT.md` and
+  `docs/DATA_MIGRATION.md`. Documents that `server/` is deliberately kept as
+  the behavioural oracle, not a live service.
+- `package.json` — removed the `server` / `server:dev` scripts that booted
+  the Express app being replaced (a foot-gun now that it's the parity
+  oracle, not a thing meant to run). `server/` itself is untouched.
+
+### Test + doc accuracy
+
+- **Four missing regression assertions added**, same pattern as
+  `test/api/orders.test.js:401` (`.not.toBe(<raw stored path>)` plus a
+  round-trip equality against a fresh `signProofUrl()` call):
+  `GET /api/admin/orders` (list, nested `order.payment.proofUrl` —
+  `test/api/admin.test.js`), `PATCH /api/admin/payments/:id/verify`
+  (`test/api/admin.test.js`), `PATCH /api/admin/payments/:id/reject`
+  (`test/api/admin.test.js`), and `GET /api/payments/order/:orderId`
+  (`test/api/payments.test.js`).
+- `test/api/notfound.test.js` — updated to set up the PGlite migration
+  fixture it previously didn't need; the catch-all route's handlers now
+  touch `lib/db.js` (via `withApiHandler`'s global rate-limit check), so
+  this suite would otherwise fall through to the production `pg` driver
+  with no `SUPABASE_DB_URL` configured.
+- `test/api/payments.test.js` — the `GET /api/payments/methods` test's
+  zero-argument route call (`await methodsRoute()`) was updated to pass a
+  real `Request`, since the route is now wrapped in `withApiHandler`, which
+  needs one to read the client IP from (a real Next.js invocation always
+  supplies one; only this test's former call site didn't).
+- `docs/PARITY_REPORT.md` §10.1's `app/api/orders/route.js` table row
+  corrected: it read as unconditional signing; signing is actually gated on
+  `proofFromUpload`, and the `rawBody.proofUrl` fallback branch (no file
+  uploaded through this route) is parity-correct to leave unsigned, not a
+  missed site — see the corrected row in §10.1 for the full reasoning.
+- §6's "all 67 governed route files" corrected to "57 governed route files
+  (serving the 67 method-level endpoints)" — the original wording conflated
+  file count with endpoint count.
+- §8 gained a new item 8 documenting that malformed JSON request bodies now
+  return the route's own 400 instead of Express's original
+  500-with-SyntaxError (a genuine, un-golden-exercised divergence — see §8
+  item 8 for the full mechanism and why it was left unresolved rather than
+  guessed at, same reasoning as Ruling C16).
+
+### Verification
+
+```
+npm test
+```
+```
+ Test Files  24 passed (24)
+      Tests  376 passed (376)
+```
+376 = the 372 the task brief stated, + 1 net-new `it` block from the earlier
+Final Parity Gate pass (§10.3, unchanged by this wave), + 3 new `it` blocks
+added in this wave (`test/rateLimit.test.js`'s B1 coverage) — the four other
+new assertions in this wave were added inside existing `it` blocks, not new
+ones, so they don't change the count.
+
+```
+npm run build
+```
+Clean, zero warnings, same 57 route files + `[...catchAll]` compile as
+before this wave (route table unchanged; confirmed by direct comparison
+against §6's table above).
+
+Real-HTTP spot checks against the built app (`tools/run-pglite-server.mjs`)
+are quoted in full under B1 and B2 above.
+
+**Not completed / left as-is by design**: the malformed-JSON status-code
+divergence (§8 item 8) and Rulings C15/C16 remain open, documented
+divergences — none of B1/B2/B3/M1/M2 required touching them, and GC4
+forbids opportunistic fixes outside a fix wave's actual scope.

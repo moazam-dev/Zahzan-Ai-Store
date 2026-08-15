@@ -20,7 +20,7 @@ export default function ProductCard({ product }) {
       
       {/* IMAGE CONTAINER WITH HOVER REVEAL & ADD TO BAG OVERLAY */}
       <div 
-        onClick={() => router.push(`/product/${productId}`)}
+        onClick={() => router.push(`/product/${productId}`, { scroll: false })}
         className="relative aspect-[3/4] overflow-hidden bg-[#f3efe8] cursor-pointer"
       >
         {/* Main Product Image */}
@@ -85,6 +85,7 @@ export default function ProductCard({ product }) {
             </span>
             <Link
               href={`/product/${productId}`}
+              scroll={false}
               className="font-serif text-lg font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors block leading-snug"
             >
               {product.name}

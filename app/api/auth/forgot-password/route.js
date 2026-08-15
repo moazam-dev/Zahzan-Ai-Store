@@ -15,11 +15,11 @@ export const runtime = 'nodejs';
 
 import crypto from 'crypto';
 import { query } from '../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
-import { checkRateLimit, passwordResetRateLimit } from '../../../../lib/rateLimit.js';
+import { ok, fail } from '../../../../lib/http.js';
+import { withApiHandler, checkRateLimit, passwordResetRateLimit } from '../../../../lib/rateLimit.js';
 import { sendPasswordResetEmail, dispatch } from '../../../../lib/email.js';
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { limited, response } = await checkRateLimit(request, passwordResetRateLimit);
   if (limited) return response;
 

@@ -29,7 +29,8 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
+import { ok, fail } from '../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../lib/rateLimit.js';
 import { requireAuth, requireAdmin } from '../../../../../lib/auth.js';
 import { serializeProduct } from '../../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../../lib/auditLogger.js';
@@ -53,7 +54,7 @@ const FIELD_COLUMN = {
   isActive: 'is_active'
 };
 
-export const PUT = withErrorHandler(async (request, context) => {
+export const PUT = withApiHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
   const denied = requireAdmin(user);
@@ -191,7 +192,7 @@ export const PUT = withErrorHandler(async (request, context) => {
   });
 });
 
-export const DELETE = withErrorHandler(async (request, context) => {
+export const DELETE = withApiHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
   const denied = requireAdmin(user);

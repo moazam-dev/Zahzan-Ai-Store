@@ -14,7 +14,8 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../lib/db.js';
-import { ok, withErrorHandler } from '../../../lib/http.js';
+import { ok } from '../../../lib/http.js';
+import { withApiHandler } from '../../../lib/rateLimit.js';
 
 const DB_STATES = {
   0: 'disconnected',
@@ -32,7 +33,7 @@ async function pingDb() {
   }
 }
 
-export const GET = withErrorHandler(async () => {
+export const GET = withApiHandler(async () => {
   const dbState = await pingDb();
 
   return ok({

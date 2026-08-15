@@ -18,9 +18,10 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
+import { ok, fail } from '../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../lib/rateLimit.js';
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   const { searchParams } = new URL(request.url);
   let token = searchParams.get('token');
 

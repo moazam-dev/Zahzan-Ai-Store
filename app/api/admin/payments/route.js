@@ -20,7 +20,8 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../lib/db.js';
-import { ok, withErrorHandler } from '../../../../lib/http.js';
+import { ok } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { requireAuth, requireAdmin } from '../../../../lib/auth.js';
 import {
   serializePayment,
@@ -30,7 +31,7 @@ import {
 } from '../../../../lib/serialize.js';
 import { signProofUrl } from '../../../../lib/storage.js';
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
   const denied = requireAdmin(user);

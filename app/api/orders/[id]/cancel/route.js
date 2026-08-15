@@ -30,7 +30,8 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
+import { ok, fail } from '../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../lib/rateLimit.js';
 import { requireAuth } from '../../../../../lib/auth.js';
 import { serializeOrder } from '../../../../../lib/serialize.js';
 
@@ -58,7 +59,7 @@ function classifyCancelOrderError(message) {
   return null;
 }
 
-export const PATCH = withErrorHandler(async (request, context) => {
+export const PATCH = withApiHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

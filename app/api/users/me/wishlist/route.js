@@ -46,11 +46,12 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
+import { ok, fail } from '../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../lib/rateLimit.js';
 import { requireAuth } from '../../../../../lib/auth.js';
 import { serializeProduct } from '../../../../../lib/serialize.js';
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
@@ -68,7 +69,7 @@ export const GET = withErrorHandler(async (request) => {
   return ok({ success: true, wishlist: wishlistIds, products });
 });
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

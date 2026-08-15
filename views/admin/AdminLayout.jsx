@@ -31,7 +31,7 @@ export default function AdminLayout({ children }) {
   useEffect(() => {
     const token = getAuthToken()
     if (!token) {
-      router.push('/admin/login')
+      router.push('/admin/login', { scroll: false })
       return
     }
 
@@ -45,19 +45,19 @@ export default function AdminLayout({ children }) {
           setAdminUser(data.user)
         } else {
           localStorage.removeItem('zahzan_token')
-          router.push('/admin/login')
+          router.push('/admin/login', { scroll: false })
         }
       })
       .catch((err) => {
         console.error('Admin authorization failed:', err)
-        router.push('/admin/login')
+        router.push('/admin/login', { scroll: false })
       })
       .finally(() => setLoading(false))
   }, [router])
 
   const handleLogout = () => {
     localStorage.removeItem('zahzan_token')
-    router.push('/admin/login')
+    router.push('/admin/login', { scroll: false })
   }
 
   if (loading) {
@@ -106,6 +106,7 @@ export default function AdminLayout({ children }) {
                 <Link
                   key={item.path}
                   href={item.path}
+                  scroll={false}
                   className={`flex items-center justify-between px-4 py-3 text-xs uppercase tracking-[0.2em] font-medium rounded-sm transition-all ${
                     isActive
                       ? 'bg-[#222630] text-white border-l-2 border-[#8c9472]'
@@ -170,6 +171,7 @@ export default function AdminLayout({ children }) {
                 key={item.path}
                 href={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
+                scroll={false}
                 className={`flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-widest font-medium rounded-sm ${
                   isActive ? 'bg-[#222630] text-white border-l-2 border-[#8c9472]' : 'text-[#8a8e98]'
                 }`}

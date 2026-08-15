@@ -15,10 +15,11 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../../../lib/db.js';
-import { ok, withErrorHandler } from '../../../../../../lib/http.js';
+import { ok } from '../../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../../lib/rateLimit.js';
 import { requireAuth } from '../../../../../../lib/auth.js';
 
-export const DELETE = withErrorHandler(async (request, context) => {
+export const DELETE = withApiHandler(async (request, context) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

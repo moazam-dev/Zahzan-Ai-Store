@@ -7,13 +7,25 @@
 // req.originalUrl INCLUDING the query string).
 //
 // app/api/[...catchAll]/route.js reproduces that envelope via
-// lib/http.js's notFound() helper. No database access happens anywhere in
-// that file, so unlike test/api/auth.test.js this suite needs no PGlite
-// migration fixture -- it exercises the exported route functions directly,
-// the same way test/lib/http.test.js exercises lib/http.js's exports
-// directly.
+// lib/http.js's notFound() helper.
+//
+// B1 fix (final whole-branch review) update: the route's handlers are now
+// wrapped in withApiHandler (lib/rateLimit.js), reproducing
+// server/server.js:60's global `apiLimiter`, which DID run for unmatched
+// /api/* paths too (mounted before `notFound`, which was mounted last).
+// That wrapper's global check calls lib/db.js's query(), so unlike the
+// original version of this file, this suite now needs the same PGlite
+// migration fixture test/api/auth.test.js and friends use -- otherwise
+// query() would fall through to the production `pg` driver with no
+// SUPABASE_DB_URL configured.
 
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { applyMigrationViaQuery } from '../helpers/applyMigration.js';
+
+process.env.ZAHZAN_DB_DRIVER = 'pglite';
+
+const { query, close } = await import('../../lib/db.js');
+
 import {
   DELETE as catchAllDelete,
   GET as catchAllGet,
@@ -34,6 +46,14 @@ function request(method, path, body) {
 }
 
 describe('app/api/[...catchAll]/route.js (Task 8 fix: catch-all 404 parity)', () => {
+  beforeAll(async () => {
+    await applyMigrationViaQuery(query);
+  });
+
+  afterAll(async () => {
+    await close();
+  });
+
   it('GET /api/auth/verify-email?token=whatever matches golden 089 exactly, query string included', async () => {
     const res = await catchAllGet(request('GET', '/api/auth/verify-email?token=whatever'));
     expect(res.status).toBe(404);

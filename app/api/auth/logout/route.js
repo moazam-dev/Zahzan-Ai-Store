@@ -15,9 +15,10 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../lib/db.js';
-import { ok, withErrorHandler } from '../../../../lib/http.js';
+import { ok } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const body = await request.json().catch(() => ({}));
   const incomingToken = body.refreshToken;
 

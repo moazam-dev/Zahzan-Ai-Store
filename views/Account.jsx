@@ -1073,6 +1073,7 @@ export default function Account() {
                     <div className="pt-2">
                       <Link
                         href="/shop"
+                        scroll={false}
                         className="inline-block bg-[#1c1b18] text-[#faf8f5] text-xs font-sans uppercase tracking-[0.25em] py-2.5 px-6 hover:bg-[#5a5e4b] transition-colors"
                       >
                         EXPLORE COLLECTION

@@ -12,7 +12,7 @@
 
 export const runtime = 'nodejs';
 
-import { withErrorHandler } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { unsubscribeNewsletter } from '../_unsubscribe.js';
 
-export const POST = withErrorHandler((request) => unsubscribeNewsletter(request, null));
+export const POST = withApiHandler((request) => unsubscribeNewsletter(request, null));

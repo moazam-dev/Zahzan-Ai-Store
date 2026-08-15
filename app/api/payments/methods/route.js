@@ -13,11 +13,12 @@
 export const runtime = 'nodejs';
 
 import { ok } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { PAYMENT_METHODS } from '../../../../lib/paymentMethods.js';
 
-export const GET = async () => {
+export const GET = withApiHandler(async () => {
   return ok({
     success: true,
     methods: PAYMENT_METHODS
   });
-};
+});

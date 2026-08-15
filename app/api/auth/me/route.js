@@ -17,9 +17,10 @@ export const runtime = 'nodejs';
 
 import { requireAuth } from '../../../../lib/auth.js';
 import { serializeAuthUser } from '../../../../lib/serialize.js';
-import { ok, withErrorHandler } from '../../../../lib/http.js';
+import { ok } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

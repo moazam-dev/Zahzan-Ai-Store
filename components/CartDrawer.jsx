@@ -40,7 +40,7 @@ export default function CartDrawer() {
     if (!token) {
       alert('Please sign in to complete your checkout.')
       closeCart()
-      router.push('/account')
+      router.push('/account', { scroll: false })
       return
     }
     setIsCheckoutOpen(true)

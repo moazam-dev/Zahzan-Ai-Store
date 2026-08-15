@@ -29,6 +29,7 @@ const { query, close } = await import('../../lib/db.js');
 const { generateToken } = await import('../../lib/jwt.js');
 const { PAYMENT_METHODS } = await import('../../lib/paymentMethods.js');
 const { sendAdminPaymentProofEmail } = await import('../../lib/email.js');
+const { signProofUrl } = await import('../../lib/storage.js');
 
 import { GET as methodsRoute } from '../../app/api/payments/methods/route.js';
 import { POST as submitProofRoute } from '../../app/api/payments/route.js';
@@ -138,7 +139,12 @@ describe('app/api/payments/* route handlers (Task 12)', () => {
 
   describe('GET /api/payments/methods', () => {
     it('returns PAYMENT_METHODS unchanged -- shape matches tools/golden/046-payments.methods.json', async () => {
-      const res = await methodsRoute();
+      // B1 fix (final whole-branch review): this route is now wrapped in
+      // withApiHandler (lib/rateLimit.js), which needs a real Request to
+      // read the client IP from -- a real Next.js invocation always
+      // supplies one; only this test's own former zero-arg call site
+      // didn't.
+      const res = await methodsRoute(getRequest('/api/payments/methods'));
       expect(res.status).toBe(200);
       const body = await res.json();
       expect(body).toEqual({ success: true, methods: PAYMENT_METHODS });
@@ -544,6 +550,22 @@ describe('app/api/payments/* route handlers (Task 12)', () => {
         expect(payment.id).toBe(payment._id);
         expect(typeof payment.proofUrl).toBe('string');
         expect(payment.proofUrl.length).toBeGreaterThan(0);
+      }
+
+      // Final whole-branch review, TEST + DOC ACCURACY item: this
+      // correctly-signed site lacked a regression assertion proving the
+      // returned proofUrl is not the raw stored path. Same pattern as
+      // test/api/orders.test.js:401.
+      const { rows: storedPaymentRows } = await query(
+        'select * from payments where order_id = $1 order by created_at desc',
+        [order.id]
+      );
+      expect(storedPaymentRows).toHaveLength(2);
+      for (const storedPayment of storedPaymentRows) {
+        const returned = body.payments.find((p) => p._id === storedPayment.id);
+        const resigned = await signProofUrl(storedPayment.proof_public_id);
+        expect(returned.proofUrl).not.toBe(storedPayment.proof_url);
+        expect(returned.proofUrl).toBe(resigned);
       }
     });
 

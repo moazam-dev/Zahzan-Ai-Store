@@ -27,7 +27,8 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
+import { ok, fail } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { requireAuth, requireAdmin } from '../../../../lib/auth.js';
 import { serializeProduct } from '../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../lib/auditLogger.js';
@@ -36,7 +37,7 @@ import { trimIfString, trimStringArray, trimColorVariant } from '../../../../lib
 const DEFAULT_IMAGE =
   'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85';
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
   const denied = requireAdmin(user);
@@ -90,7 +91,7 @@ export const GET = withErrorHandler(async (request) => {
   });
 });
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
   const denied = requireAdmin(user);

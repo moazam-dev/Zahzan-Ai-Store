@@ -103,7 +103,7 @@ export default function WishlistDrawer() {
                     <div
                       onClick={() => {
                         closeWishlist()
-                        router.push(`/product/${prodId}`)
+                        router.push(`/product/${prodId}`, { scroll: false })
                       }}
                       className="w-20 h-24 sm:w-24 sm:h-30 flex-shrink-0 bg-[#f3efe8] overflow-hidden border border-[#e5e0d8] cursor-pointer"
                     >
@@ -121,7 +121,7 @@ export default function WishlistDrawer() {
                             <h4
                               onClick={() => {
                                 closeWishlist()
-                                router.push(`/product/${prodId}`)
+                                router.push(`/product/${prodId}`, { scroll: false })
                               }}
                               className="font-serif text-lg text-[#1c1b18] font-normal leading-tight mt-0.5 hover:text-[#5a5e4b] transition-colors cursor-pointer"
                             >
@@ -177,7 +177,7 @@ export default function WishlistDrawer() {
                   type="button"
                   onClick={() => {
                     closeWishlist()
-                    router.push('/shop')
+                    router.push('/shop', { scroll: false })
                   }}
                   className="group relative inline-flex items-center gap-3 text-xs uppercase tracking-[0.3em] font-medium text-[#1c1b18] py-2.5 px-6 border-b border-[#1c1b18] transition-all hover:bg-[#1c1b18] hover:text-[#faf8f5] cursor-pointer"
                 >

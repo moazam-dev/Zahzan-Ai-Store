@@ -22,12 +22,13 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
+import { ok, fail } from '../../../../lib/http.js';
+import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { serializeProduct } from '../../../../lib/serialize.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export const GET = withErrorHandler(async (request, context) => {
+export const GET = withApiHandler(async (request, context) => {
   try {
     const { id } = await context.params;
     let product = null;

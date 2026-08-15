@@ -12,8 +12,37 @@ import { applyMigrationViaQuery } from './helpers/applyMigration.js';
 process.env.ZAHZAN_DB_DRIVER = 'pglite';
 const { query, close } = await import('../lib/db.js');
 
+// B1 fix (final whole-branch review) regression coverage: real route
+// handlers, exercised end-to-end through withApiHandler -- not just
+// checkRateLimit's own config-shape/counter-arithmetic tests above -- to
+// prove the actual wiring (lib/rateLimit.js:withApiHandler, applied to
+// every one of the 57 app/api/**/route.js files in place of a bare
+// withErrorHandler) is really in effect. GET /api/products is picked
+// because it has NO route-specific limiter of its own (per
+// tools/golden/013-018), so any limiting it exhibits can only come from the
+// new global wrapper. POST /api/auth/login is picked because it's one of
+// the five routes that already had its own specific limiter, to prove the
+// global check now runs in addition to, not instead of, the specific one.
+import { GET as productsListRoute } from '../app/api/products/route.js';
+import { POST as loginRoute } from '../app/api/auth/login/route.js';
+
 function requestFromIp(ip, header = 'x-forwarded-for') {
   return new Request('http://localhost/api/test', { headers: { [header]: ip } });
+}
+
+function getRequestFromIp(path, ip) {
+  return new Request(`http://localhost${path}`, {
+    method: 'GET',
+    headers: { 'x-forwarded-for': ip }
+  });
+}
+
+function postRequestFromIp(path, body, ip) {
+  return new Request(`http://localhost${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+    body: JSON.stringify(body)
+  });
 }
 
 describe('lib/rateLimit.js (checkRateLimit)', () => {
@@ -168,4 +197,89 @@ describe('lib/rateLimit.js (checkRateLimit)', () => {
     const b1 = await checkRateLimit(requestFromIp(ip), newsletterLike);
     expect(b1.limited).toBe(false);
   });
+});
+
+describe('B1 fix (final whole-branch review): withApiHandler applies the global rate limit to real routes', () => {
+  beforeAll(async () => {
+    await applyMigrationViaQuery(query);
+  });
+
+  afterAll(async () => {
+    await close();
+  });
+
+  it(
+    'GET /api/products (no route-specific limiter) is 200 for globalRateLimit.max requests, then 429 with the exact global message',
+    async () => {
+      const ip = 'global-limit-test.1';
+
+      for (let i = 0; i < globalRateLimit.max; i++) {
+        const res = await productsListRoute(getRequestFromIp('/api/products', ip));
+        expect(res.status, `request ${i + 1} of ${globalRateLimit.max} should not be limited`).toBe(200);
+      }
+
+      const overLimit = await productsListRoute(getRequestFromIp('/api/products', ip));
+      expect(overLimit.status).toBe(429);
+      await expect(overLimit.json()).resolves.toEqual({
+        success: false,
+        message: globalRateLimit.message
+      });
+    },
+    60000
+  );
+
+  it('a single POST /api/auth/login request consumes BOTH the global counter and the login counter', async () => {
+    const ip = 'both-counters-test.1';
+
+    const res = await loginRoute(
+      postRequestFromIp('/api/auth/login', { email: 'nobody@zahzanmigrationtest.com', password: 'wrong' }, ip)
+    );
+    // Invalid credentials -- the route's own body still ran (proving the
+    // global check, when not limited, falls through to the handler exactly
+    // as before), so this is 401, not 429.
+    expect(res.status).toBe(401);
+
+    const { rows: globalRows } = await query('select count from rate_limits where key = $1', [`global:${ip}`]);
+    expect(globalRows).toHaveLength(1);
+    expect(globalRows[0].count).toBe(1);
+
+    const { rows: loginRows } = await query('select count from rate_limits where key = $1', [`login:${ip}`]);
+    expect(loginRows).toHaveLength(1);
+    expect(loginRows[0].count).toBe(1);
+  });
+
+  it(
+    "ordering: the global limiter runs BEFORE the route-specific one -- exhausting login's own (lower) max still reports login's message, not the global one, proving both counters are independently enforced on every request",
+    async () => {
+      const ip = 'ordering-test.1';
+
+      for (let i = 0; i < loginRateLimit.max; i++) {
+        const res = await loginRoute(
+          postRequestFromIp('/api/auth/login', { email: 'nobody@zahzanmigrationtest.com', password: 'wrong' }, ip)
+        );
+        expect(res.status, `request ${i + 1} of ${loginRateLimit.max} should not be limited`).toBe(401);
+      }
+
+      const overLimit = await loginRoute(
+        postRequestFromIp('/api/auth/login', { email: 'nobody@zahzanmigrationtest.com', password: 'wrong' }, ip)
+      );
+      expect(overLimit.status).toBe(429);
+      await expect(overLimit.json()).resolves.toEqual({
+        success: false,
+        message: loginRateLimit.message
+      });
+
+      // The global counter runs FIRST on every single request regardless of
+      // what the route-specific check later decides -- including the
+      // (loginRateLimit.max + 1)-th request, which the login check itself
+      // rejects with 429, but only AFTER the global check already ran and
+      // incremented its own counter (globalRateLimit.max is 200, far above
+      // loginRateLimit.max + 1, so the global check itself never limits
+      // here). So the global counter sits at loginRateLimit.max + 1 -- one
+      // consumption per request made, with no early exit.
+      const { rows: globalRows } = await query('select count from rate_limits where key = $1', [`global:${ip}`]);
+      expect(globalRows[0].count).toBe(loginRateLimit.max + 1);
+    },
+    60000
+  );
 });

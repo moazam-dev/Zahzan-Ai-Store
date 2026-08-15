@@ -23,7 +23,7 @@ export default function AdminLogin() {
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.user && data.user.role === 'admin') {
-            router.push('/admin/dashboard')
+            router.push('/admin/dashboard', { scroll: false })
           }
         })
         .catch(() => {})
@@ -51,7 +51,7 @@ export default function AdminLogin() {
 
       if (res.ok && data.success && data.token) {
         localStorage.setItem('zahzan_token', data.token)
-        router.push('/admin/dashboard')
+        router.push('/admin/dashboard', { scroll: false })
       } else {
         setErrorMsg(data.message || 'Administrator authentication failed.')
       }

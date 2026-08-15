@@ -130,7 +130,7 @@ export default function Shop() {
     setMaxPrice(30000)
     setSortBy('featured')
     if (categoryParam) {
-      router.push(pathname)
+      router.push(pathname, { scroll: false })
     }
   }
 
@@ -205,7 +205,7 @@ export default function Shop() {
                     type="button"
                     onClick={() => {
                       setSelectedCategory(cat)
-                      if (categoryParam) router.push(pathname)
+                      if (categoryParam) router.push(pathname, { scroll: false })
                     }}
                     className={`w-full flex items-center justify-between text-xs font-sans text-left transition-colors cursor-pointer ${
                       isSelected ? 'text-[#1c1b18] font-medium' : 'text-[#706c64] hover:text-[#1c1b18]'

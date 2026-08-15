@@ -14,7 +14,7 @@
 
 export const runtime = 'nodejs';
 
-import { withErrorHandler } from '../../../lib/http.js';
+import { withApiHandler } from '../../../lib/rateLimit.js';
 import { submitPaymentProof } from './_submitPaymentProof.js';
 
-export const POST = withErrorHandler((request) => submitPaymentProof(request, 'proof'));
+export const POST = withApiHandler((request) => submitPaymentProof(request, 'proof'));

@@ -117,7 +117,7 @@ export default function Product() {
         <div className="py-24 text-center space-y-4">
           <h2 className="font-serif text-3xl font-light">ARTICLE NOT FOUND</h2>
           <p className="text-xs font-sans text-[#706c64]">The requested garment could not be located.</p>
-          <Link href="/shop" className="inline-block px-6 py-3 bg-[#1c1b18] text-[#faf8f5] text-xs font-sans uppercase tracking-[0.25em]">
+          <Link href="/shop" scroll={false} className="inline-block px-6 py-3 bg-[#1c1b18] text-[#faf8f5] text-xs font-sans uppercase tracking-[0.25em]">
             EXPLORE SHOP
           </Link>
         </div>
@@ -165,7 +165,7 @@ export default function Product() {
     const token = localStorage.getItem('zahzan_token')
     if (!token) {
       alert('Please sign in to complete your purchase.')
-      router.push('/account')
+      router.push('/account', { scroll: false })
       return
     }
     setIsCheckoutOpen(true)
@@ -602,6 +602,7 @@ export default function Product() {
             </span>
             <Link
               href="/shop"
+              scroll={false}
               className="text-xs font-sans uppercase tracking-[0.2em] text-[#5a5e4b] hover:text-[#1c1b18] underline transition-colors"
             >
               VIEW COLLECTION →

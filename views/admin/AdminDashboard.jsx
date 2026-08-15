@@ -194,7 +194,7 @@ export default function AdminDashboard() {
               <div className="lg:col-span-2 bg-[#16181d] border border-[#262931] p-6 rounded-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-[#262931] pb-3">
                   <h3 className="font-serif text-lg font-light text-white">Recent Customer Orders</h3>
-                  <Link href="/admin/orders" className="text-[10px] font-mono uppercase tracking-widest text-[#8c9472] hover:underline flex items-center gap-1">
+                  <Link href="/admin/orders" scroll={false} className="text-[10px] font-mono uppercase tracking-widest text-[#8c9472] hover:underline flex items-center gap-1">
                     <span>View All Orders</span>
                     <ArrowUpRight size={12} />
                   </Link>
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
                       <AlertTriangle size={16} className="text-yellow-400" />
                       <span>Low Stock Alerts</span>
                     </h3>
-                    <Link href="/admin/products" className="text-[10px] font-mono uppercase tracking-widest text-[#8c9472] hover:underline">
+                    <Link href="/admin/products" scroll={false} className="text-[10px] font-mono uppercase tracking-widest text-[#8c9472] hover:underline">
                       Manage
                     </Link>
                   </div>

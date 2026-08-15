@@ -20,11 +20,12 @@ export const runtime = 'nodejs';
 
 import crypto from 'crypto';
 import { query } from '../../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
+import { ok, fail } from '../../../../../lib/http.js';
+import { withApiHandler } from '../../../../../lib/rateLimit.js';
 import { requireAuth } from '../../../../../lib/auth.js';
 import { dispatch, sendEmailChangeConfirmation } from '../../../../../lib/email.js';
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

@@ -22,20 +22,30 @@
 // lib/http.js's `notFound(path)` helper (built in Task 5 for exactly this)
 // builds the envelope; this file only reconstructs `path` to match
 // `req.originalUrl` -- pathname + query string, no origin/host.
+//
+// B1 fix (final whole-branch review): server/server.js:60 mounted
+// `apiLimiter` (now `globalRateLimit`) as global middleware on `/api`
+// BEFORE `notFound` (mounted last, server/server.js's final `app.use`), so
+// an unmatched /api/* path was still subject to the global rate limit in
+// the source. `withApiHandler` (lib/rateLimit.js) reproduces that ordering
+// here too.
 
 export const runtime = 'nodejs';
 
 import { notFound } from '../../../lib/http.js';
+import { withApiHandler } from '../../../lib/rateLimit.js';
 
 function handle(request) {
   const url = new URL(request.url);
   return notFound(`${url.pathname}${url.search}`);
 }
 
-export const GET = handle;
-export const POST = handle;
-export const PUT = handle;
-export const PATCH = handle;
-export const DELETE = handle;
-export const HEAD = handle;
-export const OPTIONS = handle;
+const wrapped = withApiHandler(handle);
+
+export const GET = wrapped;
+export const POST = wrapped;
+export const PUT = wrapped;
+export const PATCH = wrapped;
+export const DELETE = wrapped;
+export const HEAD = wrapped;
+export const OPTIONS = wrapped;

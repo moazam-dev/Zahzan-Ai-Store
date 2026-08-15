@@ -24,7 +24,8 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../lib/http.js';
+import { ok, fail } from '../../../lib/http.js';
+import { withApiHandler } from '../../../lib/rateLimit.js';
 import { requireAuth } from '../../../lib/auth.js';
 import { serializeCart } from '../../../lib/serialize.js';
 
@@ -94,7 +95,7 @@ async function loadCartItems(cartId) {
   }));
 }
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
@@ -113,7 +114,7 @@ export const GET = withErrorHandler(async (request) => {
   }
 });
 
-export const DELETE = withErrorHandler(async (request) => {
+export const DELETE = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

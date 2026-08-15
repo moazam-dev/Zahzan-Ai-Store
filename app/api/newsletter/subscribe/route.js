@@ -33,12 +33,13 @@ export const runtime = 'nodejs';
 
 import crypto from 'crypto';
 import { query } from '../../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
-import { checkRateLimit, newsletterRateLimit } from '../../../../lib/rateLimit.js';
+import { ok, fail } from '../../../../lib/http.js';
+import { withApiHandler, checkRateLimit, newsletterRateLimit } from '../../../../lib/rateLimit.js';
+import { serializeNewsletterSubscribeResult } from '../../../../lib/serialize.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { limited, response: limitResponse } = await checkRateLimit(request, newsletterRateLimit);
   if (limited) return limitResponse;
 
@@ -112,12 +113,7 @@ export const POST = withErrorHandler(async (request) => {
     {
       success: true,
       message: "You're now subscribed to the ZAHZAN newsletter.",
-      subscriber: {
-        id: newSubscriber.id,
-        email: newSubscriber.email,
-        status: newSubscriber.status,
-        subscribedAt: newSubscriber.subscribed_at
-      }
+      subscriber: serializeNewsletterSubscribeResult(newSubscriber)
     },
     201
   );

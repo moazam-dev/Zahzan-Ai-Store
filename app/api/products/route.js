@@ -15,12 +15,13 @@
 export const runtime = 'nodejs';
 
 import { query } from '../../../lib/db.js';
-import { ok, fail, withErrorHandler } from '../../../lib/http.js';
+import { ok, fail } from '../../../lib/http.js';
+import { withApiHandler } from '../../../lib/rateLimit.js';
 import { requireAuth, requireAdmin } from '../../../lib/auth.js';
 import { serializeProduct } from '../../../lib/serialize.js';
 import { trimProductPayload } from '../../../lib/trimFields.js';
 
-export const GET = withErrorHandler(async (request) => {
+export const GET = withApiHandler(async (request) => {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -109,7 +110,7 @@ function buildValidationMessage(body, slug) {
   return `Product validation failed: ${detail}`;
 }
 
-export const POST = withErrorHandler(async (request) => {
+export const POST = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
   if (response) return response;
   const denied = requireAdmin(user);
