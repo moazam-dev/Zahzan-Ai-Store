@@ -58,7 +58,7 @@ import { ok, fail, withErrorHandler } from '../../../lib/http.js';
 import { requireAuth } from '../../../lib/auth.js';
 import { serializeOrder, serializePayment } from '../../../lib/serialize.js';
 import { parseUpload } from '../../../lib/multipart.js';
-import { uploadPaymentProof, deletePaymentProof } from '../../../lib/storage.js';
+import { uploadPaymentProof, deletePaymentProof, signProofUrl } from '../../../lib/storage.js';
 import { sendAdminNewOrderEmail, sendCustomerOrderConfirmationEmail, dispatch } from '../../../lib/email.js';
 
 /**
@@ -151,7 +151,18 @@ export const POST = withErrorHandler(async (request) => {
     }
 
     // Advance Payment Validation & Storage Upload.
+    //
+    // proof_url / proof_public_id (MIGRATION_PLAN.md sec7.4, mirrors
+    // app/api/payments/_submitPaymentProof.js's identical convention):
+    // `payments.proof_url` stores the storage PATH (uploadPaymentProof's
+    // `public_id`), never a signed URL -- a signed URL baked into the column
+    // would 403 once its expiry passes. `uploadResult.secure_url` is a
+    // freshly-signed URL valid only at upload time and must NOT be
+    // persisted (see lib/storage.js:139-146). The response's
+    // `payment.proofUrl` is re-signed fresh from proof_public_id right
+    // before responding, below.
     let proofUrl = '';
+    let proofFromUpload = false;
     if (!isCOD) {
       if (!paymentMethod || paymentMethod === 'Cash on Delivery') {
         return fail('Please select an advance payment channel (JazzCash, Easypaisa, or Bank Transfer).', 400);
@@ -166,9 +177,13 @@ export const POST = withErrorHandler(async (request) => {
           uploadedFile.contentType,
           'order'
         );
-        proofUrl = uploadResult.secure_url;
+        proofUrl = uploadResult.public_id;
         proofPublicId = uploadResult.public_id;
+        proofFromUpload = true;
       } else if (rawBody.proofUrl) {
+        // No upload happened here -- there is no storage path to persist,
+        // so this branch keeps whatever the caller supplied verbatim
+        // (matches the source; not unified with the upload branch above).
         proofUrl = rawBody.proofUrl;
         proofPublicId = rawBody.proofPublicId || '';
       } else {
@@ -283,6 +298,15 @@ export const POST = withErrorHandler(async (request) => {
 
     const serializedOrder = serializeOrder(orderRow);
 
+    // The response must still expose a usable, freshly-signed URL for the
+    // payment's proof -- never the raw storage path -- when the proof was
+    // actually uploaded through lib/storage.js. Mirrors
+    // app/api/payments/_submitPaymentProof.js's response-time signing.
+    let responsePayment = paymentRow ? serializePayment(paymentRow) : null;
+    if (responsePayment && proofFromUpload) {
+      responsePayment = { ...responsePayment, proofUrl: await signProofUrl(paymentRow.proof_public_id) };
+    }
+
     // 11. Dispatch email notifications -- awaited via dispatch() (interface
     // fact: a failed/rejected send can never fail this request).
     await dispatch(sendAdminNewOrderEmail(serializedOrder));
@@ -295,7 +319,7 @@ export const POST = withErrorHandler(async (request) => {
           ? 'Order placed successfully (Cash on Delivery)'
           : 'Order placed successfully. Payment proof submitted.',
         order: serializedOrder,
-        payment: paymentRow ? serializePayment(paymentRow) : null
+        payment: responsePayment
       },
       201
     );

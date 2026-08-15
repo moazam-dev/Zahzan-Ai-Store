@@ -17,7 +17,7 @@ process.env.ZAHZAN_STORAGE_DRIVER = 'memory';
 
 const { query, close } = await import('../../lib/db.js');
 const { generateToken } = await import('../../lib/jwt.js');
-const { __resetMemoryStore, __memoryStoreEntries } = await import('../../lib/storage.js');
+const { __resetMemoryStore, __memoryStoreEntries, signProofUrl } = await import('../../lib/storage.js');
 
 import { POST as createOrderRoute, GET as listOrdersRoute } from '../../app/api/orders/route.js';
 import { GET as myOrdersRoute } from '../../app/api/orders/my-orders/route.js';
@@ -346,6 +346,70 @@ describe('app/api/orders/* route handlers (Task 11)', () => {
 
       // The proof really was uploaded through lib/storage.js.
       expect(__memoryStoreEntries().some(([path]) => path === payment.proofPublicId)).toBe(true);
+    });
+
+    it('regression: stores the storage PATH in payments.proof_url, never the expiring signed URL, while the response still gets a usable signed URL', async () => {
+      // Defect found after Task 11's review (see task-11-report.md's
+      // addendum): `payments.proof_url` must hold the storage PATH
+      // (uploadPaymentProof's `public_id`), never a signed URL --
+      // MIGRATION_PLAN.md sec7.4; lib/storage.js:139-146's doc comment;
+      // app/api/payments/_submitPaymentProof.js's identical convention. A
+      // signed URL baked into the column would 403 once its ~1hr expiry
+      // passes, breaking admin proof verification for every advance-payment
+      // order.
+      const user = await insertUser();
+      const product = await insertProduct({ name: 'ZAHZAN Regression Kurta', price: 5000, stock: 10 });
+
+      const res = await createOrderRoute(
+        postMultipartRequest(
+          '/api/orders',
+          {
+            customerInfo: JSON.stringify(validCustomerInfo),
+            shippingAddress: JSON.stringify(validShippingAddress),
+            isBuyNow: 'true',
+            buyNowItem: JSON.stringify({ productId: product.id, quantity: 1, selectedSize: 'M' }),
+            paymentChoice: 'advance',
+            paymentMethod: 'JazzCash',
+            transactionReference: 'TXNREG0001',
+            proof: pngBlob()
+          },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      const payment = body.payment;
+      expect(payment).not.toBeNull();
+
+      const { rows: paymentDbRows } = await query('select proof_url, proof_public_id from payments where id = $1', [
+        payment._id
+      ]);
+      const storedPayment = paymentDbRows[0];
+
+      // A signed/expiring URL would carry a scheme and/or query-string
+      // params (e.g. the memory driver's own `memory://...` prefix, or a
+      // real Supabase signed URL's `?token=...`) -- the stored path must
+      // have neither, and must be byte-identical to proof_public_id (both
+      // columns hold the same path value on write).
+      expect(storedPayment.proof_url).not.toMatch(/[?&]token=/);
+      expect(storedPayment.proof_url).not.toContain('?');
+      expect(storedPayment.proof_url).toBe(storedPayment.proof_public_id);
+      expect(storedPayment.proof_url).toBe(payment.proofPublicId);
+
+      // The create-order RESPONSE must still expose a usable, freshly-signed
+      // URL -- not the raw path -- for the payment it returns.
+      expect(payment.proofUrl).not.toBe(storedPayment.proof_url);
+      expect(typeof payment.proofUrl).toBe('string');
+      expect(payment.proofUrl.length).toBeGreaterThan(0);
+
+      // The stored value round-trips: passing the stored proof_public_id
+      // back through signProofUrl() produces a usable URL (proves the path
+      // alone is sufficient to re-derive a working URL later, e.g. on an
+      // admin read via app/api/payments/order/[orderId]/route.js).
+      const resignedUrl = await signProofUrl(storedPayment.proof_public_id);
+      expect(typeof resignedUrl).toBe('string');
+      expect(resignedUrl.length).toBeGreaterThan(0);
+      expect(resignedUrl).toBe(payment.proofUrl);
     });
 
     it('rejects a non-image, non-pdf proof file with the exact multer-equivalent message, before order creation', async () => {
