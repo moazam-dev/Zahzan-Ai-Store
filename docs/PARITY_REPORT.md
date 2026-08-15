@@ -1111,7 +1111,7 @@ every chunk that inlines `lib/db.js`'s compiled form, confirming the guard
 compiles into each of those independently-bundled copies and that they all
 key off the same `globalThis` slot.
 
-### B3 — 31 navigation sites restored to react-router's "no scroll reset" behaviour
+### B3 — 32 navigation sites restored to react-router's "no scroll reset" behaviour
 
 Every internal `router.push` and `<Link>` site across the app was enumerated
 by grepping `app/`, `components/`, `views/`, and `context/` directly (not
@@ -1119,7 +1119,7 @@ trusted from the review's own partial list) and given `{ scroll: false }` /
 `scroll={false}` respectively, reproducing react-router v6's behaviour (it
 never auto-scrolled on navigation) against Next's App Router default (scroll
 to top on both `<Link>` and `router.push`). 15 `router.push` call sites and
-16 `<Link>` elements, 31 total, across 9 files:
+17 `<Link>` elements, 32 total, across 11 files:
 
 - `components/CartDrawer.jsx` (1 `router.push`)
 - `components/WishlistDrawer.jsx` (3 `router.push`)

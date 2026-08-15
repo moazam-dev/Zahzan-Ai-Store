@@ -546,7 +546,8 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
 
     // A row in a table purge_expired() must NOT touch, even though it also
     // has an expires_at in the past -- confirms the function is scoped to
-    // exactly the four token tables and nothing else.
+    // exactly the four token tables (plus rate_limits, N3 fix, covered by
+    // its own test below) and nothing else.
     await insertRow('tryon_jobs', {
       user_id: userId,
       input_image: 'https://example.test/in.png',
@@ -567,5 +568,26 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
       'vt-valid'
     ]);
     expect((await db.query('select count(*)::int as n from tryon_jobs')).rows[0].n).toBe(1);
+  });
+
+  // N3 fix: rate_limits accrues one permanent row per unique
+  // `${limiterId}:${ip}` key (lib/rateLimit.js's checkRateLimit, now called
+  // by every one of the 67 routes via withApiHandler) and, unlike the four
+  // token tables, has no expires_at of its own -- purge_expired() now also
+  // deletes rows whose window_start is far older than the longest
+  // configured window (registerRateLimit's 1 hour), which can no longer
+  // affect any live rate-limit decision.
+  it('purge_expired() also removes stale rate_limits rows, but not current ones', async () => {
+    const staleWindowStart = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(); // 3h ago
+    const currentWindowStart = new Date(Date.now() - 60_000).toISOString(); // 1 minute ago
+
+    await insertRow('rate_limits', { key: 'global:1.2.3.4-stale', window_start: staleWindowStart, count: 5 });
+    await insertRow('rate_limits', { key: 'login:5.6.7.8-current', window_start: currentWindowStart, count: 2 });
+
+    const { rows } = await db.query('select purge_expired() as count');
+    expect(rows[0].count).toBe(1);
+
+    const remaining = (await db.query('select key from rate_limits')).rows.map((r) => r.key);
+    expect(remaining).toEqual(['login:5.6.7.8-current']);
   });
 });

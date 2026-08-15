@@ -572,9 +572,25 @@ create table rate_limits (
 
 -- ---------------------------------------------------------------------------
 -- purge_expired(): deletes rows past expires_at from the four TTL token
--- tables and returns the total number of rows deleted. Housekeeping only
--- -- see the note on refresh_tokens above: the security boundary is every
--- read filtering `where expires_at > now()`, not this function.
+-- tables, PLUS long-stale rows from rate_limits (N3 fix -- see below), and
+-- returns the total number of rows deleted. Housekeeping only -- see the
+-- note on refresh_tokens above: the security boundary is every read
+-- filtering `where expires_at > now()`, not this function.
+--
+-- N3 fix: rate_limits has no expires_at of its own (it isn't a TTL token,
+-- it's counter state -- see the table's own comment above), and until now
+-- purge_expired() never touched it at all. Every request through
+-- `withApiHandler` (lib/rateLimit.js) upserts a `global:<ip>` row, so
+-- without this the table grew by one permanent row per unique client IP,
+-- forever, with nothing ever deleting them. The cutoff below is
+-- deliberately generous: the longest configured window is
+-- `registerRateLimit`'s 1 hour (lib/rateLimit.js), and check_rate_limit()
+-- already resets (rather than keeps accumulating) any row whose
+-- `window_start + window_seconds < now()` the next time that key is
+-- touched -- so a row past its own window can no longer affect any live
+-- rate-limit decision. Purging at 2 hours (double the longest window, not
+-- just past it) leaves a wide safety margin against clock skew or a
+-- slow-to-run cron tick while still bounding the table's growth.
 -- ---------------------------------------------------------------------------
 
 create or replace function purge_expired()
@@ -598,6 +614,10 @@ begin
   total_deleted := total_deleted + batch_deleted;
 
   delete from verification_tokens where expires_at < now();
+  get diagnostics batch_deleted = row_count;
+  total_deleted := total_deleted + batch_deleted;
+
+  delete from rate_limits where window_start < now() - interval '2 hours';
   get diagnostics batch_deleted = row_count;
   total_deleted := total_deleted + batch_deleted;
 
