@@ -116,7 +116,10 @@ behaviour yet.
   `SUPABASE_STORAGE_BUCKET_PRODUCTS=product-images`,
   `SUPABASE_STORAGE_BUCKET_PROOFS=payment-proofs`. Keep every existing key except `MONGODB_URI`,
   `PORT` and the three `CLOUDINARY_*` keys, which move to a "dropped after migration" comment block.
-- `.gitignore` — add `.next/`, `.env`, `.env.local`, `tools/golden/`.
+- `.gitignore` — add `.next/`, `.env`, `.env.local`, `tools/golden-next/`.
+  **Do not ignore `tools/golden/`** — the Task 2 baseline is committed to the branch and is the
+  regression oracle for the whole plan (ruling C10, pre-flight). Only Task 15's regenerated
+  `tools/golden-next/` is ignored.
 
 **Tests.** `test/db.test.js`: boot the test db, create a scratch table, insert with `$1` params,
 select it back, and assert `tx()` rolls back on throw. These must genuinely exercise PGlite.
@@ -145,7 +148,9 @@ the real surface.
 - `tools/lib/normalise.mjs` — replaces volatile values with stable placeholders so two runs diff
   cleanly. Normalise: any 24-hex Mongo ObjectId or UUID → `<ID>`; any ISO-8601 timestamp → `<TS>`;
   JWTs (three base64url segments separated by dots) → `<JWT>`; `orderNumber` values matching
-  `ZHZ-\d{8}-\d{4}` → `<ORDERNO>`; any `tools/golden` absolute path → `<PATH>`. Normalisation walks
+  `ZHZ-\d{8}-\d{4}` → `<ORDERNO>`; any absolute `http(s)://` URL → `<URL>` (proof URLs move from
+  Cloudinary to signed Supabase Storage URLs, so their host and path can never match); any
+  `tools/golden` absolute path → `<PATH>`. Normalisation walks
   the JSON recursively and preserves key order and structure — only leaf values change.
 - `tools/contract-diff.mjs` — compares two golden directories and prints a per-file structural diff,
   exiting non-zero when any file differs or is missing on either side.
@@ -174,6 +179,11 @@ the real surface.
     → audit logs
 11. authorization failures: a customer token against three different admin routes
 12. both 501 stubs: `POST /api/try-on`, `GET /api/stories`
+
+**Ruling carried into this task (C5, pre-flight).** This is a fresh git worktree, so
+`server/node_modules` does not exist even though the original checkout has it. Run
+`npm install --prefix server` before attempting to start the Express server. `server/.env` has
+already been copied into this worktree.
 
 **Ruling carried into this task (AR5).** Capture runs against Mongo database
 `zahzan_contract_test`, never `zahzan_db`. The harness must start the Express server itself with
@@ -205,11 +215,11 @@ acceptance criterion for the task.
 **Files to create.**
 - `supabase/migrations/0001_init.sql`
 
-**Tables.** Eighteen. Sixteen mirroring the Mongoose models — `users`, `products`, `orders`,
+**Tables.** Nineteen. Sixteen mirroring the Mongoose models — `users`, `products`, `orders`,
 `carts`, `payments`, `addresses`, `refresh_tokens`, `password_reset_tokens`, `email_change_tokens`,
 `verification_tokens`, `newsletter_subscribers`, `audit_logs`, `admin_users`, `notifications`,
-`story_submissions`, `tryon_jobs` — plus two the migration introduces: `cart_items` and
-`wishlist_items`. Add `rate_limits` as well (Task 5 uses it), bringing the file to nineteen tables.
+`story_submissions`, `tryon_jobs` — plus three the migration introduces: `cart_items`,
+`wishlist_items`, and `rate_limits` (Task 5 adds the function that uses it). 16 + 3 = **19**.
 
 **Conventions.**
 - `id uuid primary key default gen_random_uuid()` on every table. `gen_random_uuid()` is core in
@@ -282,9 +292,11 @@ google/facebook/me) and `server/controllers/userController.js` (wishlist).
   `firstName + ' ' + lastName`, trimmed.
 - `serializeAuthUser` reproduces the narrower object the auth controller returns — `id`, `firstName`,
   `lastName`, `name`, `email`, `phone`, `role`, `authProvider`, `isEmailVerified`, plus `createdAt`
-  for the `GET /api/auth/me` variant. Match the current shape exactly; note that this object uses
-  `id` only, so check `server/controllers/authController.js` before deciding whether to add `_id`,
-  and preserve whatever it does today.
+  for the `GET /api/auth/me` variant. **Ruling (controller, pre-flight): this object emits `id`
+  only and must NOT gain an `_id`.** The current `authController.js` returns a hand-built literal
+  with `id: user._id` and no `_id`, and no frontend call site reads `user._id`. This is the one
+  documented exemption from GC2 — GC2 binds entities the frontend indexes by `_id` (addresses,
+  orders, products, customers, payments, subscribers, audit logs), not the auth user payload.
 - `serializeNewsletterSubscriber` strips `unsubscribeToken`.
 - `serializeCart` reproduces `formatCartResponse` exactly: the outer `{ id, user, items, subtotal,
   totalCount }` and, per item, all of `id`, `cartItemId`, `productId`, `product`, `name`, `price`,
@@ -474,10 +486,15 @@ rejected with the exact message; short password rejected; mismatched `confirmPas
 login with a wrong password gives 401 and the exact message; a deactivated account gives 403;
 `me` with no token, a bad token, and a good token; refresh with a revoked token fails; forgot-password
 returns the generic response for an unknown email; reset-password with an expired token fails and
-with a valid token succeeds and revokes refresh tokens. Assert response bodies against the golden
-files from Task 2 wherever one covers the case.
+with a valid token succeeds and revokes refresh tokens.
 
-**Verification.** `npm test` green. Report which golden files you compared against.
+**Golden files (ruling C3, pre-flight).** Read the Task 2 goldens in `tools/golden/` as the
+authoritative reference for response **shape and exact message strings**, and assert those in your
+tests. Do **not** attempt a whole-body equality assertion against them — the goldens were captured
+from Mongo-seeded fixtures and your tests use their own PGlite fixtures, so ids and row counts
+legitimately differ. Systematic whole-body diffing is Task 15's job.
+
+**Verification.** `npm test` green. Report which golden files you consulted.
 
 ---
 
