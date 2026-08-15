@@ -20,10 +20,26 @@ These bind every task. A violation is a defect regardless of what a task descrip
 - Human-readable `message` strings, verbatim, including punctuation and capitalisation — the UI
   renders `data.message` directly
 
-**GC2 — Every serialized entity carries both `_id` and `id`,** set to the same string value. Three
-frontend call sites read bare `_id` with no fallback (`src/pages/Account.jsx:1162,1192,1200` and
-`src/pages/admin/AdminCustomers.jsx:294,313,116,118`). Omitting `_id` silently breaks the saved
+**GC2 — `_id` is never dropped, and the goldens decide whether `id` accompanies it.**
+*(AMENDED mid-execution by controller ruling C12 — the original blanket wording was factually
+wrong; see below.)*
+
+Every serialized entity MUST carry `_id`. Three frontend call sites read bare `_id` with no
+fallback (`src/pages/Account.jsx:1162,1192,1200` and
+`src/pages/admin/AdminCustomers.jsx:294,313,116,118`), so dropping it silently breaks the saved
 address list.
+
+Whether an entity ALSO carries `id` is **per-entity, and `tools/golden/` is the authority** — not
+a blanket rule. The old API's behaviour follows each Mongoose model's `toJSON` config: models that
+set `toJSON: { virtuals: true }` plus an `id` transform (Product, Order, Payment, User, AuditLog,
+NewsletterSubscriber, Cart) emit BOTH `_id` and `id`; models with no `toJSON` config (Address,
+AdminUser, Notification, StorySubmission, TryOnJob, RefreshToken) emit `_id` ONLY. Verified against
+the goldens: `023-users.address-list.json` addresses have `_id` and NOT `id`;
+`082-admin.audit-logs.json` logs have BOTH.
+
+Adding an `id` key where the old API never emitted one is a **GC1 violation** (key-for-key
+parity), not GC2 compliance. When GC1 and GC2 appear to conflict, GC1 wins and the golden file
+settles the question.
 
 **GC3 — JSON field names are camelCase.** Postgres columns are snake_case. The conversion happens
 only in `lib/serialize.js`. No route handler may hand-build a response entity.
