@@ -1,0 +1,56 @@
+{
+  "name": "admin.products-list-search",
+  "method": "GET",
+  "path": "/api/admin/products?search=Silk",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 1,
+    "currentPage": 1,
+    "totalPages": 1,
+    "products": [
+      {
+        "_id": "<ID>",
+        "name": "ZAHZAN Ivory Silk Kurta",
+        "slug": "ivory-silk-kurta-zhz-001",
+        "sku": "ZHZ-001",
+        "description": "Hand-finished ivory silk kurta with subtle embroidery.",
+        "price": 8500,
+        "category": "Kurtas",
+        "images": [
+          "<URL>"
+        ],
+        "image": "<URL>",
+        "hoverImage": "<URL>",
+        "colors": [
+          {
+            "name": "Ivory",
+            "hex": "#F5F0E6",
+            "image": "<URL>"
+          }
+        ],
+        "color": "Ivory",
+        "sizes": [
+          "S",
+          "M",
+          "L",
+          "XL"
+        ],
+        "fabric": "Pure Silk",
+        "work": "Hand Embroidery",
+        "careInstructions": [
+          "Dry clean only"
+        ],
+        "stock": 24,
+        "isActive": true,
+        "quickDescription": "",
+        "gallery": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,274 @@
+{
+  "name": "admin.audit-logs",
+  "method": "GET",
+  "path": "/api/admin/audit-logs",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 11,
+    "currentPage": 1,
+    "totalPages": 1,
+    "logs": [
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "NEWSLETTER_EXPORT",
+        "entity": "NewsletterSubscriber",
+        "entityId": "",
+        "ipAddress": "::1",
+        "metadata": {
+          "recordCount": 2,
+          "filterStatus": "all"
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "CUSTOMER_STATUS_UPDATED",
+        "entity": "User",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "isActive": false
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "PRODUCT_PERMANENTLY_DELETED",
+        "entity": "Product",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "name": "ZAHZAN Amber Velvet Coat",
+          "sku": "ZHZ-ADM-001"
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "PRODUCT_DEACTIVATED",
+        "entity": "Product",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "name": "ZAHZAN Amber Velvet Coat",
+          "sku": "ZHZ-ADM-001"
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "PRODUCT_DEACTIVATED",
+        "entity": "Product",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "name": "ZAHZAN Amber Velvet Coat",
+          "sku": "ZHZ-ADM-001",
+          "isActive": false
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "STOCK_UPDATED",
+        "entity": "Product",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "name": "ZAHZAN Amber Velvet Coat",
+          "prevPrice": 22000,
+          "newPrice": 23000,
+          "prevStock": 8,
+          "newStock": 6
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "PRODUCT_CREATED",
+        "entity": "Product",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "name": "ZAHZAN Amber Velvet Coat",
+          "sku": "ZHZ-ADM-001",
+          "price": 22000,
+          "stock": 8
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "PAYMENT_REJECTED",
+        "entity": "Payment",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "orderId": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "rejectionReason": "Transaction reference could not be matched to bank statement."
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "PAYMENT_VERIFIED",
+        "entity": "Payment",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "orderId": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "amount": 8750,
+          "paymentMethod": "JazzCash",
+          "transactionReference": "TXNADV0001"
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "ORDER_STATUS_CHANGED",
+        "entity": "Order",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "metadata": {
+          "orderNumber": "<ORDERNO>",
+          "previousStatus": "Pending",
+          "newStatus": "Confirmed"
+        },
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "adminId": {
+          "_id": "<ID>",
+          "firstName": "Contract",
+          "lastName": "Admin",
+          "email": "admin@zahzancontract.test",
+          "name": "Contract Admin",
+          "id": "<ID>"
+        },
+        "action": "ADMIN_LOGIN",
+        "entity": "User",
+        "entityId": "<ID>",
+        "ipAddress": "::1",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      }
+    ]
+  }
+}

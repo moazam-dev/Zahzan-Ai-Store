@@ -1,0 +1,135 @@
+{
+  "name": "admin.payments-list-paged",
+  "method": "GET",
+  "path": "/api/admin/payments?page=1&limit=2",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 3,
+    "currentPage": 1,
+    "totalPages": 2,
+    "payments": [
+      {
+        "_id": "<ID>",
+        "orderId": {
+          "_id": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "items": [
+            {
+              "productId": "<ID>",
+              "productName": "ZAHZAN Ivory Silk Kurta",
+              "sku": "ZHZ-001",
+              "image": "<URL>",
+              "color": "Ivory",
+              "size": "M",
+              "quantity": 1,
+              "unitPrice": 8500,
+              "totalPrice": 8500,
+              "_id": "<ID>",
+              "createdAt": "<TS>",
+              "updatedAt": "<TS>",
+              "id": "<ID>"
+            }
+          ],
+          "shippingAddress": {
+            "fullName": "Sara Malik",
+            "phone": "03007654321",
+            "email": "journey.customer@zahzancontract.test",
+            "addressLine1": "123 Gulberg Boulevard",
+            "addressLine2": "",
+            "city": "Lahore",
+            "state": "Punjab",
+            "postalCode": "54000",
+            "country": "Pakistan",
+            "deliveryInstructions": ""
+          },
+          "total": 8750,
+          "paymentStatus": "submitted",
+          "orderStatus": "Pending",
+          "id": "<ID>"
+        },
+        "userId": {
+          "_id": "<ID>",
+          "firstName": "Sara",
+          "lastName": "Malik-Updated",
+          "email": "journey.customer@zahzancontract.test",
+          "phone": "03007654321",
+          "name": "Sara Malik-Updated",
+          "id": "<ID>"
+        },
+        "paymentMethod": "Bank Transfer",
+        "amount": 8750,
+        "transactionReference": "TXNADV0003",
+        "proofUrl": "<URL>",
+        "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+        "status": "Pending",
+        "rejectionReason": "",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "orderId": {
+          "_id": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "items": [
+            {
+              "productId": "<ID>",
+              "productName": "ZAHZAN Ivory Silk Kurta",
+              "sku": "ZHZ-001",
+              "image": "<URL>",
+              "color": "Ivory",
+              "size": "M",
+              "quantity": 1,
+              "unitPrice": 8500,
+              "totalPrice": 8500,
+              "_id": "<ID>",
+              "createdAt": "<TS>",
+              "updatedAt": "<TS>",
+              "id": "<ID>"
+            }
+          ],
+          "shippingAddress": {
+            "fullName": "Sara Malik",
+            "phone": "03007654321",
+            "email": "journey.customer@zahzancontract.test",
+            "addressLine1": "123 Gulberg Boulevard",
+            "addressLine2": "",
+            "city": "Lahore",
+            "state": "Punjab",
+            "postalCode": "54000",
+            "country": "Pakistan",
+            "deliveryInstructions": ""
+          },
+          "total": 8750,
+          "paymentStatus": "submitted",
+          "orderStatus": "Pending",
+          "id": "<ID>"
+        },
+        "userId": {
+          "_id": "<ID>",
+          "firstName": "Sara",
+          "lastName": "Malik-Updated",
+          "email": "journey.customer@zahzancontract.test",
+          "phone": "03007654321",
+          "name": "Sara Malik-Updated",
+          "id": "<ID>"
+        },
+        "paymentMethod": "Easypaisa",
+        "amount": 8750,
+        "transactionReference": "TXNADV0002",
+        "proofUrl": "<URL>",
+        "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+        "status": "Pending",
+        "rejectionReason": "",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      }
+    ]
+  }
+}

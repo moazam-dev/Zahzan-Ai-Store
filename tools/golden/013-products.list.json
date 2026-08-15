@@ -1,0 +1,170 @@
+{
+  "name": "products.list",
+  "method": "GET",
+  "path": "/api/products",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "count": 4,
+    "products": [
+      {
+        "_id": "<ID>",
+        "name": "ZAHZAN Noir Formal Set",
+        "slug": "noir-formal-set-zhz-004",
+        "sku": "ZHZ-004",
+        "description": "Noir three-piece formal set with structured tailoring.",
+        "price": 18500,
+        "category": "Formal Sets",
+        "images": [
+          "<URL>"
+        ],
+        "image": "<URL>",
+        "hoverImage": "<URL>",
+        "colors": [
+          {
+            "name": "Noir",
+            "hex": "#111111",
+            "image": "<URL>"
+          }
+        ],
+        "color": "Noir",
+        "sizes": [
+          "S",
+          "M",
+          "L"
+        ],
+        "fabric": "Wool Blend",
+        "work": "Structured Tailoring",
+        "careInstructions": [
+          "Dry clean only"
+        ],
+        "stock": 5,
+        "isActive": true,
+        "quickDescription": "",
+        "gallery": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "name": "ZAHZAN Rose Chiffon Dupatta",
+        "slug": "rose-chiffon-dupatta-zhz-003",
+        "sku": "ZHZ-003",
+        "description": "Lightweight rose chiffon dupatta, hand-rolled edges.",
+        "price": 4500,
+        "category": "Dupattas",
+        "images": [
+          "<URL>"
+        ],
+        "image": "<URL>",
+        "hoverImage": "<URL>",
+        "colors": [
+          {
+            "name": "Rose",
+            "hex": "#C97E8C",
+            "image": "<URL>"
+          }
+        ],
+        "color": "Rose",
+        "sizes": [
+          "One Size"
+        ],
+        "fabric": "Chiffon",
+        "work": "Hand-Rolled Edges",
+        "careInstructions": [
+          "Hand wash cold"
+        ],
+        "stock": 40,
+        "isActive": true,
+        "quickDescription": "",
+        "gallery": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "name": "ZAHZAN Emerald Velvet Shawl",
+        "slug": "emerald-velvet-shawl-zhz-002",
+        "sku": "ZHZ-002",
+        "description": "Rich emerald velvet shawl with gold thread border.",
+        "price": 12500,
+        "category": "Shawls",
+        "images": [
+          "<URL>"
+        ],
+        "image": "<URL>",
+        "hoverImage": "<URL>",
+        "colors": [
+          {
+            "name": "Emerald",
+            "hex": "#0B5A3B",
+            "image": "<URL>"
+          }
+        ],
+        "color": "Emerald",
+        "sizes": [
+          "One Size"
+        ],
+        "fabric": "Velvet",
+        "work": "Zari Border",
+        "careInstructions": [
+          "Dry clean only"
+        ],
+        "stock": 10,
+        "isActive": true,
+        "quickDescription": "",
+        "gallery": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "name": "ZAHZAN Ivory Silk Kurta",
+        "slug": "ivory-silk-kurta-zhz-001",
+        "sku": "ZHZ-001",
+        "description": "Hand-finished ivory silk kurta with subtle embroidery.",
+        "price": 8500,
+        "category": "Kurtas",
+        "images": [
+          "<URL>"
+        ],
+        "image": "<URL>",
+        "hoverImage": "<URL>",
+        "colors": [
+          {
+            "name": "Ivory",
+            "hex": "#F5F0E6",
+            "image": "<URL>"
+          }
+        ],
+        "color": "Ivory",
+        "sizes": [
+          "S",
+          "M",
+          "L",
+          "XL"
+        ],
+        "fabric": "Pure Silk",
+        "work": "Hand Embroidery",
+        "careInstructions": [
+          "Dry clean only"
+        ],
+        "stock": 25,
+        "isActive": true,
+        "quickDescription": "",
+        "gallery": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      }
+    ]
+  }
+}

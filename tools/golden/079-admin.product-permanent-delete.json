@@ -1,0 +1,11 @@
+{
+  "name": "admin.product-permanent-delete",
+  "method": "DELETE",
+  "path": "/api/admin/products/<ID>?permanent=true",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Product permanently deleted from database"
+  }
+}

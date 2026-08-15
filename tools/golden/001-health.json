@@ -1,0 +1,16 @@
+{
+  "name": "health",
+  "method": "GET",
+  "path": "/api/health",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Zahzan API is running",
+    "data": {
+      "dbStatus": "connected",
+      "environment": "development",
+      "timestamp": "<TS>"
+    }
+  }
+}

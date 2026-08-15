@@ -1,0 +1,33 @@
+{
+  "name": "admin.customers-list-search",
+  "method": "GET",
+  "path": "/api/admin/customers?search=Amina",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 1,
+    "currentPage": 1,
+    "totalPages": 1,
+    "customers": [
+      {
+        "_id": "<ID>",
+        "firstName": "Amina",
+        "lastName": "Yousaf",
+        "email": "customer1@zahzancontract.test",
+        "authProvider": "local",
+        "googleId": "",
+        "facebookId": "",
+        "phone": "03000000002",
+        "role": "customer",
+        "isEmailVerified": true,
+        "isActive": true,
+        "wishlist": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "name": "Amina Yousaf",
+        "id": "<ID>"
+      }
+    ]
+  }
+}

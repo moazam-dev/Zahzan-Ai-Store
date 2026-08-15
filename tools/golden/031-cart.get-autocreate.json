@@ -1,0 +1,17 @@
+{
+  "name": "cart.get-autocreate",
+  "method": "GET",
+  "path": "/api/cart",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "cart": {
+      "id": "<ID>",
+      "user": "<ID>",
+      "items": [],
+      "subtotal": 0,
+      "totalCount": 0
+    }
+  }
+}

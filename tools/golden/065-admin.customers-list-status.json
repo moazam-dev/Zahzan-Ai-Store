@@ -1,0 +1,69 @@
+{
+  "name": "admin.customers-list-status",
+  "method": "GET",
+  "path": "/api/admin/customers?status=active",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 3,
+    "currentPage": 1,
+    "totalPages": 1,
+    "customers": [
+      {
+        "_id": "<ID>",
+        "firstName": "Sara",
+        "lastName": "Malik-Updated",
+        "email": "journey.customer@zahzancontract.test",
+        "authProvider": "local",
+        "googleId": "",
+        "facebookId": "",
+        "phone": "03007654321",
+        "role": "customer",
+        "isEmailVerified": true,
+        "isActive": true,
+        "wishlist": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "name": "Sara Malik-Updated",
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "firstName": "Bilal",
+        "lastName": "Chaudhry",
+        "email": "customer2@zahzancontract.test",
+        "authProvider": "local",
+        "googleId": "",
+        "facebookId": "",
+        "phone": "03000000003",
+        "role": "customer",
+        "isEmailVerified": true,
+        "isActive": true,
+        "wishlist": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "name": "Bilal Chaudhry",
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "firstName": "Amina",
+        "lastName": "Yousaf",
+        "email": "customer1@zahzancontract.test",
+        "authProvider": "local",
+        "googleId": "",
+        "facebookId": "",
+        "phone": "03000000002",
+        "role": "customer",
+        "isEmailVerified": true,
+        "isActive": true,
+        "wishlist": [],
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "name": "Amina Yousaf",
+        "id": "<ID>"
+      }
+    ]
+  }
+}

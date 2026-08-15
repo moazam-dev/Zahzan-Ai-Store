@@ -1,0 +1,11 @@
+{
+  "name": "authz.customer-vs-admin-orders-list",
+  "method": "GET",
+  "path": "/api/admin/orders",
+  "requestBody": null,
+  "status": 403,
+  "responseBody": {
+    "success": false,
+    "message": "Access denied: Admin authorization required"
+  }
+}

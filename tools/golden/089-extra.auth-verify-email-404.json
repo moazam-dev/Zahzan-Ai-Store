@@ -1,0 +1,11 @@
+{
+  "name": "extra.auth-verify-email-404",
+  "method": "GET",
+  "path": "/api/auth/verify-email?token=whatever",
+  "requestBody": null,
+  "status": 404,
+  "responseBody": {
+    "success": false,
+    "message": "Not Found - /api/auth/verify-email?token=whatever"
+  }
+}

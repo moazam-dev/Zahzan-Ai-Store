@@ -1,0 +1,11 @@
+{
+  "name": "stubs.try-on-post",
+  "method": "POST",
+  "path": "/api/try-on",
+  "requestBody": null,
+  "status": 501,
+  "responseBody": {
+    "success": false,
+    "message": "Endpoint not implemented yet"
+  }
+}

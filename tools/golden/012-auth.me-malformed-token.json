@@ -1,0 +1,11 @@
+{
+  "name": "auth.me-malformed-token",
+  "method": "GET",
+  "path": "/api/auth/me",
+  "requestBody": null,
+  "status": 401,
+  "responseBody": {
+    "success": false,
+    "message": "Not authorized, token failed or expired"
+  }
+}

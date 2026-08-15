@@ -1,0 +1,18 @@
+{
+  "name": "cart.delete-item",
+  "method": "DELETE",
+  "path": "/api/cart/items/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Item removed from cart",
+    "cart": {
+      "id": "<ID>",
+      "user": "<ID>",
+      "items": [],
+      "subtotal": 0,
+      "totalCount": 0
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "payments.submit-proof-alias",
+  "method": "POST",
+  "path": "/api/payments/proof",
+  "requestBody": {
+    "orderId": "<ID>",
+    "paymentMethod": "Bank Transfer",
+    "transactionReference": "TXNADV0003",
+    "proofImage": "<FILE:payment-proof.png>"
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "Payment proof submitted successfully. Awaiting administrator verification.",
+    "payment": {
+      "orderId": "<ID>",
+      "userId": "<ID>",
+      "paymentMethod": "Bank Transfer",
+      "amount": 8750,
+      "transactionReference": "TXNADV0003",
+      "proofUrl": "<URL>",
+      "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+      "status": "Pending",
+      "rejectionReason": "",
+      "_id": "<ID>",
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    }
+  }
+}

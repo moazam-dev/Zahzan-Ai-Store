@@ -1,0 +1,39 @@
+{
+  "name": "users.address-create",
+  "method": "POST",
+  "path": "/api/users/me/addresses",
+  "requestBody": {
+    "fullName": "Sara Malik",
+    "phone": "03007654321",
+    "addressLine1": "123 Gulberg Boulevard",
+    "addressLine2": "Near DHA Phase 5",
+    "city": "Lahore",
+    "province": "Punjab",
+    "postalCode": "54000",
+    "country": "Pakistan",
+    "label": "Home",
+    "isDefault": true
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "Address added successfully.",
+    "address": {
+      "userId": "<ID>",
+      "fullName": "Sara Malik",
+      "phone": "03007654321",
+      "addressLine1": "123 Gulberg Boulevard",
+      "addressLine2": "Near DHA Phase 5",
+      "city": "Lahore",
+      "province": "Punjab",
+      "postalCode": "54000",
+      "country": "Pakistan",
+      "label": "Home",
+      "isDefault": true,
+      "_id": "<ID>",
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0
+    }
+  }
+}

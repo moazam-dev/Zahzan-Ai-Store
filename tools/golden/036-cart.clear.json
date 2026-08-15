@@ -1,0 +1,18 @@
+{
+  "name": "cart.clear",
+  "method": "DELETE",
+  "path": "/api/cart",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Cart cleared",
+    "cart": {
+      "id": "<ID>",
+      "user": "<ID>",
+      "items": [],
+      "subtotal": 0,
+      "totalCount": 0
+    }
+  }
+}

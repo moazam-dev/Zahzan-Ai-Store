@@ -1,0 +1,31 @@
+{
+  "name": "auth.register",
+  "method": "POST",
+  "path": "/api/auth/register",
+  "requestBody": {
+    "firstName": "Sara",
+    "lastName": "Malik",
+    "email": "journey.customer@zahzancontract.test",
+    "password": "Journey@12345",
+    "confirmPassword": "Journey@12345",
+    "phone": "03001234567"
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "Account created successfully. Welcome to ZAHZAN!",
+    "token": "<JWT>",
+    "refreshToken": "<JWT>",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Sara",
+      "lastName": "Malik",
+      "name": "Sara Malik",
+      "email": "journey.customer@zahzancontract.test",
+      "phone": "03001234567",
+      "role": "customer",
+      "authProvider": "local",
+      "isEmailVerified": true
+    }
+  }
+}

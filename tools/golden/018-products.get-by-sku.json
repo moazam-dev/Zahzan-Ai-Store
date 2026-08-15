@@ -1,0 +1,86 @@
+{
+  "name": "products.get-by-sku",
+  "method": "GET",
+  "path": "/api/products/ZHZ-002",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "product": {
+      "_id": "<ID>",
+      "name": "ZAHZAN Emerald Velvet Shawl",
+      "slug": "emerald-velvet-shawl-zhz-002",
+      "sku": "ZHZ-002",
+      "description": "Rich emerald velvet shawl with gold thread border.",
+      "price": 12500,
+      "category": "Shawls",
+      "images": [
+        "<URL>"
+      ],
+      "image": "<URL>",
+      "hoverImage": "<URL>",
+      "colors": [
+        {
+          "name": "Emerald",
+          "hex": "#0B5A3B",
+          "image": "<URL>"
+        }
+      ],
+      "color": "Emerald",
+      "sizes": [
+        "One Size"
+      ],
+      "fabric": "Velvet",
+      "work": "Zari Border",
+      "careInstructions": [
+        "Dry clean only"
+      ],
+      "stock": 10,
+      "isActive": true,
+      "quickDescription": "",
+      "gallery": [],
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    },
+    "data": {
+      "_id": "<ID>",
+      "name": "ZAHZAN Emerald Velvet Shawl",
+      "slug": "emerald-velvet-shawl-zhz-002",
+      "sku": "ZHZ-002",
+      "description": "Rich emerald velvet shawl with gold thread border.",
+      "price": 12500,
+      "category": "Shawls",
+      "images": [
+        "<URL>"
+      ],
+      "image": "<URL>",
+      "hoverImage": "<URL>",
+      "colors": [
+        {
+          "name": "Emerald",
+          "hex": "#0B5A3B",
+          "image": "<URL>"
+        }
+      ],
+      "color": "Emerald",
+      "sizes": [
+        "One Size"
+      ],
+      "fabric": "Velvet",
+      "work": "Zari Border",
+      "careInstructions": [
+        "Dry clean only"
+      ],
+      "stock": 10,
+      "isActive": true,
+      "quickDescription": "",
+      "gallery": [],
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    }
+  }
+}

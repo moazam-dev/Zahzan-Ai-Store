@@ -1,0 +1,215 @@
+{
+  "name": "admin.dashboard",
+  "method": "GET",
+  "path": "/api/admin/dashboard",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "stats": {
+      "orders": {
+        "total": 3,
+        "pending": 1,
+        "confirmed": 0,
+        "processing": 0,
+        "shipped": 0,
+        "delivered": 0,
+        "cancelled": 2
+      },
+      "revenue": 8750,
+      "customers": {
+        "total": 3,
+        "recent": [
+          {
+            "_id": "<ID>",
+            "firstName": "Sara",
+            "lastName": "Malik-Updated",
+            "email": "journey.customer@zahzancontract.test",
+            "phone": "03007654321",
+            "createdAt": "<TS>",
+            "name": "Sara Malik-Updated",
+            "id": "<ID>"
+          },
+          {
+            "_id": "<ID>",
+            "firstName": "Bilal",
+            "lastName": "Chaudhry",
+            "email": "customer2@zahzancontract.test",
+            "phone": "03000000003",
+            "createdAt": "<TS>",
+            "name": "Bilal Chaudhry",
+            "id": "<ID>"
+          },
+          {
+            "_id": "<ID>",
+            "firstName": "Amina",
+            "lastName": "Yousaf",
+            "email": "customer1@zahzancontract.test",
+            "phone": "03000000002",
+            "createdAt": "<TS>",
+            "name": "Amina Yousaf",
+            "id": "<ID>"
+          }
+        ]
+      },
+      "inventory": {
+        "totalProducts": 4,
+        "lowStockCount": 0,
+        "outOfStockCount": 0,
+        "lowStockProducts": []
+      },
+      "payments": {
+        "pending": 3,
+        "verified": 0,
+        "rejected": 0,
+        "verifiedAmount": 0
+      },
+      "newsletter": {
+        "totalSubscribers": 1
+      },
+      "recentOrders": [
+        {
+          "_id": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "userId": "<ID>",
+          "customerName": "Sara Malik",
+          "customerEmail": "journey.customer@zahzancontract.test",
+          "customerPhone": "03007654321",
+          "items": [
+            {
+              "productId": "<ID>",
+              "productName": "ZAHZAN Ivory Silk Kurta",
+              "sku": "ZHZ-001",
+              "image": "<URL>",
+              "color": "Ivory",
+              "size": "M",
+              "quantity": 1,
+              "unitPrice": 8500,
+              "totalPrice": 8500,
+              "_id": "<ID>",
+              "createdAt": "<TS>",
+              "updatedAt": "<TS>",
+              "id": "<ID>"
+            }
+          ],
+          "shippingAddress": {
+            "fullName": "Sara Malik",
+            "phone": "03007654321",
+            "email": "journey.customer@zahzancontract.test",
+            "addressLine1": "123 Gulberg Boulevard",
+            "addressLine2": "",
+            "city": "Lahore",
+            "state": "Punjab",
+            "postalCode": "54000",
+            "country": "Pakistan",
+            "deliveryInstructions": ""
+          },
+          "subtotal": 8500,
+          "shippingCost": 250,
+          "total": 8750,
+          "paymentMethod": "JazzCash",
+          "paymentStatus": "submitted",
+          "orderStatus": "Pending",
+          "createdAt": "<TS>",
+          "updatedAt": "<TS>",
+          "__v": 0,
+          "id": "<ID>"
+        },
+        {
+          "_id": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "userId": "<ID>",
+          "customerName": "Sara Malik",
+          "customerEmail": "journey.customer@zahzancontract.test",
+          "customerPhone": "03007654321",
+          "items": [
+            {
+              "productId": "<ID>",
+              "productName": "ZAHZAN Noir Formal Set",
+              "sku": "ZHZ-004",
+              "image": "<URL>",
+              "color": "Noir",
+              "size": "M",
+              "quantity": 1,
+              "unitPrice": 18500,
+              "totalPrice": 18500,
+              "_id": "<ID>",
+              "createdAt": "<TS>",
+              "updatedAt": "<TS>",
+              "id": "<ID>"
+            }
+          ],
+          "shippingAddress": {
+            "fullName": "Sara Malik",
+            "phone": "03007654321",
+            "email": "journey.customer@zahzancontract.test",
+            "addressLine1": "123 Gulberg Boulevard",
+            "addressLine2": "",
+            "city": "Lahore",
+            "state": "Punjab",
+            "postalCode": "54000",
+            "country": "Pakistan",
+            "deliveryInstructions": ""
+          },
+          "subtotal": 18500,
+          "shippingCost": 250,
+          "total": 18750,
+          "paymentMethod": "Cash on Delivery",
+          "paymentStatus": "not_required",
+          "orderStatus": "Cancelled",
+          "createdAt": "<TS>",
+          "updatedAt": "<TS>",
+          "__v": 0,
+          "id": "<ID>"
+        },
+        {
+          "_id": "<ID>",
+          "orderNumber": "<ORDERNO>",
+          "userId": "<ID>",
+          "customerName": "Sara Malik",
+          "customerEmail": "journey.customer@zahzancontract.test",
+          "customerPhone": "03007654321",
+          "items": [
+            {
+              "productId": "<ID>",
+              "productName": "ZAHZAN Rose Chiffon Dupatta",
+              "sku": "ZHZ-003",
+              "image": "<URL>",
+              "color": "Rose",
+              "size": "One Size",
+              "quantity": 2,
+              "unitPrice": 4500,
+              "totalPrice": 9000,
+              "_id": "<ID>",
+              "createdAt": "<TS>",
+              "updatedAt": "<TS>",
+              "id": "<ID>"
+            }
+          ],
+          "shippingAddress": {
+            "fullName": "Sara Malik",
+            "phone": "03007654321",
+            "email": "journey.customer@zahzancontract.test",
+            "addressLine1": "123 Gulberg Boulevard",
+            "addressLine2": "",
+            "city": "Lahore",
+            "state": "Punjab",
+            "postalCode": "54000",
+            "country": "Pakistan",
+            "deliveryInstructions": ""
+          },
+          "subtotal": 9000,
+          "shippingCost": 250,
+          "total": 9250,
+          "paymentMethod": "Cash on Delivery",
+          "paymentStatus": "not_required",
+          "orderStatus": "Cancelled",
+          "createdAt": "<TS>",
+          "updatedAt": "<TS>",
+          "__v": 0,
+          "id": "<ID>"
+        }
+      ]
+    }
+  }
+}

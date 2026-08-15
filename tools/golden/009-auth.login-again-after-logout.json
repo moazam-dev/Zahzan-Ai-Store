@@ -1,0 +1,27 @@
+{
+  "name": "auth.login-again-after-logout",
+  "method": "POST",
+  "path": "/api/auth/login",
+  "requestBody": {
+    "email": "journey.customer@zahzancontract.test",
+    "password": "Journey@12345"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Login successful.",
+    "token": "<JWT>",
+    "refreshToken": "<JWT>",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Sara",
+      "lastName": "Malik",
+      "name": "Sara Malik",
+      "email": "journey.customer@zahzancontract.test",
+      "phone": "03001234567",
+      "role": "customer",
+      "authProvider": "local",
+      "isEmailVerified": true
+    }
+  }
+}

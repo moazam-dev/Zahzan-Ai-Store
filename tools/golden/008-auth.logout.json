@@ -1,0 +1,13 @@
+{
+  "name": "auth.logout",
+  "method": "POST",
+  "path": "/api/auth/logout",
+  "requestBody": {
+    "refreshToken": "<JWT>"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Logged out successfully."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "users.wishlist-get",
+  "method": "GET",
+  "path": "/api/users/me/wishlist",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "wishlist": [],
+    "products": []
+  }
+}

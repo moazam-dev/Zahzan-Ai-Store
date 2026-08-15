@@ -1,0 +1,11 @@
+{
+  "name": "stubs.stories-get",
+  "method": "GET",
+  "path": "/api/stories",
+  "requestBody": null,
+  "status": 501,
+  "responseBody": {
+    "success": false,
+    "message": "Endpoint not implemented yet"
+  }
+}

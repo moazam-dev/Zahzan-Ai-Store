@@ -1,0 +1,42 @@
+{
+  "name": "admin.newsletter-list-paged",
+  "method": "GET",
+  "path": "/api/admin/newsletter?page=1&limit=2",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 2,
+    "currentPage": 1,
+    "totalPages": 1,
+    "stats": {
+      "totalSubscribers": 2,
+      "activeSubscribers": 1,
+      "unsubscribedSubscribers": 1
+    },
+    "subscribers": [
+      {
+        "_id": "<ID>",
+        "email": "journey.newsletter@zahzancontract.test",
+        "status": "subscribed",
+        "source": "footer",
+        "subscribedAt": "<TS>",
+        "unsubscribedAt": null,
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "email": "seed.subscriber@zahzancontract.test",
+        "status": "unsubscribed",
+        "source": "seed",
+        "subscribedAt": "<TS>",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "unsubscribedAt": "<TS>",
+        "id": "<ID>"
+      }
+    ]
+  }
+}

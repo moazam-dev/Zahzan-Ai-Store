@@ -1,0 +1,11 @@
+{
+  "name": "products.get-nonexistent",
+  "method": "GET",
+  "path": "/api/products/<ID>",
+  "requestBody": null,
+  "status": 404,
+  "responseBody": {
+    "success": false,
+    "message": "Product not found"
+  }
+}

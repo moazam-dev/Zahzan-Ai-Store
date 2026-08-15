@@ -1,0 +1,25 @@
+{
+  "name": "users.patch-me",
+  "method": "PATCH",
+  "path": "/api/users/me",
+  "requestBody": {
+    "firstName": "Sara",
+    "lastName": "Malik-Updated",
+    "phone": "03007654321"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Profile updated successfully.",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Sara",
+      "lastName": "Malik-Updated",
+      "name": "Sara Malik-Updated",
+      "email": "journey.customer@zahzancontract.test",
+      "phone": "03007654321",
+      "role": "customer",
+      "isEmailVerified": true
+    }
+  }
+}

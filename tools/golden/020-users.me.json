@@ -1,0 +1,22 @@
+{
+  "name": "users.me",
+  "method": "GET",
+  "path": "/api/users/me",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "user": {
+      "id": "<ID>",
+      "firstName": "Sara",
+      "lastName": "Malik",
+      "name": "Sara Malik",
+      "email": "journey.customer@zahzancontract.test",
+      "phone": "03001234567",
+      "role": "customer",
+      "isEmailVerified": true,
+      "createdAt": "<TS>"
+    },
+    "addresses": []
+  }
+}

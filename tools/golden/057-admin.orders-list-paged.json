@@ -1,0 +1,124 @@
+{
+  "name": "admin.orders-list-paged",
+  "method": "GET",
+  "path": "/api/admin/orders?page=1&limit=2",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 3,
+    "currentPage": 1,
+    "totalPages": 2,
+    "orders": [
+      {
+        "_id": "<ID>",
+        "orderNumber": "<ORDERNO>",
+        "userId": "<ID>",
+        "customerName": "Sara Malik",
+        "customerEmail": "journey.customer@zahzancontract.test",
+        "customerPhone": "03007654321",
+        "items": [
+          {
+            "productId": "<ID>",
+            "productName": "ZAHZAN Ivory Silk Kurta",
+            "sku": "ZHZ-001",
+            "image": "<URL>",
+            "color": "Ivory",
+            "size": "M",
+            "quantity": 1,
+            "unitPrice": 8500,
+            "totalPrice": 8500,
+            "_id": "<ID>",
+            "createdAt": "<TS>",
+            "updatedAt": "<TS>"
+          }
+        ],
+        "shippingAddress": {
+          "fullName": "Sara Malik",
+          "phone": "03007654321",
+          "email": "journey.customer@zahzancontract.test",
+          "addressLine1": "123 Gulberg Boulevard",
+          "addressLine2": "",
+          "city": "Lahore",
+          "state": "Punjab",
+          "postalCode": "54000",
+          "country": "Pakistan",
+          "deliveryInstructions": ""
+        },
+        "subtotal": 8500,
+        "shippingCost": 250,
+        "total": 8750,
+        "paymentMethod": "JazzCash",
+        "paymentStatus": "submitted",
+        "orderStatus": "Pending",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>",
+        "payment": {
+          "_id": "<ID>",
+          "orderId": "<ID>",
+          "userId": "<ID>",
+          "paymentMethod": "Bank Transfer",
+          "amount": 8750,
+          "transactionReference": "TXNADV0003",
+          "proofUrl": "<URL>",
+          "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+          "status": "Pending",
+          "rejectionReason": "",
+          "createdAt": "<TS>",
+          "updatedAt": "<TS>",
+          "__v": 0,
+          "id": "<ID>"
+        }
+      },
+      {
+        "_id": "<ID>",
+        "orderNumber": "<ORDERNO>",
+        "userId": "<ID>",
+        "customerName": "Sara Malik",
+        "customerEmail": "journey.customer@zahzancontract.test",
+        "customerPhone": "03007654321",
+        "items": [
+          {
+            "productId": "<ID>",
+            "productName": "ZAHZAN Noir Formal Set",
+            "sku": "ZHZ-004",
+            "image": "<URL>",
+            "color": "Noir",
+            "size": "M",
+            "quantity": 1,
+            "unitPrice": 18500,
+            "totalPrice": 18500,
+            "_id": "<ID>",
+            "createdAt": "<TS>",
+            "updatedAt": "<TS>"
+          }
+        ],
+        "shippingAddress": {
+          "fullName": "Sara Malik",
+          "phone": "03007654321",
+          "email": "journey.customer@zahzancontract.test",
+          "addressLine1": "123 Gulberg Boulevard",
+          "addressLine2": "",
+          "city": "Lahore",
+          "state": "Punjab",
+          "postalCode": "54000",
+          "country": "Pakistan",
+          "deliveryInstructions": ""
+        },
+        "subtotal": 18500,
+        "shippingCost": 250,
+        "total": 18750,
+        "paymentMethod": "Cash on Delivery",
+        "paymentStatus": "not_required",
+        "orderStatus": "Cancelled",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>",
+        "payment": null
+      }
+    ]
+  }
+}

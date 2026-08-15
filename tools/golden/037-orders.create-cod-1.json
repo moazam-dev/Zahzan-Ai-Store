@@ -1,0 +1,81 @@
+{
+  "name": "orders.create-cod-1",
+  "method": "POST",
+  "path": "/api/orders",
+  "requestBody": {
+    "customerInfo": {
+      "fullName": "Sara Malik",
+      "email": "journey.customer@zahzancontract.test",
+      "phone": "03007654321"
+    },
+    "shippingAddress": {
+      "fullName": "Sara Malik",
+      "phone": "03007654321",
+      "addressLine1": "123 Gulberg Boulevard",
+      "city": "Lahore",
+      "state": "Punjab",
+      "postalCode": "54000",
+      "country": "Pakistan"
+    },
+    "isBuyNow": true,
+    "buyNowItem": {
+      "productId": "<ID>",
+      "quantity": 2,
+      "selectedSize": "One Size"
+    },
+    "paymentChoice": "cod"
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "Order placed successfully (Cash on Delivery)",
+    "order": {
+      "orderNumber": "<ORDERNO>",
+      "userId": "<ID>",
+      "customerName": "Sara Malik",
+      "customerEmail": "journey.customer@zahzancontract.test",
+      "customerPhone": "03007654321",
+      "items": [
+        {
+          "productId": "<ID>",
+          "productName": "ZAHZAN Rose Chiffon Dupatta",
+          "sku": "ZHZ-003",
+          "image": "<URL>",
+          "color": "Rose",
+          "size": "One Size",
+          "quantity": 2,
+          "unitPrice": 4500,
+          "totalPrice": 9000,
+          "_id": "<ID>",
+          "createdAt": "<TS>",
+          "updatedAt": "<TS>",
+          "id": "<ID>"
+        }
+      ],
+      "shippingAddress": {
+        "fullName": "Sara Malik",
+        "phone": "03007654321",
+        "email": "journey.customer@zahzancontract.test",
+        "addressLine1": "123 Gulberg Boulevard",
+        "addressLine2": "",
+        "city": "Lahore",
+        "state": "Punjab",
+        "postalCode": "54000",
+        "country": "Pakistan",
+        "deliveryInstructions": ""
+      },
+      "subtotal": 9000,
+      "shippingCost": 250,
+      "total": 9250,
+      "paymentMethod": "Cash on Delivery",
+      "paymentStatus": "not_required",
+      "orderStatus": "Pending",
+      "_id": "<ID>",
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    },
+    "payment": null
+  }
+}

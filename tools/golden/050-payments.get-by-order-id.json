@@ -1,0 +1,60 @@
+{
+  "name": "payments.get-by-order-id",
+  "method": "GET",
+  "path": "/api/payments/order/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "payments": [
+      {
+        "_id": "<ID>",
+        "orderId": "<ID>",
+        "userId": "<ID>",
+        "paymentMethod": "Bank Transfer",
+        "amount": 8750,
+        "transactionReference": "TXNADV0003",
+        "proofUrl": "<URL>",
+        "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+        "status": "Pending",
+        "rejectionReason": "",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "orderId": "<ID>",
+        "userId": "<ID>",
+        "paymentMethod": "Easypaisa",
+        "amount": 8750,
+        "transactionReference": "TXNADV0002",
+        "proofUrl": "<URL>",
+        "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+        "status": "Pending",
+        "rejectionReason": "",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      },
+      {
+        "_id": "<ID>",
+        "orderId": "<ID>",
+        "userId": "<ID>",
+        "paymentMethod": "JazzCash",
+        "amount": 8750,
+        "transactionReference": "TXNADV0001",
+        "proofUrl": "<URL>",
+        "proofPublicId": "zahzan/payment-proofs/payment_order_<TS>",
+        "status": "Pending",
+        "rejectionReason": "",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      }
+    ]
+  }
+}

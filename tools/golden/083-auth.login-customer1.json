@@ -1,0 +1,27 @@
+{
+  "name": "auth.login-customer1",
+  "method": "POST",
+  "path": "/api/auth/login",
+  "requestBody": {
+    "email": "customer1@zahzancontract.test",
+    "password": "Customer@12345"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Login successful.",
+    "token": "<JWT>",
+    "refreshToken": "<JWT>",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Amina",
+      "lastName": "Yousaf",
+      "name": "Amina Yousaf",
+      "email": "customer1@zahzancontract.test",
+      "phone": "03000000002",
+      "role": "customer",
+      "authProvider": "local",
+      "isEmailVerified": true
+    }
+  }
+}

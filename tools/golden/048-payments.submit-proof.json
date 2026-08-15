@@ -1,0 +1,32 @@
+{
+  "name": "payments.submit-proof",
+  "method": "POST",
+  "path": "/api/payments",
+  "requestBody": {
+    "orderId": "<ID>",
+    "paymentMethod": "Easypaisa",
+    "transactionReference": "TXNADV0002",
+    "proof": "<FILE:payment-proof.png>"
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "Payment proof submitted successfully. Awaiting administrator verification.",
+    "payment": {
+      "orderId": "<ID>",
+      "userId": "<ID>",
+      "paymentMethod": "Easypaisa",
+      "amount": 8750,
+      "transactionReference": "TXNADV0002",
+      "proofUrl": "<URL>",
+      "proofPublicId": "zahzan/payment-proofs/payment_<ORDERNO>_<TS>",
+      "status": "Pending",
+      "rejectionReason": "",
+      "_id": "<ID>",
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    }
+  }
+}

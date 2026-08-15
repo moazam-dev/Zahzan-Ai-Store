@@ -1,0 +1,11 @@
+{
+  "name": "authz.customer-vs-admin-product-delete",
+  "method": "DELETE",
+  "path": "/api/admin/products/<ID>",
+  "requestBody": null,
+  "status": 403,
+  "responseBody": {
+    "success": false,
+    "message": "Access denied: Admin authorization required"
+  }
+}

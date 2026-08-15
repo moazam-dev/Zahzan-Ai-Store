@@ -1,0 +1,64 @@
+{
+  "name": "cart.add",
+  "method": "POST",
+  "path": "/api/cart/items",
+  "requestBody": {
+    "productId": "<ID>",
+    "quantity": 1,
+    "selectedSize": "M"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Item added to cart",
+    "cart": {
+      "id": "<ID>",
+      "user": "<ID>",
+      "items": [
+        {
+          "id": "<ID>",
+          "cartItemId": "<ID>",
+          "productId": "<ID>",
+          "product": {
+            "_id": "<ID>",
+            "name": "ZAHZAN Ivory Silk Kurta",
+            "price": 8500,
+            "category": "Kurtas",
+            "images": [
+              "<URL>"
+            ],
+            "image": "<URL>",
+            "colors": [
+              {
+                "name": "Ivory",
+                "hex": "#F5F0E6",
+                "image": "<URL>"
+              }
+            ],
+            "sizes": [
+              "S",
+              "M",
+              "L",
+              "XL"
+            ],
+            "stock": 25,
+            "id": "<ID>"
+          },
+          "name": "ZAHZAN Ivory Silk Kurta",
+          "price": 8500,
+          "category": "Kurtas",
+          "image": "<URL>",
+          "size": "M",
+          "selectedSize": "M",
+          "color": "",
+          "selectedColor": "",
+          "quantity": 1,
+          "subtotal": 8500,
+          "stock": 25
+        }
+      ],
+      "subtotal": 8500,
+      "totalCount": 1
+    }
+  }
+}

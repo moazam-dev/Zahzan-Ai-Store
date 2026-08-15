@@ -1,0 +1,60 @@
+{
+  "name": "orders.my-orders",
+  "method": "GET",
+  "path": "/api/orders/my-orders",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "count": 1,
+    "orders": [
+      {
+        "_id": "<ID>",
+        "orderNumber": "<ORDERNO>",
+        "userId": "<ID>",
+        "customerName": "Sara Malik",
+        "customerEmail": "journey.customer@zahzancontract.test",
+        "customerPhone": "03007654321",
+        "items": [
+          {
+            "productId": "<ID>",
+            "productName": "ZAHZAN Rose Chiffon Dupatta",
+            "sku": "ZHZ-003",
+            "image": "<URL>",
+            "color": "Rose",
+            "size": "One Size",
+            "quantity": 2,
+            "unitPrice": 4500,
+            "totalPrice": 9000,
+            "_id": "<ID>",
+            "createdAt": "<TS>",
+            "updatedAt": "<TS>",
+            "id": "<ID>"
+          }
+        ],
+        "shippingAddress": {
+          "fullName": "Sara Malik",
+          "phone": "03007654321",
+          "email": "journey.customer@zahzancontract.test",
+          "addressLine1": "123 Gulberg Boulevard",
+          "addressLine2": "",
+          "city": "Lahore",
+          "state": "Punjab",
+          "postalCode": "54000",
+          "country": "Pakistan",
+          "deliveryInstructions": ""
+        },
+        "subtotal": 9000,
+        "shippingCost": 250,
+        "total": 9250,
+        "paymentMethod": "Cash on Delivery",
+        "paymentStatus": "not_required",
+        "orderStatus": "Pending",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "__v": 0,
+        "id": "<ID>"
+      }
+    ]
+  }
+}

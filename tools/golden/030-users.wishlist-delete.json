@@ -1,0 +1,11 @@
+{
+  "name": "users.wishlist-delete",
+  "method": "DELETE",
+  "path": "/api/users/me/wishlist/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "wishlist": []
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "admin.product-soft-delete",
+  "method": "DELETE",
+  "path": "/api/admin/products/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Product deactivated successfully",
+    "product": {
+      "_id": "<ID>",
+      "name": "ZAHZAN Amber Velvet Coat",
+      "slug": "zahzan-amber-velvet-coat-zhz-adm-001",
+      "sku": "ZHZ-ADM-001",
+      "description": "",
+      "quickDescription": "",
+      "price": 23000,
+      "category": "Coats",
+      "images": [
+        "<URL>"
+      ],
+      "image": "<URL>",
+      "hoverImage": "<URL>",
+      "colors": [
+        {
+          "name": "Ivory",
+          "hex": "#FFFFFF",
+          "image": "<URL>"
+        }
+      ],
+      "color": "Ivory",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "fabric": "Velvet",
+      "work": "Hand Finished",
+      "careInstructions": [
+        "Dry clean only"
+      ],
+      "gallery": [],
+      "stock": 6,
+      "isActive": false,
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    }
+  }
+}

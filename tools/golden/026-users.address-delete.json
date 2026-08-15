@@ -1,0 +1,11 @@
+{
+  "name": "users.address-delete",
+  "method": "DELETE",
+  "path": "/api/users/me/addresses/<ID>",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Address deleted successfully."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "newsletter.subscribe",
+  "method": "POST",
+  "path": "/api/newsletter/subscribe",
+  "requestBody": {
+    "email": "journey.newsletter@zahzancontract.test",
+    "source": "footer"
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "You're now subscribed to the ZAHZAN newsletter.",
+    "subscriber": {
+      "id": "<ID>",
+      "email": "journey.newsletter@zahzancontract.test",
+      "status": "subscribed",
+      "subscribedAt": "<TS>"
+    }
+  }
+}

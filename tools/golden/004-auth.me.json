@@ -1,0 +1,22 @@
+{
+  "name": "auth.me",
+  "method": "GET",
+  "path": "/api/auth/me",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "user": {
+      "id": "<ID>",
+      "firstName": "Sara",
+      "lastName": "Malik",
+      "name": "Sara Malik",
+      "email": "journey.customer@zahzancontract.test",
+      "phone": "03001234567",
+      "role": "customer",
+      "authProvider": "local",
+      "isEmailVerified": true,
+      "createdAt": "<TS>"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "admin.newsletter-list-search",
+  "method": "GET",
+  "path": "/api/admin/newsletter?search=seed.subscriber",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "total": 1,
+    "currentPage": 1,
+    "totalPages": 1,
+    "stats": {
+      "totalSubscribers": 2,
+      "activeSubscribers": 1,
+      "unsubscribedSubscribers": 1
+    },
+    "subscribers": [
+      {
+        "_id": "<ID>",
+        "email": "seed.subscriber@zahzancontract.test",
+        "status": "unsubscribed",
+        "source": "seed",
+        "subscribedAt": "<TS>",
+        "createdAt": "<TS>",
+        "updatedAt": "<TS>",
+        "unsubscribedAt": "<TS>",
+        "id": "<ID>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "name": "admin.product-create",
+  "method": "POST",
+  "path": "/api/admin/products",
+  "requestBody": {
+    "name": "ZAHZAN Amber Velvet Coat",
+    "price": 22000,
+    "sku": "zhz-adm-001",
+    "category": "Coats",
+    "stock": 8,
+    "fabric": "Velvet",
+    "work": "Hand Finished"
+  },
+  "status": 201,
+  "responseBody": {
+    "success": true,
+    "message": "Product created successfully",
+    "product": {
+      "name": "ZAHZAN Amber Velvet Coat",
+      "slug": "zahzan-amber-velvet-coat-zhz-adm-001",
+      "sku": "ZHZ-ADM-001",
+      "description": "",
+      "quickDescription": "",
+      "price": 22000,
+      "category": "Coats",
+      "images": [
+        "<URL>"
+      ],
+      "image": "<URL>",
+      "hoverImage": "<URL>",
+      "colors": [
+        {
+          "name": "Ivory",
+          "hex": "#FFFFFF",
+          "image": "<URL>"
+        }
+      ],
+      "color": "Ivory",
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "fabric": "Velvet",
+      "work": "Hand Finished",
+      "careInstructions": [
+        "Dry clean only"
+      ],
+      "gallery": [],
+      "stock": 8,
+      "isActive": true,
+      "_id": "<ID>",
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0,
+      "id": "<ID>"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "auth.me-no-token",
+  "method": "GET",
+  "path": "/api/auth/me",
+  "requestBody": null,
+  "status": 401,
+  "responseBody": {
+    "success": false,
+    "message": "Not authorized, no token provided"
+  }
+}

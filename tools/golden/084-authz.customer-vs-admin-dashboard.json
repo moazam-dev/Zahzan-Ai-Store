@@ -1,0 +1,11 @@
+{
+  "name": "authz.customer-vs-admin-dashboard",
+  "method": "GET",
+  "path": "/api/admin/dashboard",
+  "requestBody": null,
+  "status": 403,
+  "responseBody": {
+    "success": false,
+    "message": "Access denied: Admin authorization required"
+  }
+}

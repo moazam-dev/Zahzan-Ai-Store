@@ -1,0 +1,15 @@
+{
+  "name": "newsletter.subscribe-again",
+  "method": "POST",
+  "path": "/api/newsletter/subscribe",
+  "requestBody": {
+    "email": "journey.newsletter@zahzancontract.test",
+    "source": "footer"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "isAlreadySubscribed": true,
+    "message": "You're already subscribed to the ZAHZAN newsletter."
+  }
+}

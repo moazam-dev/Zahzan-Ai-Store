@@ -1,0 +1,8 @@
+{
+  "name": "admin.newsletter-export",
+  "method": "GET",
+  "path": "/api/admin/newsletter/export",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": "Email,Status,Source,Subscribed Date,Unsubscribed Date\n\"journey.newsletter@zahzancontract.test\",subscribed,\"footer\",\"<TS>\",\"\"\n\"seed.subscriber@zahzancontract.test\",unsubscribed,\"seed\",\"<TS>\",\"<TS>\"\n"
+}

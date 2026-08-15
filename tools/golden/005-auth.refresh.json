@@ -1,0 +1,14 @@
+{
+  "name": "auth.refresh",
+  "method": "POST",
+  "path": "/api/auth/refresh",
+  "requestBody": {
+    "refreshToken": "<JWT>"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Access token renewed successfully.",
+    "token": "<JWT>"
+  }
+}

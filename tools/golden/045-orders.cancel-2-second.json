@@ -1,0 +1,11 @@
+{
+  "name": "orders.cancel-2-second",
+  "method": "PATCH",
+  "path": "/api/orders/<ID>/cancel",
+  "requestBody": null,
+  "status": 400,
+  "responseBody": {
+    "success": false,
+    "message": "Order cannot be cancelled because it is already in \"Cancelled\" status."
+  }
+}

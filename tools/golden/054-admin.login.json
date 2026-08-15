@@ -1,0 +1,23 @@
+{
+  "name": "admin.login",
+  "method": "POST",
+  "path": "/api/admin/auth/login",
+  "requestBody": {
+    "email": "admin@zahzancontract.test",
+    "password": "Admin@12345"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Admin login successful",
+    "token": "<JWT>",
+    "user": {
+      "id": "<ID>",
+      "firstName": "Contract",
+      "lastName": "Admin",
+      "name": "Contract Admin",
+      "email": "admin@zahzancontract.test",
+      "role": "admin"
+    }
+  }
+}

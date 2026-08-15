@@ -1,0 +1,13 @@
+{
+  "name": "users.wishlist-toggle-off",
+  "method": "POST",
+  "path": "/api/users/me/wishlist",
+  "requestBody": {
+    "productId": "<ID>"
+  },
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "wishlist": []
+  }
+}

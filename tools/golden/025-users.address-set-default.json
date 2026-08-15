@@ -1,0 +1,28 @@
+{
+  "name": "users.address-set-default",
+  "method": "PATCH",
+  "path": "/api/users/me/addresses/<ID>/default",
+  "requestBody": {},
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "Default address updated successfully.",
+    "address": {
+      "_id": "<ID>",
+      "userId": "<ID>",
+      "fullName": "Sara Malik",
+      "phone": "03007654321",
+      "addressLine1": "123 Gulberg Boulevard",
+      "addressLine2": "Near DHA Phase 5, Block C",
+      "city": "Lahore",
+      "province": "Punjab",
+      "postalCode": "54000",
+      "country": "Pakistan",
+      "label": "Home Address",
+      "isDefault": true,
+      "createdAt": "<TS>",
+      "updatedAt": "<TS>",
+      "__v": 0
+    }
+  }
+}

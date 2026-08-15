@@ -25,6 +25,10 @@ server/uploads/
 # regression oracle from Task 2 and must NOT be ignored)
 tools/golden-next/
 
+# Scratch output directories used to re-run the Task 2 double-run
+# reproducibility check (tools/contract-diff.mjs) by hand; never committed.
+tools/golden-run*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

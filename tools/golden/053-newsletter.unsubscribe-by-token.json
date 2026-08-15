@@ -1,0 +1,11 @@
+{
+  "name": "newsletter.unsubscribe-by-token",
+  "method": "GET",
+  "path": "/api/newsletter/unsubscribe/abababababababababababababababababababababababababababababababab",
+  "requestBody": null,
+  "status": 200,
+  "responseBody": {
+    "success": true,
+    "message": "You have been unsubscribed from the ZAHZAN newsletter."
+  }
+}
