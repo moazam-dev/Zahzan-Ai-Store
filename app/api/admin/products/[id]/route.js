@@ -33,6 +33,7 @@ import { ok, fail, withErrorHandler } from '../../../../../lib/http.js';
 import { requireAuth, requireAdmin } from '../../../../../lib/auth.js';
 import { serializeProduct } from '../../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../../lib/auditLogger.js';
+import { trimIfString, trimStringArray, trimColorVariant } from '../../../../../lib/trimFields.js';
 
 const FIELD_COLUMN = {
   name: 'name',
@@ -92,17 +93,34 @@ export const PUT = withErrorHandler(async (request, context) => {
     slug: existing.slug
   };
 
+  // Mongoose's schema-level `trim: true` (+ `uppercase: true` on sku) casts
+  // each of these fields on ASSIGNMENT (server/models/Product.js) -- the
+  // source's field loop never trims explicitly, relying entirely on that
+  // cast. Reproduced here at the same point: only a field this request
+  // actually supplied gets (re-)cast, exactly like Mongoose only re-casts a
+  // path that was actually assigned.
+  const SCALAR_TRIM_FIELDS = new Set(['name', 'description', 'category', 'color', 'fabric', 'work', 'image', 'hoverImage']);
+  const ARRAY_TRIM_FIELDS = new Set(['sizes', 'careInstructions', 'images']);
+
   for (const field of Object.keys(FIELD_COLUMN)) {
     if (body[field] !== undefined) {
-      next[field] = body[field];
+      if (SCALAR_TRIM_FIELDS.has(field)) {
+        next[field] = trimIfString(body[field]);
+      } else if (ARRAY_TRIM_FIELDS.has(field)) {
+        next[field] = trimStringArray(body[field]);
+      } else {
+        next[field] = body[field];
+      }
     }
   }
-  if (next.sku != null) next.sku = String(next.sku).toUpperCase();
+  if (next.sku != null) next.sku = String(next.sku).trim().toUpperCase();
   if (next.price != null) next.price = Number(next.price);
   if (next.stock != null) next.stock = Number(next.stock);
 
   if (body.colors !== undefined && Array.isArray(body.colors)) {
-    next.colors = body.colors.map((c) => (typeof c === 'string' ? { name: c, hex: '#FFFFFF' } : c));
+    next.colors = body.colors.map((c) =>
+      typeof c === 'string' ? { name: c.trim(), hex: '#FFFFFF' } : trimColorVariant(c)
+    );
   }
 
   if (body.name || body.sku) {

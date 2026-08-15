@@ -60,6 +60,7 @@ import { serializeOrder, serializePayment } from '../../../lib/serialize.js';
 import { parseUpload } from '../../../lib/multipart.js';
 import { uploadPaymentProof, deletePaymentProof, signProofUrl } from '../../../lib/storage.js';
 import { sendAdminNewOrderEmail, sendCustomerOrderConfirmationEmail, dispatch } from '../../../lib/email.js';
+import { trimIfString } from '../../../lib/trimFields.js';
 
 /**
  * Maps create_order()'s RAISEd message strings back to the HTTP status the
@@ -133,6 +134,23 @@ export const POST = withErrorHandler(async (request) => {
       return fail('Customer name, email, and phone number are required.', 400);
     }
 
+    // Mongoose's schema-level casts (server/models/Order.js): customerName
+    // and customerPhone declare `trim: true`; customerEmail declares
+    // `lowercase: true, trim: true` (GC7-equivalent) -- applied on
+    // assignment, before Order.create(). The source never trimmed
+    // customerInfo explicitly (unlike the shippingAddress snapshot below,
+    // which it DOES trim by hand); applied here, AFTER the required-field
+    // check above so that check's control flow/message/status is unchanged.
+    // `trimmedCustomerEmail` (trim only) also feeds the shippingAddress.email
+    // fallback below -- that sub-schema field declares `trim: true` but NOT
+    // `lowercase: true`, a distinct cast from Order.customerEmail's, even
+    // though both may be populated from this same raw source value.
+    const normalizedCustomerName = trimIfString(customerName);
+    const normalizedCustomerPhone = trimIfString(customerPhone);
+    const trimmedCustomerEmail = trimIfString(customerEmail);
+    const normalizedCustomerEmail =
+      typeof trimmedCustomerEmail === 'string' ? trimmedCustomerEmail.toLowerCase() : trimmedCustomerEmail;
+
     // 2. Validate Shipping Address.
     if (
       !shippingAddress ||
@@ -195,7 +213,7 @@ export const POST = withErrorHandler(async (request) => {
     const shippingSnapshot = {
       fullName: shippingAddress.fullName.trim(),
       phone: shippingAddress.phone.trim(),
-      email: shippingAddress.email ? shippingAddress.email.trim() : customerEmail,
+      email: shippingAddress.email ? shippingAddress.email.trim() : trimmedCustomerEmail,
       addressLine1: shippingAddress.addressLine1.trim(),
       addressLine2: shippingAddress.addressLine2 ? shippingAddress.addressLine2.trim() : '',
       city: shippingAddress.city.trim(),
@@ -259,9 +277,9 @@ export const POST = withErrorHandler(async (request) => {
          ) as result`,
         [
           user.id,
-          customerName,
-          customerEmail,
-          customerPhone,
+          normalizedCustomerName,
+          normalizedCustomerEmail,
+          normalizedCustomerPhone,
           JSON.stringify(itemsToProcess),
           JSON.stringify(shippingSnapshot),
           isBuyNow,

@@ -31,6 +31,7 @@ import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
 import { requireAuth, requireAdmin } from '../../../../lib/auth.js';
 import { serializeProduct } from '../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../lib/auditLogger.js';
+import { trimIfString, trimStringArray, trimColorVariant } from '../../../../lib/trimFields.js';
 
 const DEFAULT_IMAGE =
   'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85';
@@ -136,26 +137,38 @@ export const POST = withErrorHandler(async (request) => {
     slug = `${slug}-${Date.now().toString().slice(-4)}`;
   }
 
+  // Mongoose's schema-level `trim: true` casts every one of these fields
+  // (server/models/Product.js) on assignment, before product.save() -- the
+  // source controller never trims them explicitly, relying entirely on that
+  // cast. Reproduced here at the same point these values are computed, on
+  // exactly the fields the request actually supplied (matches cast-on-
+  // assignment semantics); the fallback-vs-provided DECISION below (based on
+  // raw truthiness) is unchanged -- only the value that ends up persisted is
+  // trimmed.
   const imagesArray =
-    Array.isArray(images) && images.length > 0 ? images : [image || DEFAULT_IMAGE];
+    Array.isArray(images) && images.length > 0
+      ? trimStringArray(images)
+      : [image ? trimIfString(image) : DEFAULT_IMAGE];
 
   let formattedColors = [];
   if (Array.isArray(colors)) {
     formattedColors = colors.map((c) =>
-      typeof c === 'string' ? { name: c, hex: '#FFFFFF', image: imagesArray[0] } : c
+      typeof c === 'string' ? { name: c.trim(), hex: '#FFFFFF', image: imagesArray[0] } : trimColorVariant(c)
     );
   } else if (color) {
-    formattedColors = [{ name: color, hex: '#FFFFFF', image: imagesArray[0] }];
+    formattedColors = [{ name: color.trim(), hex: '#FFFFFF', image: imagesArray[0] }];
   } else {
     formattedColors = [{ name: 'Ivory', hex: '#FFFFFF', image: imagesArray[0] }];
   }
 
-  const finalColor = color || (formattedColors[0] ? formattedColors[0].name : 'Ivory');
-  const finalFabric = fabric || 'Pure Silk';
-  const finalWork = work || 'Hand Embroidery';
-  const finalSizes = Array.isArray(sizes) ? sizes : ['S', 'M', 'L', 'XL'];
-  const finalCareInstructions = Array.isArray(careInstructions) ? careInstructions : ['Dry clean only'];
-  const finalHoverImage = hoverImage || imagesArray[1] || imagesArray[0];
+  const finalColor = color ? color.trim() : (formattedColors[0] ? formattedColors[0].name : 'Ivory');
+  const finalFabric = fabric ? fabric.trim() : 'Pure Silk';
+  const finalWork = work ? work.trim() : 'Hand Embroidery';
+  const finalSizes = Array.isArray(sizes) ? trimStringArray(sizes) : ['S', 'M', 'L', 'XL'];
+  const finalCareInstructions = Array.isArray(careInstructions)
+    ? trimStringArray(careInstructions)
+    : ['Dry clean only'];
+  const finalHoverImage = hoverImage ? trimIfString(hoverImage) : imagesArray[1] || imagesArray[0];
 
   const { rows } = await query(
     `insert into products (

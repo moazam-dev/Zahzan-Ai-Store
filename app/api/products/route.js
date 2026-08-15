@@ -18,6 +18,7 @@ import { query } from '../../../lib/db.js';
 import { ok, fail, withErrorHandler } from '../../../lib/http.js';
 import { requireAuth, requireAdmin } from '../../../lib/auth.js';
 import { serializeProduct } from '../../../lib/serialize.js';
+import { trimProductPayload } from '../../../lib/trimFields.js';
 
 export const GET = withErrorHandler(async (request) => {
   try {
@@ -127,6 +128,14 @@ export const POST = withErrorHandler(async (request) => {
     // cast in the source).
     const normalizedSku = typeof body.sku === 'string' ? body.sku.trim().toUpperCase() : body.sku;
 
+    // Mongoose's schema-level `trim: true` casts every one of these fields
+    // (plus colors[]/breakdown sub-document fields) on assignment, before
+    // Product.create() -- see server/models/Product.js and
+    // lib/trimFields.js's header comment. Applied only to the VALUES
+    // actually persisted below -- the validation above still runs against
+    // the raw `body`, unchanged (purely additive, no control-flow change).
+    const trimmed = trimProductPayload(body);
+
     const { rows } = await query(
       `insert into products (
          name, slug, sku, description, quick_description, price, original_price,
@@ -136,29 +145,29 @@ export const POST = withErrorHandler(async (request) => {
          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
        ) returning *`,
       [
-        body.name,
+        trimmed.name,
         slug,
         normalizedSku,
-        body.description ?? '',
-        body.quickDescription ?? '',
-        body.price,
-        body.originalPrice ?? null,
-        body.category,
-        body.badge ?? null,
-        body.images ?? [],
-        body.image ?? null,
-        body.hoverImage ?? null,
-        JSON.stringify(body.colors ?? []),
-        body.color ?? null,
-        body.sizes ?? [],
-        body.fabric ?? null,
-        body.work ?? null,
-        body.breakdown ? JSON.stringify(body.breakdown) : null,
-        body.modelInfo ?? null,
-        body.careInstructions ?? [],
-        body.gallery ?? [],
-        body.stock ?? 0,
-        body.isActive ?? true
+        trimmed.description ?? '',
+        trimmed.quickDescription ?? '',
+        trimmed.price,
+        trimmed.originalPrice ?? null,
+        trimmed.category,
+        trimmed.badge ?? null,
+        trimmed.images ?? [],
+        trimmed.image ?? null,
+        trimmed.hoverImage ?? null,
+        JSON.stringify(trimmed.colors ?? []),
+        trimmed.color ?? null,
+        trimmed.sizes ?? [],
+        trimmed.fabric ?? null,
+        trimmed.work ?? null,
+        trimmed.breakdown ? JSON.stringify(trimmed.breakdown) : null,
+        trimmed.modelInfo ?? null,
+        trimmed.careInstructions ?? [],
+        trimmed.gallery ?? [],
+        trimmed.stock ?? 0,
+        trimmed.isActive ?? true
       ]
     );
 

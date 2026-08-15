@@ -620,6 +620,59 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       const body = await res.json();
       expect(body.message).toBe('Product with SKU "ZHZ-DUP-1" already exists in database.');
     });
+
+    // Implicit `trim: true` parity (fix-implicit-trim-report.md): the source
+    // controller never trimmed sizes/colors/color/fabric/work/
+    // careInstructions/images/image/hoverImage explicitly -- Mongoose's
+    // schema cast did it silently on assignment. Submitting padded
+    // whitespace and reading the STORED row back proves this write path
+    // reproduces that cast.
+    it('trims sizes/colors/color/fabric/work/careInstructions/images/image/hoverImage, matching the old Mongoose schema cast', async () => {
+      const admin = await insertAdmin();
+      const res = await productCreateRoute(
+        postRequest(
+          '/api/admin/products',
+          {
+            name: 'Padded Admin Product',
+            price: 12000,
+            sku: 'zhz-adm-trim-1',
+            category: 'Coats',
+            stock: 4,
+            sizes: ['  S  ', ' M '],
+            colors: ['  Ivory  ', { name: ' Rose ', hex: '#F00', image: ' https://example.com/rose.jpg ' }],
+            color: '  Ivory  ',
+            fabric: '  Velvet  ',
+            work: '  Zari Work  ',
+            careInstructions: ['  Hand wash only  '],
+            images: ['  https://example.com/a.jpg  ', ' https://example.com/b.jpg '],
+            hoverImage: '  https://example.com/hover.jpg  '
+          },
+          authHeader(admin)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+
+      const { rows } = await query('select * from products where id = $1', [body.product._id]);
+      const stored = rows[0];
+      expect(stored.sizes).toEqual(['S', 'M']);
+      expect(stored.colors).toEqual([
+        { name: 'Ivory', hex: '#FFFFFF', image: 'https://example.com/a.jpg' },
+        { name: 'Rose', hex: '#F00', image: 'https://example.com/rose.jpg' }
+      ]);
+      expect(stored.color).toBe('Ivory');
+      expect(stored.fabric).toBe('Velvet');
+      expect(stored.work).toBe('Zari Work');
+      expect(stored.care_instructions).toEqual(['Hand wash only']);
+      expect(stored.images).toEqual(['https://example.com/a.jpg', 'https://example.com/b.jpg']);
+      expect(stored.hover_image).toBe('https://example.com/hover.jpg');
+
+      // Negative: name/description/category were already explicitly trimmed
+      // by the source controller (`name.trim()` etc.) before this fix --
+      // still correctly trimmed, not double-handled into anything different.
+      expect(stored.name).toBe('Padded Admin Product');
+    });
   });
 
   describe('PUT /api/admin/products/:id -- shape matches tools/golden/076', () => {
@@ -642,6 +695,89 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
         [product.id]
       );
       expect(logRows).toHaveLength(1);
+    });
+
+    // Implicit `trim: true` parity (fix-implicit-trim-report.md): the source
+    // controller's field-loop (`product[field] = req.body[field]`) never
+    // trimmed anything explicitly -- Mongoose's schema cast on assignment
+    // did it silently before product.save(). This PUT route previously
+    // reproduced NONE of it. Submitting padded whitespace across every
+    // affected field and reading the STORED row back proves the fix.
+    it('trims every implicitly-trimmed field on update, matching the old Mongoose schema cast', async () => {
+      const admin = await insertAdmin();
+      const product = await insertProduct({ name: 'Original Name', category: 'OriginalCat' });
+
+      const res = await productUpdateRoute(
+        putRequest(
+          `/api/admin/products/${product.id}`,
+          {
+            name: '  Updated Padded Name  ',
+            description: '  Updated padded description  ',
+            sku: '  zhz-upd-trim-1  ',
+            category: '  UpdatedCat  ',
+            color: '  Rose  ',
+            fabric: '  Chiffon  ',
+            work: '  Block Print  ',
+            sizes: ['  S  ', ' L '],
+            careInstructions: ['  Iron on low heat  '],
+            images: ['  https://example.com/upd-a.jpg  ', ' https://example.com/upd-b.jpg '],
+            colors: ['  Padded String Color  ', { name: ' Object Color ', hex: ' #ABC ' }]
+          },
+          authHeader(admin)
+        ),
+        paramsContext({ id: product.id })
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+
+      const { rows } = await query('select * from products where id = $1', [product.id]);
+      const stored = rows[0];
+      expect(stored.name).toBe('Updated Padded Name');
+      expect(stored.description).toBe('Updated padded description');
+      expect(stored.sku).toBe('ZHZ-UPD-TRIM-1');
+      expect(stored.category).toBe('UpdatedCat');
+      expect(stored.color).toBe('Rose');
+      expect(stored.fabric).toBe('Chiffon');
+      expect(stored.work).toBe('Block Print');
+      expect(stored.sizes).toEqual(['S', 'L']);
+      expect(stored.care_instructions).toEqual(['Iron on low heat']);
+      expect(stored.images).toEqual(['https://example.com/upd-a.jpg', 'https://example.com/upd-b.jpg']);
+      // image/hoverImage are unconditionally re-derived from the
+      // (now-trimmed) images[0]/images[1] by the source's own post-loop
+      // logic -- reproduced unchanged, so they inherit the trim too.
+      expect(stored.image).toBe('https://example.com/upd-a.jpg');
+      expect(stored.hover_image).toBe('https://example.com/upd-b.jpg');
+      expect(stored.colors).toEqual([
+        { name: 'Padded String Color', hex: '#FFFFFF' },
+        { name: 'Object Color', hex: '#ABC' }
+      ]);
+
+      // Negative: price/stock (not string fields the schema trims) are
+      // untouched by this same request.
+      expect(Number(stored.price)).toBe(Number(product.price));
+      expect(stored.stock).toBe(product.stock);
+    });
+
+    it('a field NOT present in the request body is left completely untouched, including its pre-existing whitespace', async () => {
+      // Negative test: seed a product whose stored `work` value already
+      // carries no whitespace (a clean baseline), then update ONLY `price`.
+      // `work` must round-trip byte-identical -- proving this fix only acts
+      // on fields the request actually supplied, exactly like Mongoose only
+      // re-casts a path that was actually assigned.
+      const admin = await insertAdmin();
+      const product = await insertProduct({ price: 1000 });
+      await query('update products set work = $1 where id = $2', ['Untouched Work Value', product.id]);
+
+      const res = await productUpdateRoute(
+        putRequest(`/api/admin/products/${product.id}`, { price: 1500 }, authHeader(admin)),
+        paramsContext({ id: product.id })
+      );
+      expect(res.status).toBe(200);
+
+      const { rows } = await query('select work, price from products where id = $1', [product.id]);
+      expect(rows[0].work).toBe('Untouched Work Value');
+      expect(Number(rows[0].price)).toBe(1500);
     });
   });
 

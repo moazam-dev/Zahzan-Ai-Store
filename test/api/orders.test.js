@@ -822,6 +822,80 @@ describe('app/api/orders/* route handlers (Task 11)', () => {
     });
   });
 
+  describe('implicit trim parity -- customerInfo (fix-implicit-trim-report.md)', () => {
+    // The source controller never trimmed customerInfo's fullName/email/
+    // phone explicitly (unlike the shippingAddress snapshot, which it DOES
+    // trim by hand) -- Mongoose's schema cast on Order.customerName/
+    // customerPhone (`trim: true`) and Order.customerEmail
+    // (`lowercase: true, trim: true`) did it silently on Order.create().
+    it('trims customerName/customerPhone and lowercase+trims customerEmail, matching the old Mongoose schema cast', async () => {
+      const user = await insertUser();
+      const product = await insertProduct({ price: 1000, stock: 10 });
+
+      const res = await createOrderRoute(
+        postJsonRequest(
+          '/api/orders',
+          {
+            customerInfo: {
+              fullName: '  Padded Customer Name  ',
+              email: '  Padded.Customer@ZahzanMigrationTest.com  ',
+              phone: '  03009998888  '
+            },
+            shippingAddress: validShippingAddress,
+            isBuyNow: true,
+            buyNowItem: { productId: product.id, quantity: 1 },
+            paymentChoice: 'cod'
+          },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.order.customerName).toBe('Padded Customer Name');
+      expect(body.order.customerEmail).toBe('padded.customer@zahzanmigrationtest.com');
+
+      const { rows } = await query('select customer_name, customer_email, customer_phone from orders where id = $1', [
+        body.order._id
+      ]);
+      expect(rows[0].customer_name).toBe('Padded Customer Name');
+      expect(rows[0].customer_email).toBe('padded.customer@zahzanmigrationtest.com');
+      expect(rows[0].customer_phone).toBe('03009998888');
+    });
+
+    it('the shippingAddress.email fallback (from customerEmail) is trimmed but NOT lowercased -- a distinct schema cast from Order.customerEmail', async () => {
+      // server/models/Order.js's shippingAddressSchema.email declares only
+      // `trim: true`, no `lowercase: true` -- unlike Order.customerEmail
+      // itself. Both may be populated from the same raw customerInfo.email
+      // input, but Mongoose casts each field independently per its own
+      // schema, so they can legitimately end up differently-cased.
+      const user = await insertUser();
+      const product = await insertProduct({ price: 1000, stock: 10 });
+      const { email: _omit, ...shippingWithoutEmail } = validShippingAddress;
+
+      const res = await createOrderRoute(
+        postJsonRequest(
+          '/api/orders',
+          {
+            customerInfo: {
+              fullName: 'Case Test Customer',
+              email: '  Mixed.Case@ZahzanMigrationTest.com  ',
+              phone: '03001112222'
+            },
+            shippingAddress: shippingWithoutEmail,
+            isBuyNow: true,
+            buyNowItem: { productId: product.id, quantity: 1 },
+            paymentChoice: 'cod'
+          },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.order.customerEmail).toBe('mixed.case@zahzanmigrationtest.com');
+      expect(body.order.shippingAddress.email).toBe('Mixed.Case@ZahzanMigrationTest.com');
+    });
+  });
+
   describe('next_order_number() concurrency', () => {
     it('issuing many concurrent calls yields all-distinct order numbers', async () => {
       const results = await Promise.all(

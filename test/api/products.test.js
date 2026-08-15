@@ -348,5 +348,71 @@ describe('app/api/products/* route handlers (Task 9)', () => {
       expect(body.success).toBe(false);
       expect(body.message).toMatch(/^Failed to create product:/);
     });
+
+    // Implicit `trim: true` parity (fix-implicit-trim-report.md): Mongoose
+    // stripped leading/trailing whitespace off every one of these fields on
+    // assignment, even though the old controller never called .trim() on
+    // them itself. Submitting padded whitespace and asserting the STORED row
+    // (queried directly, not just the response) is trimmed proves the write
+    // boundary now reproduces that schema-level cast.
+    it('trims leading/trailing whitespace off every implicitly-trimmed field, matching the old Mongoose schema cast', async () => {
+      const admin = await insertUser({ role: 'admin' });
+      const res = await createRoute(
+        postRequest(
+          '/api/products',
+          {
+            name: '  Whitespace Silk Kurta  ',
+            description: '  A lovely padded description.  ',
+            quickDescription: '  Quick padded desc  ',
+            category: '  PaddedCat  ',
+            badge: '  New  ',
+            image: '  https://example.com/main.jpg  ',
+            hoverImage: '  https://example.com/hover.jpg  ',
+            color: '  Ivory  ',
+            fabric: '  Pure Silk  ',
+            work: '  Hand Embroidery  ',
+            modelInfo: '  Model wears size M  ',
+            images: ['  https://example.com/a.jpg  ', ' https://example.com/b.jpg '],
+            sizes: ['  S  ', ' M '],
+            careInstructions: ['  Dry clean only  '],
+            gallery: ['  https://example.com/g1.jpg  '],
+            colors: [{ name: '  Ivory  ', hex: ' #FFFFFF ', image: ' https://example.com/c1.jpg ' }],
+            breakdown: { shirt: '  Silk  ', trouser: ' Cotton ', dupatta: ' Chiffon ' },
+            sku: 'zhz-trim-001',
+            price: 5000,
+            stock: 5
+          },
+          { authorization: `Bearer ${tokenFor(admin)}` }
+        )
+      );
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.success).toBe(true);
+
+      const { rows } = await query('select * from products where id = $1', [body.product._id]);
+      const stored = rows[0];
+      expect(stored.name).toBe('Whitespace Silk Kurta');
+      expect(stored.description).toBe('A lovely padded description.');
+      expect(stored.quick_description).toBe('Quick padded desc');
+      expect(stored.category).toBe('PaddedCat');
+      expect(stored.badge).toBe('New');
+      expect(stored.image).toBe('https://example.com/main.jpg');
+      expect(stored.hover_image).toBe('https://example.com/hover.jpg');
+      expect(stored.color).toBe('Ivory');
+      expect(stored.fabric).toBe('Pure Silk');
+      expect(stored.work).toBe('Hand Embroidery');
+      expect(stored.model_info).toBe('Model wears size M');
+      expect(stored.images).toEqual(['https://example.com/a.jpg', 'https://example.com/b.jpg']);
+      expect(stored.sizes).toEqual(['S', 'M']);
+      expect(stored.care_instructions).toEqual(['Dry clean only']);
+      expect(stored.gallery).toEqual(['https://example.com/g1.jpg']);
+      expect(stored.colors).toEqual([{ name: 'Ivory', hex: '#FFFFFF', image: 'https://example.com/c1.jpg' }]);
+      expect(stored.breakdown).toEqual({ shirt: 'Silk', trouser: 'Cotton', dupatta: 'Chiffon' });
+
+      // Negative: price/stock (not string fields the schema trims) round-trip
+      // completely unaffected.
+      expect(Number(stored.price)).toBe(5000);
+      expect(stored.stock).toBe(5);
+    });
   });
 });

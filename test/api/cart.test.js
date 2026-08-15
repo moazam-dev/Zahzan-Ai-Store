@@ -300,6 +300,57 @@ describe('app/api/cart/* route handlers (Task 10)', () => {
         message: 'Cannot add items. Available stock is 2 (currently in cart: 0).'
       });
     });
+
+    // Implicit `trim: true` parity (fix-implicit-trim-report.md):
+    // server/models/Cart.js's items[] sub-schema declares `trim: true` on
+    // both selectedSize and selectedColor. The source controller never
+    // trimmed them explicitly -- Mongoose's schema cast did it silently on
+    // push, AFTER the existing-line match comparison (cartController.js:
+    // 121-126, reproduced as-is: that comparison correctly runs against the
+    // RAW value). A product with no `sizes` list is used so `finalSize`
+    // passes straight through untouched by the size-inclusion fallback,
+    // isolating the trim behaviour under test.
+    it('trims selectedSize/selectedColor at insert, matching the old Mongoose schema cast on Cart.items[]', async () => {
+      const user = await insertUser();
+      const product = await insertProduct({ sizes: [] });
+
+      const res = await cartAddRoute(
+        postRequest(
+          '/api/cart/items',
+          { productId: product.id, quantity: 1, selectedSize: '  L  ', selectedColor: '  Rose  ' },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.cart.items[0].selectedSize).toBe('L');
+      expect(body.cart.items[0].selectedColor).toBe('Rose');
+
+      const { rows } = await query(
+        `select ci.selected_size, ci.selected_color
+         from cart_items ci join carts c on c.id = ci.cart_id
+         where c.user_id = $1`,
+        [user.id]
+      );
+      expect(rows[0].selected_size).toBe('L');
+      expect(rows[0].selected_color).toBe('Rose');
+    });
+
+    it('negative: quantity (a Number, not a field the schema trims) round-trips unaffected', async () => {
+      const user = await insertUser();
+      const product = await insertProduct({ sizes: [] });
+
+      const res = await cartAddRoute(
+        postRequest(
+          '/api/cart/items',
+          { productId: product.id, quantity: 3, selectedSize: 'M' },
+          authHeader(user)
+        )
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.cart.items[0].quantity).toBe(3);
+    });
   });
 
   describe('PATCH /api/cart/items/:id', () => {

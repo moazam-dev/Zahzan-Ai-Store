@@ -29,6 +29,7 @@ import { query } from '../../../../lib/db.js';
 import { ok, fail, withErrorHandler } from '../../../../lib/http.js';
 import { requireAuth } from '../../../../lib/auth.js';
 import { serializeCart } from '../../../../lib/serialize.js';
+import { trimIfString } from '../../../../lib/trimFields.js';
 
 async function getOrCreateCart(userId) {
   const { rows } = await query('select * from carts where user_id = $1', [userId]);
@@ -144,10 +145,16 @@ export const POST = withErrorHandler(async (request) => {
     if (existingItem) {
       await query('update cart_items set quantity = $1 where id = $2', [newTotalQty, existingItem.id]);
     } else {
+      // Cart's `items[]` sub-schema declares `trim: true` on both
+      // selectedSize and selectedColor (server/models/Cart.js) -- applied by
+      // Mongoose on assignment/push, AFTER the matching comparison above
+      // (which the source, and this port, correctly runs against the raw,
+      // untrimmed finalSize/selectedColor -- see cartController.js:121-126).
+      // Trimmed only for the value actually persisted here.
       await query(
         `insert into cart_items (cart_id, product_id, quantity, selected_size, selected_color)
          values ($1, $2, $3, $4, $5)`,
-        [cart.id, productId, requestedQty, finalSize, selectedColor || '']
+        [cart.id, productId, requestedQty, trimIfString(finalSize), trimIfString(selectedColor) || '']
       );
     }
 
