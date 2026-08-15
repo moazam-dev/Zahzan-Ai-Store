@@ -20,18 +20,28 @@
 // returns a `products` array of full product objects (via
 // lib/serialize.js's serializeProduct, GC3).
 //
-// Known schema-driven behaviour difference (GC4 -- reported, not fixed):
-// wishlist_items.product_id carries a `references products (id)` foreign
-// key with no ON DELETE clause. The source's User.wishlist is a bare
-// ObjectId[] with no referential integrity at all, so (a) toggling on a
-// nonexistent productId silently succeeds in the old API, and (b) a later
-// admin product deletion silently orphans wishlist entries, which then
-// crashes getUserWishlist's old `item._id ? ... : item.toString()` line
-// with a TypeError when populate() returns null for the missing ref. The
-// new schema instead (a) rejects toggling a nonexistent productId with a
-// foreign-key-violation 500, and (b) blocks the product deletion outright.
-// Different failure shape, same class of underlying looseness; not fixed
-// here since the schema itself is a finished Task 3 interface.
+// Known schema-driven behaviour difference (GC4 -- reported; resolved per
+// Ruling C15, docs/IMPLEMENTATION_PLAN.md): both wishlist_items.product_id
+// AND cart_items.product_id carry a `references products (id) on delete
+// cascade` foreign key. The source's User.wishlist is a bare ObjectId[]
+// with no referential integrity at all, and Cart.items is likewise
+// unconstrained (server/controllers/cartController.js:13 filters
+// `item.product != null`, proving the old code expected products to
+// vanish out from under cart/wishlist entries). Deleting a product that
+// still has cart or wishlist rows pointing at it now cascades those rows
+// away instead of raising a Postgres 23503 (which RESTRICT -- the
+// no-ON-DELETE-clause default this migration originally shipped with --
+// would have turned into a raw 500 via lib/http.js's withErrorHandler,
+// breaking the proven-working, always-200 admin permanent-delete action
+// from server/controllers/adminController.js:710-736). This is NOT strict
+// parity -- Ruling C15 documents the full trade-off table, including that
+// it silently fixes a pre-existing TypeError crash in the old
+// getUserWishlist (an accidental improvement, not intentional) and that
+// toggling a nonexistent productId now 500s on an FK violation instead of
+// silently succeeding (an unreachable divergence -- every UI call site
+// sources productId from an already-fetched product). Not reopened here;
+// the schema itself is a finished Task 3 interface and C15 is the binding
+// ruling.
 
 export const runtime = 'nodejs';
 

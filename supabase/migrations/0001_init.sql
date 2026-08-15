@@ -190,7 +190,7 @@ for each row execute function set_updated_at();
 create table cart_items (
   id uuid primary key default gen_random_uuid(),
   cart_id uuid not null references carts (id) on delete cascade,
-  product_id uuid not null references products (id),
+  product_id uuid not null references products (id) on delete cascade,
   quantity integer not null default 1 check (quantity >= 1),
   selected_size text not null default 'M',
   selected_color text,
@@ -526,7 +526,7 @@ for each row execute function set_updated_at();
 create table wishlist_items (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users (id) on delete cascade,
-  product_id uuid not null references products (id),
+  product_id uuid not null references products (id) on delete cascade,
   created_at timestamptz not null default now(),
   unique (user_id, product_id)
 );

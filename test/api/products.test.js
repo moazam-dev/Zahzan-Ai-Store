@@ -292,6 +292,52 @@ describe('app/api/products/* route handlers (Task 9)', () => {
       expect(body.product.sku).toBe('ZHZ-COV-001B');
     });
 
+    it('text[] array fields (images, sizes, careInstructions, gallery) round-trip through create and a subsequent read', async () => {
+      const admin = await insertUser({ role: 'admin' });
+      const createRes = await createRoute(
+        postRequest(
+          '/api/products',
+          {
+            name: 'Array Field Round Trip Product',
+            sku: 'zhz-arr-001',
+            category: 'ArrayFieldCat',
+            price: 4200,
+            stock: 3,
+            images: ['https://example.com/img1.jpg', 'https://example.com/img2.jpg'],
+            sizes: ['S', 'M', 'L'],
+            careInstructions: ['Dry clean only', 'Do not bleach'],
+            gallery: ['https://example.com/gallery1.jpg', 'https://example.com/gallery2.jpg', 'https://example.com/gallery3.jpg']
+          },
+          { authorization: `Bearer ${tokenFor(admin)}` }
+        )
+      );
+      expect(createRes.status).toBe(201);
+      const createBody = await createRes.json();
+      expect(createBody.product.images).toEqual(['https://example.com/img1.jpg', 'https://example.com/img2.jpg']);
+      expect(createBody.product.sizes).toEqual(['S', 'M', 'L']);
+      expect(createBody.product.careInstructions).toEqual(['Dry clean only', 'Do not bleach']);
+      expect(createBody.product.gallery).toEqual([
+        'https://example.com/gallery1.jpg',
+        'https://example.com/gallery2.jpg',
+        'https://example.com/gallery3.jpg'
+      ]);
+
+      const getRes = await getByIdRoute(
+        getRequest(`/api/products/${createBody.product._id}`),
+        paramsContext({ id: createBody.product._id })
+      );
+      expect(getRes.status).toBe(200);
+      const getBody = await getRes.json();
+      expect(getBody.product.images).toEqual(['https://example.com/img1.jpg', 'https://example.com/img2.jpg']);
+      expect(getBody.product.sizes).toEqual(['S', 'M', 'L']);
+      expect(getBody.product.careInstructions).toEqual(['Dry clean only', 'Do not bleach']);
+      expect(getBody.product.gallery).toEqual([
+        'https://example.com/gallery1.jpg',
+        'https://example.com/gallery2.jpg',
+        'https://example.com/gallery3.jpg'
+      ]);
+    });
+
     it('a missing required field fails with a 400 and the "Failed to create product:" prefix', async () => {
       const admin = await insertUser({ role: 'admin' });
       const res = await createRoute(
