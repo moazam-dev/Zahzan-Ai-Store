@@ -6,10 +6,10 @@ import {
   Edit, 
   Trash2, 
   X, 
-  AlertCircle, 
   Check, 
   ChevronLeft, 
   ChevronRight,
+  Power,
   RefreshCw
 } from 'lucide-react'
 import AdminLayout from './AdminLayout'
@@ -25,6 +25,7 @@ export default function AdminProducts() {
   // Filters & Pagination
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'active' | 'deactivated'
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -60,6 +61,7 @@ export default function AdminProducts() {
       page,
       limit: 12,
       category: categoryFilter,
+      status: statusFilter,
       search: search.trim()
     })
 
@@ -84,13 +86,14 @@ export default function AdminProducts() {
 
   useEffect(() => {
     fetchProducts()
-  }, [page, categoryFilter])
+  }, [page, categoryFilter, statusFilter])
 
   const openAddModal = () => {
     setEditingProduct(null)
+    const randomSku = `ZHZ-PROD-${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 100)}`
     setFormData({
       name: '',
-      sku: `ZHZ-PROD-${Date.now().toString().slice(-4)}`,
+      sku: randomSku,
       category: 'Ready to Wear',
       price: '25000',
       stock: '10',
@@ -111,12 +114,12 @@ export default function AdminProducts() {
       name: prod.name || '',
       sku: prod.sku || '',
       category: prod.category || 'Ready to Wear',
-      price: prod.price || '',
-      stock: prod.stock !== undefined ? prod.stock : '',
+      price: prod.price !== undefined ? String(prod.price) : '',
+      stock: prod.stock !== undefined ? String(prod.stock) : '',
       description: prod.description || '',
       fabric: prod.fabric || 'Pure Silk',
       work: prod.work || 'Hand Embroidery',
-      color: prod.color || 'Ivory',
+      color: prod.color || (prod.colors?.[0]?.name) || 'Ivory',
       sizes: prod.sizes || ['S', 'M', 'L', 'XL'],
       image: prod.images?.[0] || prod.image || '',
       hoverImage: prod.images?.[1] || prod.hoverImage || ''
@@ -174,24 +177,65 @@ export default function AdminProducts() {
     }
   }
 
-  const handleDeactivate = async (prodId) => {
+  const handleToggleStatus = async (prod) => {
     const token = localStorage.getItem('zahzan_token')
     if (!token) return
-    if (!window.confirm('Are you sure you want to deactivate this product?')) return
+
+    const prodId = prod._id || prod.id
+    const newStatus = !prod.isActive
+    const confirmText = newStatus
+      ? `Reactivate product "${prod.name}"?`
+      : `Deactivate product "${prod.name}"? (It will be hidden from public catalog)`
+
+    if (!window.confirm(confirmText)) return
 
     try {
-      const res = await fetch(`${API_BASE}/admin/products/${prodId}`, {
+      const res = await fetch(`${API_BASE}/admin/products/${prodId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive: newStatus })
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSuccessMsg(`Product "${prod.name}" ${newStatus ? 'activated' : 'deactivated'} successfully.`)
+        fetchProducts()
+        setTimeout(() => setSuccessMsg(null), 3000)
+      } else {
+        setErrorMsg(data.message || 'Failed to update product status.')
+      }
+    } catch (err) {
+      console.error('Error toggling product status:', err)
+      setErrorMsg('Error communicating with server.')
+    }
+  }
+
+  const handlePermanentDelete = async (prod) => {
+    const token = localStorage.getItem('zahzan_token')
+    if (!token) return
+    const prodId = prod._id || prod.id
+
+    if (!window.confirm(`PERMANENT DELETE: Are you sure you want to permanently delete "${prod.name}"? This action cannot be undone.`)) return
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/products/${prodId}?permanent=true`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        setSuccessMsg('Product deactivated.')
+        setSuccessMsg(`Product "${prod.name}" permanently deleted from database.`)
         fetchProducts()
         setTimeout(() => setSuccessMsg(null), 3000)
+      } else {
+        setErrorMsg(data.message || 'Failed to delete product.')
       }
     } catch (err) {
-      console.error('Error deactivating product:', err)
+      console.error('Error deleting product:', err)
+      setErrorMsg('Error deleting product from database.')
     }
   }
 
@@ -203,10 +247,10 @@ export default function AdminProducts() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262931] pb-5">
           <div>
             <span className="text-[10px] font-mono uppercase tracking-[0.35em] text-[#8c9472] block">
-              STOREFRONT PRODUCT MANAGEMENT
+              STOREFRONT PRODUCT CATALOG & INVENTORY MANAGEMENT
             </span>
             <h1 className="font-serif text-3xl font-light text-white">
-              Product Catalog ({products.length})
+              Product Management Catalog
             </h1>
           </div>
 
@@ -222,8 +266,9 @@ export default function AdminProducts() {
 
         {/* Feedback Banners */}
         {successMsg && (
-          <div className="p-3 bg-[#172d17] border border-[#2d5e2d] text-green-300 text-xs font-mono rounded-xs">
-            {successMsg}
+          <div className="p-3 bg-[#172d17] border border-[#2d5e2d] text-green-300 text-xs font-mono rounded-xs flex items-center gap-2">
+            <Check size={14} />
+            <span>{successMsg}</span>
           </div>
         )}
         {errorMsg && (
@@ -233,8 +278,8 @@ export default function AdminProducts() {
         )}
 
         {/* SEARCH & FILTERS BAR */}
-        <div className="bg-[#16181d] border border-[#262931] p-4 rounded-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchProducts() }} className="flex-1 flex items-center gap-2 w-full">
+        <div className="bg-[#16181d] border border-[#262931] p-4 rounded-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchProducts(); }} className="flex-1 flex items-center gap-2 w-full">
             <div className="relative flex-1">
               <input
                 type="text"
@@ -253,17 +298,33 @@ export default function AdminProducts() {
             </button>
           </form>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {['all', 'Ready to Wear', 'Couture', 'Formals'].map((cat) => (
+          {/* Category & Status Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {['all', 'Ready to Wear', 'Couture', 'Formals', 'Unstitched'].map((cat) => (
               <button
                 key={cat}
                 type="button"
-                onClick={() => { setCategoryFilter(cat); setPage(1) }}
+                onClick={() => { setCategoryFilter(cat); setPage(1); }}
                 className={`px-3 py-1.5 text-[10px] font-mono uppercase rounded-xs border transition-colors cursor-pointer ${
                   categoryFilter === cat ? 'bg-[#8c9472] text-[#0f1012] font-bold border-[#8c9472]' : 'bg-[#0f1012] text-[#8a8e98] border-[#262931]'
                 }`}
               >
                 {cat}
+              </button>
+            ))}
+
+            <div className="h-4 w-[1px] bg-[#262931] hidden sm:block mx-1" />
+
+            {['all', 'active', 'deactivated'].map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => { setStatusFilter(st); setPage(1); }}
+                className={`px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-xs border transition-colors cursor-pointer ${
+                  statusFilter === st ? 'bg-amber-700 text-white font-bold border-amber-500' : 'bg-[#0f1012] text-[#8a8e98] border-[#262931]'
+                }`}
+              >
+                {st}
               </button>
             ))}
           </div>
@@ -273,23 +334,37 @@ export default function AdminProducts() {
         {loading ? (
           <div className="py-20 text-center space-y-3">
             <div className="w-8 h-8 border-2 border-[#8c9472] border-t-transparent rounded-full animate-spin mx-auto" />
-            <span className="text-xs font-mono uppercase tracking-widest text-[#8a8e98] block">Fetching product catalog...</span>
+            <span className="text-xs font-mono uppercase tracking-widest text-[#8a8e98] block">Fetching product catalog from database...</span>
           </div>
         ) : products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((prod) => {
-              const mainImg = prod.images?.[0] || prod.image
+              const mainImg = prod.images?.[0] || prod.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=800&q=85'
+              const isActive = prod.isActive !== false
               return (
-                <div key={prod._id || prod.id} className="bg-[#16181d] border border-[#262931] rounded-sm overflow-hidden flex flex-col justify-between group">
+                <div key={prod._id || prod.id} className={`bg-[#16181d] border rounded-sm overflow-hidden flex flex-col justify-between group transition-all ${
+                  isActive ? 'border-[#262931]' : 'border-red-900/50 bg-[#161416]'
+                }`}>
                   <div>
                     <div className="relative aspect-[3/4] bg-[#0f1012] overflow-hidden">
-                      <img src={mainImg} alt={prod.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <img src={mainImg} alt={prod.name} className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${!isActive ? 'grayscale opacity-60' : ''}`} />
+                      
+                      {/* Category Badge */}
                       <div className="absolute top-2 left-2 bg-[#0f1012]/80 backdrop-blur-xs px-2 py-0.5 text-[9px] font-mono text-white uppercase tracking-widest border border-[#262931]">
                         {prod.category}
                       </div>
+                      
+                      {/* Active Status Badge */}
                       <div className={`absolute top-2 right-2 px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest border ${
-                        prod.stock === 0 ? 'bg-red-950 text-red-400 border-red-800' : 'bg-green-950 text-green-400 border-green-800'
+                        isActive
+                          ? 'bg-green-950/90 text-green-300 border-green-800'
+                          : 'bg-red-950/90 text-red-300 border-red-800'
                       }`}>
+                        {isActive ? 'ACTIVE' : 'DEACTIVATED'}
+                      </div>
+
+                      {/* Stock Badge */}
+                      <div className="absolute bottom-2 left-2 bg-[#0f1012]/90 px-2 py-0.5 text-[9px] font-mono text-[#8c9472] uppercase border border-[#262931]">
                         {prod.stock === 0 ? 'OUT OF STOCK' : `STOCK: ${prod.stock}`}
                       </div>
                     </div>
@@ -297,26 +372,44 @@ export default function AdminProducts() {
                     <div className="p-4 space-y-2">
                       <span className="text-[9px] font-mono text-[#8a8e98] block uppercase">SKU: {prod.sku}</span>
                       <h3 className="font-serif text-lg font-normal text-white leading-snug">{prod.name}</h3>
-                      <span className="font-serif text-base text-[#8c9472] block">PKR {prod.price.toLocaleString()}</span>
+                      <span className="font-serif text-base text-[#8c9472] block">PKR {(prod.price || 0).toLocaleString()}</span>
                     </div>
                   </div>
 
-                  <div className="p-4 pt-0 border-t border-[#262931] mt-3 flex items-center justify-between gap-2 pt-3">
+                  {/* ACTION CONTROLS: EDIT, TOGGLE STATUS, PERMANENT DELETE */}
+                  <div className="p-3 border-t border-[#262931] mt-3 grid grid-cols-3 gap-2 bg-[#121317]">
                     <button
                       type="button"
                       onClick={() => openEditModal(prod)}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#222630] border border-[#343845] text-white text-xs font-mono uppercase tracking-wider py-2 hover:bg-[#8c9472] transition-colors cursor-pointer"
+                      className="col-span-1 flex items-center justify-center gap-1 bg-[#222630] border border-[#343845] text-white text-[10px] font-mono uppercase tracking-wider py-1.5 hover:bg-[#8c9472] hover:text-[#0f1012] transition-colors cursor-pointer"
+                      title="Edit Product Details"
                     >
-                      <Edit size={12} />
-                      <span>Edit Product</span>
+                      <Edit size={11} />
+                      <span>Edit</span>
                     </button>
+
                     <button
                       type="button"
-                      onClick={() => handleDeactivate(prod._id || prod.id)}
-                      className="p-2 text-red-400 border border-red-900/50 hover:bg-red-950 transition-colors rounded-xs cursor-pointer"
-                      title="Deactivate"
+                      onClick={() => handleToggleStatus(prod)}
+                      className={`col-span-1 flex items-center justify-center gap-1 border text-[10px] font-mono uppercase tracking-wider py-1.5 transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-amber-950/60 border-amber-800 text-amber-300 hover:bg-amber-900'
+                          : 'bg-green-950/60 border-green-800 text-green-300 hover:bg-green-900'
+                      }`}
+                      title={isActive ? 'Deactivate Product' : 'Activate Product'}
                     >
-                      <Trash2 size={14} />
+                      <Power size={11} />
+                      <span>{isActive ? 'Deactivate' : 'Activate'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePermanentDelete(prod)}
+                      className="col-span-1 flex items-center justify-center gap-1 bg-red-950/60 border border-red-900 text-red-300 text-[10px] font-mono uppercase tracking-wider py-1.5 hover:bg-red-900 transition-colors cursor-pointer"
+                      title="Permanently Delete Product"
+                    >
+                      <Trash2 size={11} />
+                      <span>Delete</span>
                     </button>
                   </div>
                 </div>
@@ -326,7 +419,33 @@ export default function AdminProducts() {
         ) : (
           <div className="py-16 text-center space-y-3 bg-[#16181d] border border-[#262931] p-8">
             <Package size={36} className="mx-auto text-[#505462]" />
-            <h4 className="font-serif text-2xl text-white font-light">NO PRODUCTS FOUND</h4>
+            <h4 className="font-serif text-2xl text-white font-light">NO PRODUCTS MATCHING FILTER</h4>
+            <p className="text-xs font-mono text-[#8a8e98]">Try broadening your search term or category/status filters.</p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border border-[#262931] bg-[#16181d] flex items-center justify-between text-xs font-mono text-[#8a8e98]">
+            <span>Page {page} of {totalPages}</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="p-1.5 bg-[#0f1012] border border-[#262931] disabled:opacity-30 cursor-pointer"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1.5 bg-[#0f1012] border border-[#262931] disabled:opacity-30 cursor-pointer"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
 

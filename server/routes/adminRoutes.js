@@ -13,6 +13,7 @@ import {
   createAdminProduct,
   updateAdminProduct,
   deleteAdminProduct,
+  toggleAdminProductStatus,
   getAdminNewsletterSubscribers,
   exportAdminNewsletterSubscribers,
   getAdminAuditLogs,
@@ -59,6 +60,7 @@ router.patch('/customers/:id/status', updateCustomerStatus);
 router.get('/products', getAdminProducts);
 router.post('/products', createAdminProduct);
 router.put('/products/:id', updateAdminProduct);
+router.patch('/products/:id/status', toggleAdminProductStatus);
 router.delete('/products/:id', deleteAdminProduct);
 
 // Newsletter Management

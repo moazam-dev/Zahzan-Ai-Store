@@ -459,7 +459,7 @@ export const updateCustomerStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Get all products (Admin List)
+// @desc    Get all products (Admin List with status filter)
 // @route   GET /api/admin/products
 // @access  Private (Admin)
 export const getAdminProducts = async (req, res, next) => {
@@ -468,15 +468,20 @@ export const getAdminProducts = async (req, res, next) => {
     const limit = Math.max(1, parseInt(req.query.limit, 10) || 20);
     const skip = (page - 1) * limit;
 
-    const { search, category } = req.query;
+    const { search, category, status } = req.query;
     const query = {};
 
     if (category && category !== 'all') {
       query.category = new RegExp(`^${category}$`, 'i');
     }
 
+    if (status && status !== 'all') {
+      if (status === 'active') query.isActive = true;
+      if (status === 'deactivated' || status === 'inactive') query.isActive = false;
+    }
+
     if (search) {
-      const searchRegex = new RegExp(search, 'i');
+      const searchRegex = new RegExp(search.trim(), 'i');
       query.$or = [
         { name: searchRegex },
         { sku: searchRegex },
@@ -528,32 +533,52 @@ export const createAdminProduct = async (req, res, next) => {
     if (!name || price === undefined || !sku || !category || stock === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Name, price, SKU, category, and stock are required'
+        message: 'Name, price, SKU, category, and stock are required fields.'
       });
     }
 
-    const existingSku = await Product.findOne({ sku: sku.trim().toUpperCase() });
+    const formattedSku = sku.trim().toUpperCase();
+    const existingSku = await Product.findOne({ sku: formattedSku });
     if (existingSku) {
       return res.status(400).json({
         success: false,
-        message: `Product with SKU "${sku}" already exists`
+        message: `Product with SKU "${formattedSku}" already exists in database.`
       });
+    }
+
+    const baseSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    let slug = `${baseSlug}-${formattedSku.toLowerCase()}`;
+
+    const existingSlug = await Product.findOne({ slug });
+    if (existingSlug) {
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
     }
 
     const imagesArray = Array.isArray(images) && images.length > 0
       ? images
       : [image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85'];
 
+    // Format colors array to match colorVariantSchema [{ name, hex, image }]
+    let formattedColors = [];
+    if (Array.isArray(colors)) {
+      formattedColors = colors.map(c => typeof c === 'string' ? { name: c, hex: '#FFFFFF', image: imagesArray[0] } : c);
+    } else if (color) {
+      formattedColors = [{ name: color, hex: '#FFFFFF', image: imagesArray[0] }];
+    } else {
+      formattedColors = [{ name: 'Ivory', hex: '#FFFFFF', image: imagesArray[0] }];
+    }
+
     const product = await Product.create({
       name: name.trim(),
+      slug,
       description: description ? description.trim() : '',
       price: Number(price),
-      sku: sku.trim().toUpperCase(),
+      sku: formattedSku,
       category: category.trim(),
       stock: Number(stock),
       sizes: Array.isArray(sizes) ? sizes : ['S', 'M', 'L', 'XL'],
-      colors: Array.isArray(colors) ? colors : (color ? [color] : ['Ivory']),
-      color: color || (Array.isArray(colors) ? colors[0] : 'Ivory'),
+      colors: formattedColors,
+      color: color || (formattedColors[0] ? formattedColors[0].name : 'Ivory'),
       fabric: fabric || 'Pure Silk',
       work: work || 'Hand Embroidery',
       careInstructions: Array.isArray(careInstructions) ? careInstructions : ['Dry clean only'],
@@ -597,13 +622,24 @@ export const updateAdminProduct = async (req, res, next) => {
     const prevStock = product.stock;
     const prevPrice = product.price;
 
-    const fields = ['name', 'description', 'price', 'sku', 'category', 'stock', 'sizes', 'colors', 'color', 'fabric', 'work', 'careInstructions', 'images', 'image', 'hoverImage', 'isActive'];
+    const fields = ['name', 'description', 'price', 'sku', 'category', 'stock', 'sizes', 'color', 'fabric', 'work', 'careInstructions', 'images', 'image', 'hoverImage', 'isActive'];
 
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
         product[field] = req.body[field];
       }
     });
+
+    if (req.body.colors) {
+      if (Array.isArray(req.body.colors)) {
+        product.colors = req.body.colors.map(c => typeof c === 'string' ? { name: c, hex: '#FFFFFF' } : c);
+      }
+    }
+
+    if (req.body.name || req.body.sku) {
+      const baseSlug = (product.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      product.slug = `${baseSlug}-${(product.sku || '').toLowerCase()}`;
+    }
 
     if (product.images && product.images.length > 0) {
       product.image = product.images[0];
@@ -633,10 +669,10 @@ export const updateAdminProduct = async (req, res, next) => {
   }
 };
 
-// @desc    Delete/Deactivate product
-// @route   DELETE /api/admin/products/:id
+// @desc    Toggle product active status (Activate / Deactivate)
+// @route   PATCH /api/admin/products/:id/status
 // @access  Private (Admin)
-export const deleteAdminProduct = async (req, res, next) => {
+export const toggleAdminProductStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id);
@@ -645,12 +681,67 @@ export const deleteAdminProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    const newStatus = req.body.isActive !== undefined ? Boolean(req.body.isActive) : !product.isActive;
+    product.isActive = newStatus;
+    await product.save();
+
+    await recordAuditLog({
+      adminId: req.user._id,
+      action: newStatus ? 'PRODUCT_ACTIVATED' : 'PRODUCT_DEACTIVATED',
+      entity: 'Product',
+      entityId: product._id.toString(),
+      ipAddress: req.ip || '',
+      metadata: { name: product.name, sku: product.sku, isActive: newStatus }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Product ${newStatus ? 'activated' : 'deactivated'} successfully`,
+      product
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete product (Soft Deactivate or Permanent Delete)
+// @route   DELETE /api/admin/products/:id
+// @access  Private (Admin)
+export const deleteAdminProduct = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const isPermanent = req.query.permanent === 'true' || req.body.permanent === true;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    if (isPermanent) {
+      await Product.findByIdAndDelete(id);
+
+      await recordAuditLog({
+        adminId: req.user._id,
+        action: 'PRODUCT_PERMANENTLY_DELETED',
+        entity: 'Product',
+        entityId: id,
+        ipAddress: req.ip || '',
+        metadata: { name: product.name, sku: product.sku }
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Product permanently deleted from database'
+      });
+    }
+
+    // Default Soft Delete / Deactivate
     product.isActive = false;
     await product.save();
 
     await recordAuditLog({
       adminId: req.user._id,
-      action: 'PRODUCT_DELETED',
+      action: 'PRODUCT_DEACTIVATED',
       entity: 'Product',
       entityId: product._id.toString(),
       ipAddress: req.ip || '',
@@ -659,7 +750,8 @@ export const deleteAdminProduct = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Product deactivated successfully'
+      message: 'Product deactivated successfully',
+      product
     });
   } catch (error) {
     next(error);
