@@ -412,9 +412,12 @@ different IPs get independent counters.
   `req.body` alongside `req.file`.
 - `lib/email.js` — port `server/services/emailService.js` with its seven exported senders and the
   same Resend-then-Nodemailer fallback. Keep every HTML template byte-identical. Per spec §7.6, the
-  fire-and-forget pattern becomes awaited or `waitUntil`-wrapped; expose `dispatch(promise)` that
-  awaits when `process.env.ZAHZAN_EMAIL_SYNC === '1'` (tests) and otherwise fires with a `.catch()`
-  logger, so behaviour under test is deterministic.
+  fire-and-forget pattern becomes awaited. **AMENDED by controller ruling C13:** `dispatch(promise)`
+  AWAITS UNCONDITIONALLY and swallows any rejection with a logged warning, so a failed email can
+  never fail the request. The originally-described `ZAHZAN_EMAIL_SYNC` conditional was wrong — it
+  left the send detached in production, meaning the serverless function could still freeze before
+  delivery, which is the exact bug spec §7.6 requires fixing. That env-var branch no longer exists.
+  **Tasks 11-13: simply `await dispatch(...)` — the send is guaranteed complete when it resolves.**
 
 **Tests.** `test/multipart.test.js` — accepts a valid PNG; rejects a `.txt`; rejects a good extension
 with a bad MIME; rejects over 5 MB; returns sibling form fields; error messages match verbatim.
