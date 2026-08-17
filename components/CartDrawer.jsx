@@ -215,14 +215,19 @@ export default function CartDrawer() {
       </div>
 
       {/* REAL CHECKOUT MODAL */}
+      {/* closeCart() belongs here in onClose, NOT in an on-success handler:
+          this component early-returns null when !isCartOpen (see above), so
+          closing the cart unmounts CheckoutModal along with it. Doing that
+          the moment an order succeeded destroyed the "Order Confirmed"
+          screen before it could render. Dismissing the confirmation now
+          closes the checkout drawer and the cart together. */}
       <CheckoutModal
         isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        isBuyNow={false}
-        onOrderSuccess={() => {
+        onClose={() => {
           setIsCheckoutOpen(false)
           closeCart()
         }}
+        isBuyNow={false}
       />
     </>
   )

@@ -21,7 +21,7 @@ import { withApiHandler } from '../../../../../../lib/rateLimit.js';
 import { requireAuth, requireAdmin } from '../../../../../../lib/auth.js';
 import { serializePayment, serializeOrder } from '../../../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../../../lib/auditLogger.js';
-import { sendCustomerPaymentVerifiedEmail, sendCustomerOrderStatusEmail, dispatch } from '../../../../../../lib/email.js';
+import { sendCustomerPaymentVerifiedEmail, dispatch } from '../../../../../../lib/email.js';
 import { signProofUrl } from '../../../../../../lib/storage.js';
 
 export const PATCH = withApiHandler(async (request, context) => {
@@ -83,12 +83,19 @@ export const PATCH = withApiHandler(async (request, context) => {
   const serializedOrder = order ? serializeOrder(order) : null;
 
   if (order) {
-    await dispatch(
-      Promise.all([
-        sendCustomerPaymentVerifiedEmail(serializedOrder, serializedPayment),
-        sendCustomerOrderStatusEmail(serializedOrder, 'Confirmed')
-      ])
-    );
+    // ONE customer email per admin action. The payment-verified template
+    // already announces the Confirmed status in its own body, so the separate
+    // sendCustomerOrderStatusEmail(order, 'Confirmed') that used to run
+    // alongside this was a duplicate message for a single click. It also
+    // passed a hardcoded 'Confirmed' regardless of the order's real status,
+    // so verifying a late payment on an already-Shipped order told the
+    // customer their order had moved backwards. Every genuine status change
+    // from here on still emails once, from
+    // app/api/admin/orders/[id]/status/route.js.
+    //
+    // Deliberate divergence from the migrated Express behaviour; covered by
+    // test/api/payment-verify-email.test.js.
+    await dispatch(sendCustomerPaymentVerifiedEmail(serializedOrder, serializedPayment));
   }
 
   return ok({

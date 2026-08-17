@@ -48,8 +48,12 @@ export default function AdminProducts() {
     work: 'Hand Embroidery',
     color: 'Ivory',
     sizes: ['S', 'M', 'L', 'XL'],
-    image: '',
-    hoverImage: ''
+    // Ordered gallery. images[0] is the card/primary image and images[1] is
+    // the card hover image -- both API routes re-derive the product's `image`
+    // and `hover_image` columns from these two positions, and the product
+    // page renders the whole array as its gallery. Starts with two empty
+    // slots so the form always shows the primary/hover pair.
+    images: ['', '']
   })
 
   const fetchProducts = () => {
@@ -104,8 +108,10 @@ export default function AdminProducts() {
       work: 'Hand Embroidery',
       color: 'Ivory',
       sizes: ['S', 'M', 'L', 'XL'],
-      image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
-      hoverImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
+      images: [
+        'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
+        'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
+      ]
     })
     setShowProductModal(true)
   }
@@ -123,10 +129,51 @@ export default function AdminProducts() {
       work: prod.work || 'Hand Embroidery',
       color: prod.color || (prod.colors?.[0]?.name) || 'Ivory',
       sizes: prod.sizes || ['S', 'M', 'L', 'XL'],
-      image: prod.images?.[0] || prod.image || '',
-      hoverImage: prod.images?.[1] || prod.hoverImage || ''
+      // Load the FULL stored gallery, not just the first two entries -- this
+      // previously sliced to [0] and [1], so editing any product silently
+      // discarded its third image onward on save.
+      images: prod.images?.length
+        ? [...prod.images]
+        : [prod.image || '', prod.hoverImage || '']
     })
     setShowProductModal(true)
+  }
+
+  // --- Gallery row editing -------------------------------------------------
+  // Position carries meaning here (0 = primary, 1 = hover, all = gallery
+  // order on the product page), so reordering is a real operation, not a
+  // cosmetic one.
+
+  const updateImageAt = (index, value) => {
+    setFormData((prev) => {
+      const images = [...prev.images]
+      images[index] = value
+      return { ...prev, images }
+    })
+  }
+
+  const addImageRow = () => {
+    setFormData((prev) => ({ ...prev, images: [...prev.images, ''] }))
+  }
+
+  const removeImageAt = (index) => {
+    setFormData((prev) => {
+      const images = prev.images.filter((_, i) => i !== index)
+      // Never collapse below the primary/hover pair, so those two labelled
+      // slots are always present to type into.
+      while (images.length < 2) images.push('')
+      return { ...prev, images }
+    })
+  }
+
+  const moveImage = (index, direction) => {
+    setFormData((prev) => {
+      const target = index + direction
+      if (target < 0 || target >= prev.images.length) return prev
+      const images = [...prev.images]
+      ;[images[index], images[target]] = [images[target], images[index]]
+      return { ...prev, images }
+    })
   }
 
   const handleFormSubmit = async (e) => {
@@ -148,7 +195,10 @@ export default function AdminProducts() {
       ...formData,
       price: Number(formData.price),
       stock: Number(formData.stock),
-      images: [formData.image, formData.hoverImage].filter(Boolean)
+      // Blank rows are the admin's "leave this slot empty", not data. Both
+      // routes derive image/hover_image from images[0]/images[1], so no
+      // separate image or hoverImage key is sent.
+      images: formData.images.map((url) => url.trim()).filter(Boolean)
     }
 
     try {
@@ -545,26 +595,79 @@ export default function AdminProducts() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] text-[#8a8e98] uppercase mb-1">Primary Image URL</label>
-                    <input
-                      type="text"
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                      className="w-full bg-[#0f1012] border border-[#262931] p-2.5 text-xs text-white focus:outline-none focus:border-[#8c9472]"
-                    />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[10px] text-[#8a8e98] uppercase">Product Images</label>
+                    <span className="text-[10px] text-[#6b6f7a]">
+                      First = primary · Second = hover · All shown in the product gallery
+                    </span>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] text-[#8a8e98] uppercase mb-1">Hover Image URL</label>
-                    <input
-                      type="text"
-                      value={formData.hoverImage}
-                      onChange={(e) => setFormData({ ...formData, hoverImage: e.target.value })}
-                      className="w-full bg-[#0f1012] border border-[#262931] p-2.5 text-xs text-white focus:outline-none focus:border-[#8c9472]"
-                    />
+                  <div className="space-y-2">
+                    {formData.images.map((url, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <span className="w-16 shrink-0 text-[10px] uppercase text-[#8a8e98]">
+                          {index === 0 ? 'Primary' : index === 1 ? 'Hover' : `Image ${index + 1}`}
+                        </span>
+
+                        {url.trim() ? (
+                          <img
+                            src={url}
+                            alt=""
+                            className="w-9 h-9 shrink-0 object-cover border border-[#262931] bg-[#0f1012]"
+                            onError={(e) => {
+                              e.currentTarget.style.visibility = 'hidden'
+                            }}
+                          />
+                        ) : (
+                          <span className="w-9 h-9 shrink-0 border border-dashed border-[#262931] bg-[#0f1012]" />
+                        )}
+
+                        <input
+                          type="text"
+                          value={url}
+                          placeholder="https://..."
+                          onChange={(e) => updateImageAt(index, e.target.value)}
+                          className="flex-1 bg-[#0f1012] border border-[#262931] p-2.5 text-xs text-white focus:outline-none focus:border-[#8c9472]"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, -1)}
+                          disabled={index === 0}
+                          title="Move up"
+                          className="px-2 py-2 text-xs text-white bg-[#222630] border border-[#343845] hover:bg-[#3c4254] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveImage(index, 1)}
+                          disabled={index === formData.images.length - 1}
+                          title="Move down"
+                          className="px-2 py-2 text-xs text-white bg-[#222630] border border-[#343845] hover:bg-[#3c4254] disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeImageAt(index)}
+                          title="Remove"
+                          className="px-2 py-2 text-xs text-white bg-[#222630] border border-[#343845] hover:bg-[#5c2b2b] cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={addImageRow}
+                    className="mt-2 text-[10px] uppercase tracking-wider text-[#8c9472] border border-[#343845] px-3 py-2 hover:bg-[#222630] cursor-pointer"
+                  >
+                    + Add Image
+                  </button>
                 </div>
 
                 <div className="pt-4 border-t border-[#262931] flex justify-end gap-3">

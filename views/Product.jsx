@@ -633,7 +633,6 @@ export default function Product() {
         buyNowSize={selectedSize}
         buyNowColor={product?.color || ''}
         buyNowQuantity={quantity}
-        onOrderSuccess={() => setIsCheckoutOpen(false)}
       />
 
       {/* FOOTER */}

@@ -1255,3 +1255,103 @@ are quoted in full under B1 and B2 above.
 divergence (§8 item 8) and Rulings C15/C16 remain open, documented
 divergences — none of B1/B2/B3/M1/M2 required touching them, and GC4
 forbids opportunistic fixes outside a fix wave's actual scope.
+
+---
+
+## 12. Post-parity deliberate changes (after this report)
+
+Everything above describes the state at which parity was proven. The changes
+below were made **after** that point, as intentional product decisions. They
+are recorded here so a future reader does not mistake them for parity defects.
+
+### P1 — verifying a payment now sends ONE customer email, not two
+
+**Changed:** `app/api/admin/payments/[id]/verify/route.js`
+
+`PATCH /api/admin/payments/:id/verify` used to fire two customer emails from a
+single `Promise.all`:
+
+```js
+sendCustomerPaymentVerifiedEmail(serializedOrder, serializedPayment),
+sendCustomerOrderStatusEmail(serializedOrder, 'Confirmed')
+```
+
+The customer received two messages for one admin click. The first template
+already contains the sentence *"Your order status has now been advanced to
+**Confirmed**"* (`lib/email.js`), so the second was pure repetition. Only the
+payment-verified email is sent now.
+
+This also closed a latent defect: the second call passed a **hardcoded**
+`'Confirmed'` regardless of the order's real status, while the route itself
+only advances `Pending → Confirmed` and leaves any other status untouched
+(`order.order_status === 'Pending' ? 'Confirmed' : order.order_status`).
+Verifying a late payment on an already-Shipped order therefore emailed the
+customer that their order had moved *backwards* to Confirmed. That email no
+longer exists, so the contradiction cannot occur.
+
+Subsequent status transitions are unaffected — every genuine change still
+sends exactly one email from `app/api/admin/orders/[id]/status/route.js`,
+which already guards on `previousStatus !== orderStatus`.
+
+**Golden impact: none.** The captures in `tools/golden/` record only
+`method`, `path`, `requestBody`, `status` and `responseBody`
+(`073-admin.payment-verify.json` included). Email dispatch is a side effect
+outside the HTTP response, so no capture diverges and no re-baselining was
+needed. The HTTP contract of this endpoint is byte-for-byte unchanged.
+
+**Coverage:** `test/api/payment-verify-email.test.js` (5 assertions), which
+mocks `lib/email.js` and asserts the exact send counts on both the verify
+route and the subsequent status transitions.
+
+### P2 — the order-confirmation screen is now reachable
+
+**Changed:** `components/CheckoutModal.jsx`, `components/CartDrawer.jsx`,
+`views/Product.jsx`
+
+The "Order Confirmed" screen in `CheckoutModal.jsx` was fully built but never
+rendered. On success the modal called `onOrderSuccess(data.order)` immediately
+after `setConfirmedOrder(data.order)`, and both call sites responded by
+unmounting it. On the cart path there were two independent causes: the handler
+called `setIsCheckoutOpen(false)` *and* `closeCart()`, and because `CartDrawer`
+early-returns `null` when `!isCartOpen` while rendering `CheckoutModal` inside
+its own tree, `closeCart()` alone was sufficient to destroy the screen.
+
+The `onOrderSuccess` prop was removed entirely — closing the modal was its only
+job at both call sites, and that was the bug. `closeCart()` moved into
+`CartDrawer`'s `onClose`, so dismissing the confirmation closes the checkout
+drawer and the cart together. Backdrop-dismissal was already correctly gated on
+`confirmedOrder` and needed no change.
+
+The confirmation copy was also reworded to name both places a customer can
+follow the order: the confirmation email, and Account → Orders.
+
+**Golden impact: none.** Frontend-only; no request or response changed.
+
+### P3 — admin product form accepts an unbounded image gallery
+
+**Changed:** `views/admin/AdminProducts.jsx`
+
+The form previously exposed exactly two URL inputs and submitted
+`images: [formData.image, formData.hoverImage]`. It now edits `formData.images`
+as an ordered, arbitrary-length list with add / remove / reorder controls,
+submitting `formData.images.map(url => url.trim()).filter(Boolean)`.
+
+No other layer needed to change, which is why this is a one-file diff:
+`products.images` was already `text[]`, both `POST /api/admin/products` and
+`PUT /api/admin/products/:id` already accept a full array and re-derive
+`image` from `images[0]` and `hover_image` from `images[1] || images[0]`, and
+`views/Product.jsx` already renders the whole array as a thumbnail gallery.
+The storefront gallery was functional all along; the admin form simply never
+supplied it with more than two entries.
+
+This also fixed silent data loss on edit: `openEditModal` populated only
+`prod.images[0]` and `prod.images[1]`, so re-saving any product that had three
+or more images discarded the rest. It now loads the full stored array.
+
+**Golden impact: none.** Admin-UI-only; the API contract is untouched.
+
+**Coverage: none automated.** `vitest.config.js` runs `environment: 'node'`
+and includes only `test/**/*.test.js`; there is no jsdom, no
+`@testing-library/react`, and no `.jsx` test anywhere in the suite. P2 and P3
+are therefore verified by `npm run build` and by reading, not by test. Adding
+a component-test harness is the obvious follow-up if this area keeps changing.

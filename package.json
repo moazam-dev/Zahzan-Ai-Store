@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "oxlint",
+    "admin:set-credentials": "node tools/update-admin-credentials.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

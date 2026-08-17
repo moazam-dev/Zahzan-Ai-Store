@@ -13,8 +13,7 @@ export default function CheckoutModal({
   buyNowProduct = null,
   buyNowSize = 'M',
   buyNowColor = '',
-  buyNowQuantity = 1,
-  onOrderSuccess = () => {}
+  buyNowQuantity = 1
 }) {
   const { cartItems, cartTotal, clearCart, fetchCart } = useCart()
   
@@ -282,7 +281,12 @@ export default function CheckoutModal({
           clearCart()
         }
         fetchCart()
-        onOrderSuccess(data.order)
+        // Deliberately NOT notifying the parent here. This used to call
+        // onOrderSuccess(data.order), and both call sites responded by
+        // unmounting this modal -- so the "Order Confirmed" screen below was
+        // built but never rendered. The customer now stays on that screen
+        // until they dismiss it themselves (backdrop, CLOSE, or CONTINUE
+        // SHOPPING all route through onClose).
       } else {
         setErrorMsg(data.message || 'Failed to place order. Please check your information and try again.')
       }
@@ -348,7 +352,9 @@ export default function CheckoutModal({
                     Order #{confirmedOrder.orderNumber}
                   </h3>
                   <p className="text-xs font-sans text-[#706c64] max-w-md mx-auto leading-relaxed">
-                    A confirmation record has been generated and dispatched to your account profile (<span className="font-medium text-[#1c1b18]">{confirmedOrder.customerEmail}</span>).
+                    Your order has been placed. A confirmation email is on its way to{' '}
+                    <span className="font-medium text-[#1c1b18]">{confirmedOrder.customerEmail}</span>, and you can
+                    follow its progress any time under <span className="font-medium text-[#1c1b18]">Account → Orders</span>.
                   </p>
                 </div>
 
