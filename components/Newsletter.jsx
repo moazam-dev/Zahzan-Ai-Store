@@ -112,12 +112,12 @@ export default function Newsletter() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="YOUR EMAIL ADDRESS"
-                    className="w-full bg-transparent py-2 text-xs sm:text-sm tracking-[0.2em] uppercase text-[#1a1918] placeholder:text-[#706c64]/50 focus:outline-none font-sans disabled:opacity-50"
+                    className="w-full min-w-0 bg-transparent py-2 text-xs sm:text-sm tracking-[0.12em] sm:tracking-[0.2em] uppercase text-[#1a1918] placeholder:text-[#706c64]/50 focus:outline-none font-sans disabled:opacity-50"
                   />
                   <button
                     type="submit"
                     disabled={loading}
-                    className="group inline-flex items-center gap-2 shrink-0 py-2 text-xs font-medium uppercase tracking-[0.25em] text-[#1a1918] transition hover:text-[#5a5e4b] focus:outline-none disabled:opacity-50 cursor-pointer"
+                    className="group inline-flex items-center gap-2 shrink-0 py-2 pl-3 text-[11px] sm:text-xs font-medium uppercase tracking-[0.15em] sm:tracking-[0.25em] text-[#1a1918] transition hover:text-[#5a5e4b] focus:outline-none disabled:opacity-50 cursor-pointer"
                   >
                     <span>{loading ? 'SUBSCRIBING...' : 'JOIN THE JOURNEY'}</span>
                     <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
@@ -154,7 +154,7 @@ export default function Newsletter() {
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
             <div className="relative w-full max-w-xs sm:max-w-sm aspect-[3/4] overflow-hidden rounded-xl bg-[#f0ede6] border border-[#e8e4dc] shadow-md group">
               <img
-                src="/images/editorial_detail.jpg"
+                src="/images/newsletterimg.png"
                 alt="Close-up photograph of Pakistani embroidery detail"
                 className="h-full w-full object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
               />

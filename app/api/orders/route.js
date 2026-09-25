@@ -56,7 +56,7 @@ export const runtime = 'nodejs';
 import { query } from '../../../lib/db.js';
 import { ok, fail } from '../../../lib/http.js';
 import { withApiHandler } from '../../../lib/rateLimit.js';
-import { requireAuth } from '../../../lib/auth.js';
+import { requireAuth, optionalAuth } from '../../../lib/auth.js';
 import { serializeOrder, serializePayment } from '../../../lib/serialize.js';
 import { parseUpload } from '../../../lib/multipart.js';
 import { uploadPaymentProof, deletePaymentProof, signProofUrl } from '../../../lib/storage.js';
@@ -78,8 +78,11 @@ function classifyCreateOrderError(message) {
 }
 
 export const POST = withApiHandler(async (request) => {
-  const { user, response } = await requireAuth(request);
-  if (response) return response;
+  // Guest checkout (2026-08-20): ordering no longer requires an account.
+  // `user` is null for a guest, and for a signed-in customer whose access
+  // token has expired -- see optionalAuth's comment for why the second case
+  // is deliberately not a 401.
+  const { user } = await optionalAuth(request);
 
   let proofPublicId = '';
 
@@ -102,8 +105,20 @@ export const POST = withApiHandler(async (request) => {
       rawBody = await request.json().catch(() => ({}));
     }
 
-    let { customerInfo, shippingAddress, isBuyNow, buyNowItem, paymentChoice, paymentMethod, transactionReference } =
-      rawBody;
+    // `items` is new with guest checkout (2026-08-20) and is read ONLY on the
+    // guest cart path -- a signed-in customer's cart still comes from the
+    // database, never from the request, so a logged-in caller cannot use this
+    // field to check out lines that are not in their cart.
+    let {
+      customerInfo,
+      shippingAddress,
+      isBuyNow,
+      buyNowItem,
+      items,
+      paymentChoice,
+      paymentMethod,
+      transactionReference
+    } = rawBody;
 
     // Safely parse JSON strings if submitted via FormData.
     if (typeof customerInfo === 'string') {
@@ -127,9 +142,21 @@ export const POST = withApiHandler(async (request) => {
     const isCOD = paymentChoice === 'cod' || paymentMethod === 'Cash on Delivery';
 
     // 1. Validate Customer Info.
-    const customerName = customerInfo?.fullName || `${user.first_name} ${user.last_name}`.trim();
-    const customerEmail = customerInfo?.email || user.email;
-    const customerPhone = customerInfo?.phone || user.phone || shippingAddress?.phone;
+    //
+    // Guest checkout (2026-08-20): `user` may be null here, so every fallback
+    // to the account's own details is now conditional. A guest supplies all
+    // three fields on the form; a signed-in customer gets the same form with
+    // them prefilled, and can edit them.
+    //
+    // The email is REQUIRED in both cases and is no longer allowed to fall
+    // back silently to the account's address. It is the identity the order is
+    // stored against and the channel every order update is sent through, so
+    // the value that gets stored has to be the value the customer actually saw
+    // and confirmed on the form -- not one substituted behind their back.
+    const customerName =
+      customerInfo?.fullName || (user ? `${user.first_name} ${user.last_name}`.trim() : '');
+    const customerEmail = customerInfo?.email;
+    const customerPhone = customerInfo?.phone || user?.phone || shippingAddress?.phone;
 
     if (!customerName || !customerEmail || !customerPhone) {
       return fail('Customer name, email, and phone number are required.', 400);
@@ -255,7 +282,7 @@ export const POST = withApiHandler(async (request) => {
         selectedSize: trimIfString(buyNowItem.selectedSize || 'M'),
         selectedColor: trimIfString(buyNowItem.selectedColor || '')
       });
-    } else {
+    } else if (user) {
       // Cart Checkout: fetch the user's cart from the database.
       const { rows: cartRows } = await query('select * from carts where user_id = $1', [user.id]);
       const cart = cartRows[0];
@@ -275,6 +302,45 @@ export const POST = withApiHandler(async (request) => {
         selectedSize: item.selected_size || 'M',
         selectedColor: item.selected_color || ''
       }));
+    } else {
+      // Guest cart checkout (2026-08-20). A guest has no server-side cart, so
+      // the lines travel in the request body.
+      //
+      // ONLY these four fields are read from that input. Price, product name,
+      // SKU, image and available stock are still read from the locked
+      // `products` row inside create_order() -- exactly as they are for a
+      // signed-in customer -- so a guest cannot influence what they are
+      // charged by editing the request. This is the same guarantee the
+      // logged-in path already had, not a weaker one.
+      let guestItems = items;
+      if (typeof guestItems === 'string') {
+        try {
+          guestItems = JSON.parse(guestItems);
+        } catch {
+          guestItems = null;
+        }
+      }
+
+      if (!Array.isArray(guestItems) || guestItems.length === 0) {
+        return fail('Your cart is empty. Cannot process order.', 400);
+      }
+
+      for (const item of guestItems) {
+        if (!item || typeof item !== 'object' || !item.productId) {
+          return fail('Each cart item must include a productId.', 400);
+        }
+        const itemQty = Number(item.quantity);
+        if (!Number.isInteger(itemQty) || itemQty < 1) {
+          return fail('Each cart item must have a quantity of at least 1.', 400);
+        }
+      }
+
+      itemsToProcess = guestItems.map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity),
+        selectedSize: trimIfString(item.selectedSize || 'M'),
+        selectedColor: trimIfString(item.selectedColor || '')
+      }));
     }
 
     // 7. Determine Order Payment Method and Payment Status.
@@ -293,7 +359,7 @@ export const POST = withApiHandler(async (request) => {
            $7::boolean, $8::text, $9::text, $10::boolean, $11::text, $12::text, $13::text
          ) as result`,
         [
-          user.id,
+          user?.id ?? null,
           normalizedCustomerName,
           normalizedCustomerEmail,
           normalizedCustomerPhone,
@@ -368,7 +434,20 @@ export const GET = withApiHandler(async (request) => {
   if (response) return response;
 
   try {
-    const { rows } = await query('select * from orders where user_id = $1 order by created_at desc', [user.id]);
+    // Guest checkout (2026-08-20): an account's history is its own orders PLUS
+    // any guest order placed with its email address. Nothing is ever
+    // rewritten -- the link is this query, not a migration -- so it works both
+    // for someone who ordered as a guest and signed up afterwards, and for
+    // someone who already had an account but happened to check out signed out.
+    // `user_id is null` in the second clause is what keeps one account from
+    // ever seeing another account's orders.
+    const { rows } = await query(
+      `select * from orders
+        where user_id = $1
+           or (user_id is null and lower(customer_email) = lower($2))
+        order by created_at desc`,
+      [user.id, user.email]
+    );
 
     return ok({
       success: true,

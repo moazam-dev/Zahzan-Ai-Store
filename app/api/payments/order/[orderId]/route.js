@@ -22,15 +22,32 @@ export const runtime = 'nodejs';
 import { query } from '../../../../../lib/db.js';
 import { ok, fail } from '../../../../../lib/http.js';
 import { withApiHandler } from '../../../../../lib/rateLimit.js';
-import { requireAuth } from '../../../../../lib/auth.js';
+import { optionalAuth, canAccessOrder } from '../../../../../lib/auth.js';
+import { verifyOrderAccessToken } from '../../../../../lib/jwt.js';
 import { serializePayment } from '../../../../../lib/serialize.js';
 import { signProofUrl } from '../../../../../lib/storage.js';
 
 export const GET = withApiHandler(async (request, context) => {
-  const { user, response } = await requireAuth(request);
-  if (response) return response;
+  // Guest checkout (2026-08-20): authorised below by either a signed-in
+  // owner/admin or an order-access token, so this no longer refuses the
+  // request before the order is even loaded.
+  const { user } = await optionalAuth(request);
 
   const { orderId } = await context.params;
+
+  // The order-access token comes from the `token` query parameter here (this
+  // is a GET, so there is no body). It names one order id and carries a
+  // `scope` claim that verifyToken refuses, so it grants nothing else and
+  // cannot be used as a login.
+  const tokenParam = new URL(request.url).searchParams.get('token');
+  const accessTokenOrderId = verifyOrderAccessToken(tokenParam);
+
+  // A caller who presented no credentials AT ALL still gets requireAuth's
+  // original 401, before the order is looked up -- so this endpoint does not
+  // start telling anonymous callers which order ids exist.
+  if (!user && accessTokenOrderId == null) {
+    return fail('Not authorized, no token provided', 401);
+  }
 
   const { rows: orderRows } = await query('select * from orders where id = $1', [orderId]);
   const order = orderRows[0];
@@ -39,7 +56,9 @@ export const GET = withApiHandler(async (request, context) => {
     return fail('Order not found.', 404);
   }
 
-  if (order.user_id !== user.id && user.role !== 'admin') {
+  const authorisedByToken = accessTokenOrderId != null && accessTokenOrderId === order.id;
+
+  if (!authorisedByToken && !canAccessOrder(order, user) && user?.role !== 'admin') {
     return fail('You are not authorized to view payments for this order.', 403);
   }
 

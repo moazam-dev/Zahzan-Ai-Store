@@ -65,9 +65,12 @@ export default function CheckoutModal({
   useEffect(() => {
     if (isOpen) {
       const token = getAuthToken()
-      if (!token) return
 
-      // Reset state on modal open
+      // Reset state on modal open. Guest checkout (2026-08-20): this used to
+      // bail out entirely when signed out, which left a guest looking at
+      // whatever state the modal was last closed in. The reset now always
+      // runs; only the profile fetch below is skipped, because a guest has no
+      // profile to prefill from and types everything themselves.
       setStep(1)
       setErrorMsg(null)
       setConfirmedOrder(null)
@@ -75,6 +78,33 @@ export default function CheckoutModal({
       setPaymentChoice('cod')
       setTransactionRef('')
       setProofFile(null)
+
+      // Payment channels are PUBLIC config and are fetched for everyone. This
+      // used to sit below the signed-out early return, which meant a guest saw
+      // no bank / JazzCash / Easypaisa channels at all and could only pay cash
+      // on delivery.
+      fetch(`${API_BASE}/payments/methods`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.methods)) {
+            setPaymentMethodsConfig(data.methods)
+            if (data.methods.length > 0) {
+              setSelectedAdvanceChannel(data.methods[0].id)
+            }
+          }
+        })
+        .catch((err) => console.error('Failed to load payment channels:', err))
+
+      if (!token) {
+        // Signed out: clear anything a previous signed-in session left behind,
+        // so a guest never starts with someone else's name and address in the
+        // form.
+        setUserProfile(null)
+        setSavedAddresses([])
+        setSelectedAddressId(null)
+        setCustomerInfo({ fullName: '', email: '', phone: '' })
+        return
+      }
 
       // Fetch Profile & Addresses
       fetch(`${API_BASE}/users/me`, {
@@ -100,19 +130,6 @@ export default function CheckoutModal({
           }
         })
         .catch((err) => console.error('Failed to load checkout user info:', err))
-
-      // Fetch Payment Channels config
-      fetch(`${API_BASE}/payments/methods`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && Array.isArray(data.methods)) {
-            setPaymentMethodsConfig(data.methods)
-            if (data.methods.length > 0) {
-              setSelectedAdvanceChannel(data.methods[0].id)
-            }
-          }
-        })
-        .catch((err) => console.error('Failed to load payment channels:', err))
     }
   }, [isOpen])
 
@@ -194,10 +211,30 @@ export default function CheckoutModal({
     setErrorMsg(null)
     const token = getAuthToken()
 
-    if (!token) {
-      setErrorMsg('Please sign in to complete your order.')
+    // Guest checkout (2026-08-20): no sign-in gate. The email captured on the
+    // form is the identity the order is stored against, so it is validated
+    // here for everyone rather than being taken from an account.
+    if (!customerInfo.email || !customerInfo.email.trim()) {
+      setErrorMsg('Please enter your email address so we can send your order updates.')
       return
     }
+
+    // Sent only when signed in -- `Bearer null` is not a credential, and the
+    // order route treats an unparseable token as a guest anyway.
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {}
+
+    // A guest has no server-side cart, so the lines travel with the request.
+    // Only the identifying fields are sent; price and stock are re-read from
+    // the database at checkout, so this cannot affect what is charged.
+    const guestCartItems =
+      !token && !isBuyNow
+        ? cartItems.map((item) => ({
+            productId: item.productId || item.id,
+            quantity: item.quantity,
+            selectedSize: item.size,
+            selectedColor: item.color || ''
+          }))
+        : null
 
     if (paymentChoice === 'advance') {
       if (!transactionRef || !transactionRef.trim()) {
@@ -229,14 +266,15 @@ export default function CheckoutModal({
               }
             : undefined,
           paymentChoice: 'cod',
-          paymentMethod: 'Cash on Delivery'
+          paymentMethod: 'Cash on Delivery',
+          ...(guestCartItems ? { items: guestCartItems } : {})
         }
 
         res = await fetch(`${API_BASE}/orders`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            ...authHeaders
           },
           body: JSON.stringify(payload)
         })
@@ -258,12 +296,13 @@ export default function CheckoutModal({
         formData.append('paymentMethod', activeChannelObj ? activeChannelObj.name : 'JazzCash')
         formData.append('transactionReference', transactionRef.trim())
         formData.append('proof', proofFile)
+        if (guestCartItems) {
+          formData.append('items', JSON.stringify(guestCartItems))
+        }
 
         res = await fetch(`${API_BASE}/orders`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
+          headers: authHeaders,
           body: formData
         })
       }
@@ -489,6 +528,76 @@ export default function CheckoutModal({
                     </div>
                   </div>
                 )}
+
+                {/* ===================================================== */}
+                {/* CONTACT DETAILS */}
+                {/* Guest checkout (2026-08-20). These three values were */}
+                {/* previously never rendered -- they were filled silently */}
+                {/* from the signed-in customer's profile, which left a */}
+                {/* guest with nothing to submit. They are now always shown */}
+                {/* and always editable: prefilled from the account when */}
+                {/* signed in, blank otherwise. */}
+                {/* ===================================================== */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#e8e4dc] pb-2">
+                    <span className="text-[10px] font-sans font-medium uppercase tracking-[0.3em] text-[#5a5e4b]">
+                      CONTACT DETAILS
+                    </span>
+                    {!userProfile && (
+                      <span className="text-[9px] font-sans uppercase tracking-widest text-[#706c64]">
+                        No account needed
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b] mb-1">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={customerInfo.fullName}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, fullName: e.target.value })}
+                        className="w-full bg-white border border-[#e8e4dc] p-3 text-xs font-sans text-[#1c1b18] focus:outline-none focus:border-[#1c1b18]"
+                        placeholder="e.g. Ayesha Malik"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b] mb-1">
+                        Phone Number *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        value={customerInfo.phone}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                        className="w-full bg-white border border-[#e8e4dc] p-3 text-xs font-sans text-[#1c1b18] focus:outline-none focus:border-[#1c1b18]"
+                        placeholder="03XX XXXXXXX"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-sans font-medium uppercase tracking-[0.25em] text-[#5a5e4b] mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={customerInfo.email}
+                      onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
+                      className="w-full bg-white border border-[#e8e4dc] p-3 text-xs font-sans text-[#1c1b18] focus:outline-none focus:border-[#1c1b18]"
+                      placeholder="you@example.com"
+                    />
+                    <p className="mt-1.5 text-[10px] font-sans text-[#706c64] leading-relaxed">
+                      Your order confirmation and every delivery update are sent here. If you
+                      create an account with this email later, this order appears in your history.
+                    </p>
+                  </div>
+                </div>
 
                 {/* 03. DELIVERY / SHIPPING INFORMATION */}
                 <div className="space-y-4">

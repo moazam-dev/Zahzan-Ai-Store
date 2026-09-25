@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { ShoppingBag, X, Minus, Plus, Trash2, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import CheckoutModal from './CheckoutModal'
@@ -10,9 +9,6 @@ import CheckoutModal from './CheckoutModal'
 export default function CartDrawer() {
   const { cartItems, isCartOpen, closeCart, removeFromCart, updateQuantity, cartCount, cartTotal } = useCart()
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
-  const router = useRouter()
-
-  const getAuthToken = () => localStorage.getItem('zahzan_token')
 
   // ESC key listener & body scroll locking
   useEffect(() => {
@@ -35,14 +31,12 @@ export default function CartDrawer() {
     }
   }, [isCartOpen, isCheckoutOpen, closeCart])
 
+  // Guest checkout (2026-08-20): no sign-in gate. This used to alert and
+  // redirect a signed-out shopper to /account, which sent someone with a full
+  // cart away from the checkout they just asked for. The checkout form now
+  // collects the contact details -- email included and required -- from
+  // everyone, and the guest cart travels with the order request.
   const handleCheckoutClick = () => {
-    const token = getAuthToken()
-    if (!token) {
-      alert('Please sign in to complete your checkout.')
-      closeCart()
-      router.push('/account', { scroll: false })
-      return
-    }
     setIsCheckoutOpen(true)
   }
 

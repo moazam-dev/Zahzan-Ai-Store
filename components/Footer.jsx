@@ -47,7 +47,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-12 pb-14 border-b border-[#e8e4dc]">
           
           {/* BRAND STATEMENT COLUMN (4 cols) */}
-          <div className="md:col-span-4 flex flex-col justify-between">
+          <div className="md:col-span-12 lg:col-span-4 flex flex-col justify-between">
             <div>
             <img src={logo} alt="PKR" className="h-15 w-auto object-contain" />              
               <p className="mt-3 text-xs sm:text-sm text-[#706c64] font-light leading-relaxed max-w-xs">
@@ -59,7 +59,7 @@ export default function Footer() {
           </div>
 
           {/* ESSENTIAL NAVIGATION GROUPS (6 cols) */}
-          <div className="md:col-span-5 grid grid-cols-3 gap-6 sm:gap-8">
+          <div className="md:col-span-8 lg:col-span-5 grid grid-cols-3 gap-6 sm:gap-8">
             {navGroups.map((group) => (
               <div key={group.title}>
                 <h4 className="text-[10px] uppercase tracking-[0.3em] font-medium text-[#5a5e4b] mb-4">
@@ -91,7 +91,7 @@ export default function Footer() {
           </div>
 
           {/* SOCIAL LINKS (3 cols) */}
-          <div className="md:col-span-3 flex flex-col justify-start">
+          <div className="md:col-span-4 lg:col-span-3 flex flex-col justify-start">
             <h4 className="text-[10px] uppercase tracking-[0.3em] font-medium text-[#5a5e4b] mb-4">
               FOLLOW THE JOURNEY
             </h4>

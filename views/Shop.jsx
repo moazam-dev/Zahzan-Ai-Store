@@ -47,24 +47,33 @@ export default function Shop() {
     fetchProducts()
   }, [])
 
-  // Sync category state if URL parameter changes
+  // The URL is the source of truth for the category, so a link like
+  // /shop?category=Naqsh%20-%20Embroidered opens with that filter applied and
+  // a plain /shop link clears it.
   useEffect(() => {
-    if (categoryParam) {
-      setSelectedCategory(categoryParam)
-    }
+    setSelectedCategory(categoryParam || 'All')
   }, [categoryParam])
 
-  // Derive unique fabrics and sizes from actual product data
+  const selectCategory = (cat) => {
+    setSelectedCategory(cat)
+    router.push(cat === 'All' ? pathname : `${pathname}?category=${encodeURIComponent(cat)}`, { scroll: false })
+  }
+
+  // Derive unique fabrics and sizes from actual product data.
+  //
+  // The fabric list used to be a fixed set of four keywords -- Lawn, Cotton,
+  // Silk, Handloom -- matched against each product's description text. That
+  // meant a product whose fabric was, say, Khaddar could never appear in the
+  // filter at all, no matter what an admin entered. Now that `fabric` is a
+  // real per-product database column an admin owns, the list is simply the
+  // distinct values actually present in the catalogue.
   const fabricsList = useMemo(() => {
     const set = new Set()
     products.forEach((p) => {
-      const desc = ((p.description || '') + ' ' + (p.fabric || '')).toLowerCase()
-      if (desc.includes('lawn')) set.add('Lawn')
-      if (desc.includes('cotton')) set.add('Cotton')
-      if (desc.includes('silk') || desc.includes('handloom')) set.add('Silk')
-      if (p.category === 'Unstitched') set.add('Handloom')
+      const fabric = (p.fabric || '').trim()
+      if (fabric) set.add(fabric)
     })
-    return ['All', ...Array.from(set)]
+    return ['All', ...Array.from(set).sort()]
   }, [products])
 
   const sizesList = useMemo(() => {
@@ -86,11 +95,10 @@ export default function Shop() {
           return false
         }
       }
-      // Fabric filter
+      // Fabric filter -- matched against the product's own `fabric` value,
+      // not against keywords found in its description text.
       if (selectedFabric !== 'All') {
-        const desc = (product.description || '').toLowerCase()
-        const fab = selectedFabric.toLowerCase()
-        if (!desc.includes(fab) && !(selectedFabric === 'Handloom' && product.category === 'Unstitched')) {
+        if ((product.fabric || '').trim().toLowerCase() !== selectedFabric.toLowerCase()) {
           return false
         }
       }
@@ -203,10 +211,7 @@ export default function Shop() {
                   <button
                     key={cat}
                     type="button"
-                    onClick={() => {
-                      setSelectedCategory(cat)
-                      if (categoryParam) router.push(pathname, { scroll: false })
-                    }}
+                    onClick={() => selectCategory(cat)}
                     className={`w-full flex items-center justify-between text-xs font-sans text-left transition-colors cursor-pointer ${
                       isSelected ? 'text-[#1c1b18] font-medium' : 'text-[#706c64] hover:text-[#1c1b18]'
                     }`}
@@ -392,7 +397,7 @@ export default function Shop() {
                     <button
                       key={cat}
                       type="button"
-                      onClick={() => setSelectedCategory(cat)}
+                      onClick={() => selectCategory(cat)}
                       className={`px-3 py-1.5 text-xs font-sans uppercase tracking-wider border ${
                         selectedCategory.toLowerCase() === cat.toLowerCase()
                           ? 'border-[#1c1b18] bg-[#1c1b18] text-[#faf8f5]'

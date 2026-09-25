@@ -156,7 +156,7 @@ export default function ReviewCarousel() {
             onTouchEnd={handleTouchEnd}
           >
             {/* Desktop & Tablet Carousel View */}
-            <div className="hidden md:grid md:grid-cols-3 gap-6 lg:gap-8 items-center min-h-[580px] px-2 py-4">
+            <div className="hidden lg:grid lg:grid-cols-3 gap-6 lg:gap-8 items-center min-h-[580px] px-2 py-4">
               {[-1, 0, 1].map((offset) => {
                 const index = (activeIndex + offset + reviews.length) % reviews.length
                 const post = reviews[index]
@@ -292,7 +292,7 @@ export default function ReviewCarousel() {
             </div>
 
             {/* Mobile Carousel View (1 Active Post Display) */}
-            <div className="md:hidden">
+            <div className="lg:hidden">
               {(() => {
                 const post = reviews[activeIndex]
                 const isLiked = !!likedPosts[post.id]

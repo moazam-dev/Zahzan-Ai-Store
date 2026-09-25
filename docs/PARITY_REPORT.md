@@ -1355,3 +1355,407 @@ and includes only `test/**/*.test.js`; there is no jsdom, no
 `@testing-library/react`, and no `.jsx` test anywhere in the suite. P2 and P3
 are therefore verified by `npm run build` and by reading, not by test. Adding
 a component-test harness is the obvious follow-up if this area keeps changing.
+
+### P4 — Virtual Try-On is implemented (was a permanent 501 stub)
+
+**Changed:** `app/api/try-on/route.js`, `app/api/try-on/[id]/route.js`,
+`components/VirtualTryOnModal.jsx`, `supabase/migrations/0002_tryon_prediction_id.sql`,
+`test/helpers/applyMigration.js`, `test/api/stubs.test.js`, `test/api/tryon.test.js`
+
+`POST /api/try-on` and `GET /api/try-on/:id` were **permanent** 501 stubs under
+GC4 / `MIGRATION_PLAN.md` §6.2 item 11, captured as goldens 087 and 103. They
+are now genuinely implemented against Replicate's IDM-VTON. This reverses that
+ruling deliberately. **Goldens 087 and 103 no longer describe these routes**;
+`088` (GET /api/stories) and `104` (POST /api/stories) are unaffected and those
+two endpoints remain 501.
+
+Five distinct problems were fixed together, because they were entangled:
+
+**1. The pinned model version had been retired.** The code pinned
+`cuuupid/idm-vton:c871bb9b…4714d9e`. Replicate returns **404** for that version
+id, which surfaced to customers as
+`422 Unprocessable Entity — "Invalid version or not permitted"`. The model
+itself is alive (1.5M runs); only that version is gone. Now pinned to
+`0513734a…c7d7e985`, verified to resolve 200 with required inputs
+`garm_img, human_img`. It is overridable via `REPLICATE_TRYON_VERSION` so the
+same failure can be fixed without a deploy next time.
+
+**2. Neither route required authentication.** The 501 stubs they replaced did
+(`stubs.test.js` asserted 401 for anonymous callers), but the implementation
+imported only `withApiHandler`, never `requireAuth`. Every call to this endpoint
+is billable Replicate GPU time, so it was an open, unauthenticated spend
+endpoint. Both routes now call `requireAuth`, and the modal sends the bearer
+token on both the POST and every poll.
+
+**3. POST blocked for the entire generation.** It called `replicate.run()`,
+which waits for completion — 20–40s for IDM-VTON, beyond the default serverless
+function timeout on most hosts. It also made the companion polling route
+unusable: a blocking run never returns a prediction id, so there was nothing to
+poll with. POST now calls `replicate.predictions.create()` and returns
+immediately. The modal already contained a complete `pollStatus()` loop that
+had never been reachable.
+
+**4. Nothing was persisted.** `tryon_jobs` existed in the schema with a unused
+serializer at `lib/serialize.js:587` and no writer. Jobs are now inserted on
+creation and updated to their terminal state on poll, so a result survives a
+refresh and a finished job is served from the database without spending another
+Replicate call. Ownership is enforced in the `WHERE` clause — a job is visible
+only to the user who created it, so a guessed prediction id cannot expose
+another customer's uploaded photo.
+
+Replicate prediction ids are not uuids, so they could not go in
+`tryon_jobs.id`. Migration `0002_tryon_prediction_id.sql` adds a defaulted
+`prediction_id text` column plus a partial index; it is additive, idempotent,
+and safe on a live database.
+
+**5. `test/helpers/applyMigration.js` hardcoded `0001_init.sql`.** Correct while
+0001 was the only migration, but it meant 0002 would have been applied to
+Supabase and silently *not* to the test database, so every test would fail
+against a stale schema in a way that pointed at application code. It now reads
+the migrations directory in filename order.
+
+**Known limitation, not fixed:** Replicate's output URLs are temporary (roughly
+an hour). `tryon_jobs.output_image` stores that URL, so historical results will
+eventually 404. Fixing it means downloading the result and re-uploading it to a
+Supabase Storage bucket, which requires creating a new bucket — deliberately
+left as a follow-up rather than silently adding a provisioning step.
+
+**Coverage:** `test/api/tryon.test.js`, 16 assertions, with `replicate` and
+`global.fetch` both mocked so the suite makes no network call and spends no
+credit. Covers auth on both routes, cross-user access refusal, the category
+vocabulary mapping, base64 upload handling, the retired-version 422 path, and
+each of Replicate's terminal states. Suite total: **397 passing across 27
+files** (was 385/26).
+
+### P5 — Virtual Try-On moved from Replicate to Google Gemini
+
+**Supersedes P4 entirely.** Replicate is removed: the `replicate` package is
+uninstalled, no code references it, and `REPLICATE_API_TOKEN` /
+`REPLICATE_TRYON_VERSION` are dead. The decision was the user's, after
+Replicate returned `402 Insufficient credit` — a billing state, not a defect;
+the P4 implementation was working at the time it was replaced.
+
+**Provider:** `@google/genai` v2.17.1, `ai.models.generateContent` with
+`responseModalities: [IMAGE, TEXT]`. Model from `GEMINI_IMAGE_MODEL`,
+defaulting to `gemini-3.1-flash-image`. The model id is configurable rather
+than pinned in code specifically because P4 died in production from a
+hardcoded model version that had been retired upstream.
+
+**The garment is now resolved server-side.** P4 accepted a `garmentImage` URL
+from the browser and forwarded it to the model, letting anyone run arbitrary
+image pairs on the site's AI budget. `POST /api/try-on` now takes a
+`productId`, loads the product, verifies it is active, validates the requested
+colour against the product's own colours, and resolves the garment from
+`products.ai_reference_image` (falling back to `images[0]`). Any `garmentImage`
+in the request body is ignored outright — there is no safe way to validate it.
+
+**Cost protection**, in the order the request is processed, so every free
+rejection happens before the one call that costs money: authenticate → check
+Gemini configured → product exists → product active → colour valid → validate
+the upload → per-user hourly rate limit → concurrent-job cap → generate.
+
+**Rate limiting is per ACCOUNT, not per IP.** `lib/rateLimit.js` gained
+`checkKeyedRateLimit(key, config)`; `checkRateLimit` now delegates to it, so
+there is still exactly one implementation and one fail-open path. An IP-only
+limit is simultaneously too loose (one account, many addresses) and too tight
+(shared office or CGNAT addresses are many accounts).
+`TRY_ON_MAX_REQUESTS_PER_HOUR` (default 10) and `TRY_ON_MAX_CONCURRENT_JOBS`
+(default 1).
+
+**Upload validation** (`lib/imageValidation.js`) accepts JPEG, PNG and WEBP by
+**file signature, not declared MIME type**, and enforces 10 MB *before*
+decoding so a huge payload is never materialised in the heap. GIF, PDF, SVG and
+MZ/ELF/Mach-O binaries are rejected by name. SVG is the one that matters: it is
+XML that can carry script, and `data:image/png;base64,<an SVG>` is trivial to
+send.
+
+**Customer photographs are never persisted.** The bytes go to Gemini and are
+dropped; `tryon_jobs.input_image` holds the literal marker
+`[uploaded image, not retained]`. Only the *generated* image is stored, in the
+private `tryon-images` bucket, as a PATH — every read signs a fresh short-lived
+URL, the same design as `payment-proofs`, because a stored signed URL 403s once
+it expires.
+
+**Retention:** `expires_at` is set from `TRY_ON_RETENTION_HOURS` (default 24).
+Migration 0003 makes `tryon_jobs` a `purge_expired()` target — it was
+deliberately excluded in 0001 because nothing set `expires_at`. SQL cannot
+reach object storage, so `purge_expired()` alone would orphan images forever;
+`tools/purge-tryon.mjs` deletes objects first, then calls it. This changed an
+existing assertion in `test/schema.test.js` that required `purge_expired()` to
+leave `tryon_jobs` alone — updated deliberately, not worked around.
+
+**Errors never leak upstream detail.** Gemini's wording, model ids and stack
+traces are logged server-side and stored in `tryon_jobs.error` for support; the
+customer receives a fixed message. Image payloads are never logged.
+
+**`DELETE /api/try-on/:jobId`** added. Deletes the object first, then the row —
+the reverse order orphans the object, since nothing else records the path.
+
+**Second migration-helper bug found and fixed.** `test/helpers/db.js`
+hardcoded `0001_init.sql`, exactly as `test/helpers/applyMigration.js` did
+before P4 fixed it. Both now read the migrations directory in filename order.
+Left alone, migrations 0002/0003 would have reached Supabase but never the test
+database.
+
+**Migration 0003 and the `tryon-images` bucket are applied to the live
+project** — column, index, updated `purge_expired()`, and a private bucket
+capped at 15 MB accepting only PNG/JPEG/WEBP.
+
+**Coverage:** `test/api/tryon.test.js` (25 assertions, Gemini and the garment
+fetch both mocked — no network, no spend) and `test/imageValidation.test.js`
+(29 assertions). Suite total: **435 passing across 28 files** (was 397/27).
+
+**NOT verified:** no real image has been generated. `GEMINI_API_KEY` is not
+configured, so `tools/tryon-diagnostic.mjs` — which walks key → model
+availability → product → garment fetch → generation → storage → job row →
+cleanup against real services — stops at step 1. Whether Gemini actually
+produces a faithful try-on for ZAHZAN garments is untested.
+
+### P6 — Product Management Expansion: the product record is now fully database-driven
+
+Design: `docs/superpowers/specs/2026-08-20-product-management-expansion-design.md`.
+
+**The problem.** Almost every field the customer Product Page renders already had
+a column in `0001_init.sql` — `fabric`, `work`, `colors`, `breakdown`,
+`model_info`, `care_instructions` — but the admin form exposed only nine fields
+and never sent them. In practice that meant `views/Product.jsx` shipped hardcoded
+fallbacks for the rest, and the admin create route invented values for anything
+the form omitted. A product created through the admin panel was told the world it
+was made of Pure Silk with Hand Embroidery in Ivory, and the product page told
+customers its shirt had "embroidered lawn front and sleeves, dyed back with
+worked neck patti" — for every product, regardless of what it actually was.
+
+**What changed.**
+
+- `0004_product_details.sql` adds `size_stock jsonb` (per-size inventory, with a
+  CHECK enforcing non-negative integers via an immutable `is_valid_size_stock`),
+  plus `model_height`, `model_size` and `fit_note`.
+- `create_order()` and `cancel_order()` are replaced. Inside the same
+  `select ... for update` row lock they already held, they now check and move the
+  ordered SIZE's inventory, not just the product-level total. A product whose
+  `size_stock` is `{}` takes the identical pre-existing code path, so nothing
+  changes for a product that has not been given per-size numbers.
+- `products.stock` is deliberately RETAINED as the maintained total (the sum of
+  `size_stock`), so `admin_dashboard_stats()`, the admin list's stock badge, cart
+  validation and the availability indicator all keep working untouched.
+- `lib/productFields.js` (new) holds the normalisation/validation the three
+  product write paths share. Each route keeps its own existing validation flow,
+  wording and status codes — the two source controllers deliberately differ and
+  were not unified.
+- `views/admin/AdminProducts.jsx` grew from 9 fields to the whole product record,
+  organised into eight sections in the existing admin palette.
+- `views/Product.jsx` lost every hardcoded product value. Structure, layout,
+  typography, spacing and the gallery are unchanged.
+
+**Accepted deviations from the golden captures.** The `tools/golden/*.json` files
+are recordings of the OLD Express/Mongo API's request/response pairs. They cannot
+be regenerated from this codebase — doing so would only record the new behaviour
+against itself and destroy their value as a historical reference — so they are
+left untouched and the divergences are listed here instead. None is automatically
+asserted by the test suite (per Ruling C3 the tests assert shape and message
+strings, never whole-body equality), so nothing fails; these are documentation
+debts, not broken tests.
+
+| Golden | Diverges how |
+|---|---|
+| `075-admin.product-create.json` | Response now carries `sizeStock` (`{}`), and no longer carries the invented `fabric: "Pure Silk"` / `work: "Hand Embroidery"` / `colors: [{name:"Ivory",hex:"#FFFFFF",...}]` / `careInstructions: ["Dry clean only"]` / Unsplash `image` when the request omits them. A string colour entry now serialises with `hex: null` rather than `"#FFFFFF"`. |
+| `076-admin.product-update.json` | Same `hex: null` change; response carries `sizeStock`. |
+| `016/017/018-products.get-*.json` | Response carries `sizeStock` (always) and `modelHeight`/`modelSize`/`fitNote` (when set). |
+| `066/067/068-admin.products-list-*.json` | Same added keys on each listed product. |
+| `078/079-admin.product-{soft,permanent}-delete.json` | Soft-delete response carries the added keys. Delete behaviour itself is unchanged — soft delete still sets `is_active = false`, preserving order history and every product reference. |
+
+Two existing assertions in `test/api/admin.test.js` were updated to match the
+removed `#FFFFFF` default; both now assert `hex: null` with a comment explaining
+why. No other test needed changing.
+
+**Also removed, found by the project-wide static-data audit:**
+
+- `views/Shop.jsx` derived its fabric filter from a fixed four-keyword list
+  (`Lawn`/`Cotton`/`Silk`/`Handloom`) matched against description TEXT, so a
+  product whose fabric was e.g. Khaddar could never appear in the filter. It now
+  derives from the distinct `product.fabric` values actually in the catalogue,
+  and filters on that column rather than on description substrings.
+- `views/Account.jsx` and `views/admin/AdminOrders.jsx` fell back to an Unsplash
+  stock photo for an order line with no stored image, showing a customer a
+  photograph of a different garment in their own order history. Both now render
+  the empty frame.
+- `views/admin/AdminProducts.jsx`'s product list had the same stock-photo
+  fallback; it now shows a "No image" placeholder.
+
+Deliberately left alone as NOT product data: `components/EditorialBanner.jsx` and
+`components/SocialGrid.jsx` (marketing imagery), `components/VirtualTryOnModal.jsx`'s
+`PRESET_MODELS` (photographs of people to try garments on), and `data/categories.js`
+(category cards — a separate entity with no admin management in scope; flagged as
+a candidate for the same treatment later).
+
+**Migration path.** `0004_product_details.sql` is additive and idempotent.
+`tools/backfill-product-details.mjs` then fills the new columns for existing
+products from their OWN data — `fit_note` from the sentence the page already
+displayed, `model_height`/`model_size` parsed from each product's existing
+`model_info`, `colors` from its existing single `color` (with `hex: null`, not a
+guessed swatch). It never inserts, deletes or overwrites a set value, and
+`--dry-run` reports without writing.
+
+`size_stock` is deliberately left `{}` by the backfill. A product carrying
+`stock: 8` across sizes S/M/L does not say how those 8 units split, and inventing
+a split would put fabricated inventory in front of customers and let the store
+oversell. Those products keep behaving exactly as they do today until real
+per-size numbers are entered in Admin → Products → Edit → Size & Stock.
+
+**Coverage:** `test/api/product-details.test.js` (31 tests),
+`test/productFields.test.js` (34 tests) and `test/seedProducts.test.js` (7 tests,
+covering the seed and backfill scripts against a real database), plus additions
+to `test/schema.test.js` and `test/serialize.test.js`. Suite total: **508 passing
+across 31 files** (was 435/29). `next build` compiles clean.
+
+**Applied to the live Supabase project (2026-08-20).** `0004_product_details.sql`
+ran as a single multi-statement query (implicit transaction: all or nothing),
+after the previous `create_order`/`cancel_order` definitions were dumped via
+`pg_get_functiondef` as a rollback snapshot. The `products_size_stock_valid`
+constraint was then promoted from `not valid` to fully validated — free at this
+table size, and it closes the gap the `not valid` clause deliberately left for
+large tables. `tools/backfill-product-details.mjs` ran afterwards.
+
+Row counts before and after are identical: **products 5, orders 5, payments 2,
+users 5, cart_items 0.** The backfill set `fit_note` on all 5, `model_height` on
+3, `model_size` on 2 and `colors` on 3; `size_stock` is `{}` on all 5, as
+designed. Verified afterwards that the CHECK rejects a negative size stock, that
+`cancel_order` carries the per-size `jsonb_set` restock, and that the exact
+INSERT the admin create route runs now succeeds — the last of these inside a
+transaction that was rolled back, so the probe left nothing behind.
+
+**The live catalogue holds 5 products, not the 6 the brief assumed.** See the
+note below.
+
+### P6.1 — the catalogue is 5 products, and 2 of them carry fabricated colour data
+
+The brief stated there were 6 products to migrate. The live database has 5, and
+they are not the 6 seeded ones:
+
+| Product | SKU | Origin |
+|---|---|---|
+| Aster | `ZAH-ASTER-004` | original seed |
+| Zariya | `ZAH-ZARIYA-005` | original seed |
+| Elara | `ZAH-ELARA-006` | original seed |
+| Lawn Suit | `ZHZ-PROD-299491` | created through the admin panel |
+| ROZ / 01 — Zaitoon | `ZHZ-PROD-488982` | created through the admin panel |
+
+Ivory Bloom, Noor and Mehr are gone. **No product was created to reach 6** — the
+brief's "exactly 6" was a statement about the expected starting state, not a
+target to manufacture, and inventing a sixth product would have been fabricated
+catalogue data.
+
+The two admin-created products are a live demonstration of the defect this work
+removed: both carry `color: "Ivory"` and `colors: [{name: "Ivory", hex:
+"#FFFFFF", ...}]`, which no admin ever typed — the old create route substituted
+them because the form did not expose the field. Their `model_info` is `null` for
+the same reason, so the backfill had nothing to parse and correctly left
+`model_height`/`model_size` null rather than guessing. **Both need their real
+colour, fabric, work and model details entered in Admin → Products → Edit.**
+Their fabricated `#FFFFFF` values were left in place rather than deleted: only
+you know what colour those garments actually are.
+
+### P7 — Guest checkout: ordering no longer requires an account
+
+Design: `docs/superpowers/specs/2026-08-20-guest-checkout-design.md`.
+
+**Applied to the live Supabase project (2026-08-20).** `0005_guest_orders.sql`
+ran as a single multi-statement query. `orders.user_id` and `payments.user_id`
+are now nullable and `orders_customer_email_idx` exists. Row counts unchanged by
+the migration: orders 6, payments 2.
+
+**What changed.**
+
+- `optionalAuth()` in `lib/auth.js` — resolves the caller when there is one,
+  reports `{ user: null }` when there isn't. An invalid or expired token also
+  yields `{ user: null }` rather than a 401: a session that lapsed while someone
+  filled in the checkout form must not destroy their order, and the order still
+  reaches their history through the email match. `requireAuth` is untouched and
+  still guards every other route.
+- `canAccessOrder()` in `lib/auth.js` — the single definition of "this account
+  may see this order": its own orders, plus GUEST orders placed with its email.
+  The `order.user_id == null` half is load-bearing; it is what stops an email
+  match from ever reaching an order that already has an owner.
+- `POST /api/orders` accepts guests. Email is now REQUIRED server-side in both
+  cases, with no silent fallback to the account's address — the value stored is
+  the value the customer saw and confirmed on the form.
+- A guest's cart lines travel in the request body, because a guest has no
+  server-side cart. **Only productId / quantity / selectedSize / selectedColor
+  are read from that input**; price, name, SKU, image and stock are still
+  re-read from the locked `products` row inside `create_order()`. `items` is
+  ignored entirely for a signed-in caller, so it cannot be used to check out
+  lines that are not in their database cart. Both properties are tested.
+- Order history matches on email at READ time; nothing is ever rewritten.
+- `lib/jwt.js` gains `generateOrderAccessToken` / `verifyOrderAccessToken`, a
+  token scoped to ONE order id. `verifyToken` now explicitly rejects any token
+  carrying a `scope` claim, so an order link can never be presented as a login.
+  `_submitPaymentProof.js` and `GET /api/payments/order/:orderId` accept either
+  a signed-in owner or such a token. Both kept their original 401 for a caller
+  who presents no credentials at all, so neither started leaking which order ids
+  exist.
+- `components/CheckoutModal.jsx` — the contact fields (name, email, phone) are
+  now RENDERED. They previously existed only in state, filled silently from the
+  signed-in customer's profile, which is why a guest had nothing to submit.
+- `context/CartContext.jsx` — the guest cart is persisted to localStorage and
+  merged into the server cart on the first cart read after sign-in, so no login
+  path needs to know about it. The merge clears the stored cart FIRST so a
+  failure part-way through cannot replay lines and double someone's quantities.
+
+**One existing test changed.** `test/api/orders.test.js`'s "no token -> 401" is
+now "no token -> validated as a guest, not rejected as unauthenticated" (400 on
+the missing contact details). That is the feature, not a regression.
+
+**Deliberately NOT built, and why.** The chosen option for guest payments
+mentioned a signed link in the email for uploading proof later. The API side is
+implemented, but no link and no page were added, because the flow has no entry
+point for anyone today:
+
+- proof is always uploaded during checkout, so a non-COD order never arrives
+  needing proof later; and
+- **payment rejection sends no customer email at all** (`app/api/admin/payments/[id]/reject/route.js`
+  — "the source sends no customer email on reject"), which is the one moment a
+  customer would need to resubmit. That gap predates this work and affects
+  signed-in customers equally.
+
+Adding a page and a rejection email was outside the approved design, so it is
+flagged here rather than built. Recommended follow-up: send a rejection email
+carrying the signed link, and a small page behind it.
+
+**Known exposure, raised before implementation and accepted.** Registration sets
+`is_email_verified = true` without ever sending a verification email, so nothing
+proves email ownership. A guest order placed with someone else's address will
+therefore appear in that person's history. The fix is to gate the email match on
+a verified address, which requires verification-on-signup — separate work.
+
+**Coverage:** `test/api/guest-checkout.test.js` (25 tests) covering the guest
+happy path, price-tampering, stock enforcement, the email-match rule from both
+sides, `optionalAuth`, `canAccessOrder`, and the order-token/login separation.
+Suite total: **533 passing across 32 files** (was 508/31). `next build` compiles
+clean.
+
+#### P7.1 — two gates missed in the first pass
+
+Reported from the running app: adding to cart and clicking Checkout still said
+"Please sign in to complete your checkout."
+
+1. **`components/CartDrawer.jsx:41`** held a SECOND sign-in gate, independent of
+   the one removed from `views/Product.jsx`. The first pass swept the Buy Now
+   path and the checkout modal but not the cart drawer's own checkout button,
+   so the cart route into checkout stayed blocked. Removed; `useRouter` and
+   `getAuthToken` went with it.
+
+2. **`components/CheckoutModal.jsx`** fetched the PUBLIC payment-channel config
+   below the signed-out early return, so a guest who did reach the modal would
+   have seen no Bank Transfer / JazzCash / Easypaisa options and could only pay
+   cash on delivery — silently contradicting the "all methods for guests"
+   decision. The fetch moved above the early return, and the signed-out branch
+   now also clears `userProfile`, `savedAddresses`, `selectedAddressId` and
+   `customerInfo`, so a guest never starts with a previous session's name and
+   address prefilled.
+
+A sweep for `if (!token)` guards across `components/`, `views/` and `context/`
+confirms the remaining ones are all correct: `AdminLayout` (admin), `CartContext`
+(the guest-cart branch), `WishlistContext` (wishlist still requires an account,
+unchanged and out of scope) and `SubmitPaymentModal` (the later-proof flow,
+reachable only from the account page — see the "deliberately NOT built" note
+above).

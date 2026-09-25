@@ -700,8 +700,12 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       const { rows } = await query('select * from products where id = $1', [body.product._id]);
       const stored = rows[0];
       expect(stored.sizes).toEqual(['S', 'M']);
+      // hex is null, not '#FFFFFF', for a colour submitted as a bare string:
+      // the Product Management Expansion (2026-08-20) removed that fabricated
+      // default, because a swatch painted white is a claim about the garment
+      // that nobody made. The Product Page renders a named chip instead.
       expect(stored.colors).toEqual([
-        { name: 'Ivory', hex: '#FFFFFF', image: 'https://example.com/a.jpg' },
+        { name: 'Ivory', hex: null, image: 'https://example.com/a.jpg' },
         { name: 'Rose', hex: '#F00', image: 'https://example.com/rose.jpg' }
       ]);
       expect(stored.color).toBe('Ivory');
@@ -791,8 +795,10 @@ describe('app/api/admin/* route handlers (Task 13)', () => {
       // logic -- reproduced unchanged, so they inherit the trim too.
       expect(stored.image).toBe('https://example.com/upd-a.jpg');
       expect(stored.hover_image).toBe('https://example.com/upd-b.jpg');
+      // hex is null rather than the fabricated '#FFFFFF' -- see the same
+      // assertion on the create path above.
       expect(stored.colors).toEqual([
-        { name: 'Padded String Color', hex: '#FFFFFF' },
+        { name: 'Padded String Color', hex: null },
         { name: 'Object Color', hex: '#ABC' }
       ]);
 

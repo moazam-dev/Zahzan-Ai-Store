@@ -12,7 +12,7 @@ import {
   Ruler, 
   ChevronDown, 
   ChevronUp,
-  Check
+  Sparkles
 } from 'lucide-react'
 
 import AnnouncementBar from '../components/AnnouncementBar'
@@ -21,8 +21,10 @@ import Footer from '../components/Footer'
 import ProductCard from '../components/ProductCard'
 import SizeGuideModal from '../components/SizeGuideModal'
 import CheckoutModal from '../components/CheckoutModal'
+import VirtualTryOnModal from '../components/VirtualTryOnModal'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
+import { stockForSize, isSizeTracked } from '../lib/productFields'
 
 const API_BASE = '/api'
 
@@ -36,6 +38,7 @@ export default function Product() {
   const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
+  const [isTryOnOpen, setIsTryOnOpen] = useState(false)
 
   // Scroll to top when product ID changes
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function Product() {
 
   // State management
   const [selectedSize, setSelectedSize] = useState('M')
+  const [selectedColor, setSelectedColor] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [activeImageIndex, setActiveImageIndex] = useState(0)
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false)
@@ -88,10 +92,19 @@ export default function Product() {
   // Reset state when product changes
   useEffect(() => {
     if (product?.sizes?.length > 0) {
-      setSelectedSize(product.sizes[0])
+      // Prefer the first size that can actually be bought, so a product whose
+      // S is sold out does not open on a size the customer cannot order.
+      // Falls back to the first size when everything is out of stock, which
+      // keeps the previous behaviour for products with no per-size inventory.
+      const firstInStock = product.sizes.find((sz) => stockForSize(product, sz) > 0)
+      setSelectedSize(firstInStock || product.sizes[0])
     } else {
       setSelectedSize('M')
     }
+    // The colour the page opens on: the product's first configured colour,
+    // falling back to its single `color` field for products that have no
+    // colour list yet.
+    setSelectedColor(product?.colors?.[0]?.name || product?.color || '')
     setQuantity(1)
     setActiveImageIndex(0)
   }, [product])
@@ -129,15 +142,15 @@ export default function Product() {
   const productId = product.id || product._id
   const isSaved = isInWishlist(productId)
 
-  // Construct images array
+  // Construct images array. The two Unsplash stock photos that used to sit at
+  // the end of this chain are gone: showing a customer a photograph of a
+  // different garment is worse than showing them the empty frame the gallery
+  // already renders underneath its <img>.
   const galleryImages = (product.images && product.images.length > 0)
     ? product.images
     : (product.gallery && product.gallery.length > 0)
     ? product.gallery
-    : [
-        product.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85',
-        product.hoverImage || product.image || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=85'
-      ]
+    : [product.image, product.hoverImage].filter(Boolean)
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)
@@ -155,19 +168,18 @@ export default function Product() {
     setZoomPos({ x, y })
   }
 
-  // Handle Add to Bag
+  // Handle Add to Bag -- carries the colour the customer actually picked.
   const handleAddToCart = () => {
-    addToCart(product, selectedSize, product.color || '', quantity)
+    addToCart(product, selectedSize, selectedColor || product.color || '', quantity)
   }
 
   // Handle Express Buy Now
+  //
+  // Guest checkout (2026-08-20): no sign-in gate. This used to alert and
+  // redirect to /account, which sent a customer who was ready to buy away from
+  // the product page. The checkout form now collects the contact details --
+  // email included and required -- from everyone.
   const handleBuyNow = () => {
-    const token = localStorage.getItem('zahzan_token')
-    if (!token) {
-      alert('Please sign in to complete your purchase.')
-      router.push('/account', { scroll: false })
-      return
-    }
     setIsCheckoutOpen(true)
   }
 
@@ -176,7 +188,15 @@ export default function Product() {
     .filter((p) => (p.id || p._id) !== productId)
     .slice(0, 3)
 
-  const isSoldOut = product.stock === 0
+  // Availability is now per size when the product carries per-size inventory.
+  // For a product that does not, stockForSize returns the product-level total,
+  // so both of these are exactly what they were before: `product.stock` and
+  // `product.stock === 0`.
+  const sizeTracked = isSizeTracked(product.sizeStock)
+  const availableStock = stockForSize(product, selectedSize)
+  const isSoldOut = availableStock === 0
+
+  const colorOptions = Array.isArray(product.colors) ? product.colors.filter((c) => c && c.name) : []
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#1c1b18] font-sans selection:bg-[#5a5e4b] selection:text-white">
@@ -228,18 +248,23 @@ export default function Product() {
                 onMouseLeave={() => setIsZoomed(false)}
                 onMouseMove={handleMouseMove}
               >
-                <img
-                  src={galleryImages[activeImageIndex]}
-                  alt={product.name}
-                  className={`w-full h-full object-cover transition-transform duration-300 ease-out ${
-                    isZoomed ? 'scale-150' : 'scale-100'
-                  }`}
-                  style={
-                    isZoomed
-                      ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` }
-                      : undefined
-                  }
-                />
+                {/* A product with no images at all renders the frame's own */}
+                {/* background rather than a broken <img>. Previously two */}
+                {/* Unsplash stock photos made this state unreachable. */}
+                {galleryImages[activeImageIndex] ? (
+                  <img
+                    src={galleryImages[activeImageIndex]}
+                    alt={product.name}
+                    className={`w-full h-full object-cover transition-transform duration-300 ease-out ${
+                      isZoomed ? 'scale-150' : 'scale-100'
+                    }`}
+                    style={
+                      isZoomed
+                        ? { transformOrigin: `${zoomPos.x}% ${zoomPos.y}%` }
+                        : undefined
+                    }
+                  />
+                ) : null}
               </div>
 
               {/* Edge navigation arrows on main image */}
@@ -266,9 +291,11 @@ export default function Product() {
               )}
 
               {/* Image counter indicator */}
-              <div className="absolute bottom-3 right-3 text-[10px] font-sans uppercase tracking-[0.25em] text-[#1c1b18]/70 bg-[#faf8f5]/90 px-2.5 py-1 backdrop-blur-xs">
-                0{activeImageIndex + 1} / 0{galleryImages.length}
-              </div>
+              {galleryImages.length > 0 && (
+                <div className="absolute bottom-3 right-3 text-[10px] font-sans uppercase tracking-[0.25em] text-[#1c1b18]/70 bg-[#faf8f5]/90 px-2.5 py-1 backdrop-blur-xs">
+                  0{activeImageIndex + 1} / 0{galleryImages.length}
+                </div>
+              )}
 
             </div>
 
@@ -346,7 +373,7 @@ export default function Product() {
                   FABRIC
                 </span>
                 <span className="text-xs font-sans text-[#1c1b18] font-normal block mt-0.5">
-                  {product.fabric || 'Cotton Lawn'}
+                  {product.fabric || ''}
                 </span>
               </div>
 
@@ -355,7 +382,7 @@ export default function Product() {
                   COLOR
                 </span>
                 <span className="text-xs font-sans text-[#1c1b18] font-normal block mt-0.5">
-                  {product.color || 'Ivory'}
+                  {selectedColor || product.color || ''}
                 </span>
               </div>
 
@@ -364,10 +391,56 @@ export default function Product() {
                   WORK
                 </span>
                 <span className="text-xs font-sans text-[#1c1b18] font-normal block mt-0.5">
-                  {product.work || 'Embroidered'}
+                  {product.work || ''}
                 </span>
               </div>
             </div>
+
+            {/* ================================================================= */}
+            {/* COLOUR SELECTOR */}
+            {/* The one approved addition to this page (see the design doc): the */}
+            {/* page previously had no colour selector at all, only the          */}
+            {/* read-only COLOR cell above. Styled off the SIZE SELECTOR block   */}
+            {/* immediately below so it reads as part of the same interface.     */}
+            {/* Renders nothing at all when a product has no configured colours, */}
+            {/* leaving the layout exactly as it was.                            */}
+            {/* ================================================================= */}
+            {colorOptions.length > 0 && (
+              <div className="space-y-3">
+                <span className="text-[10px] font-sans font-medium uppercase tracking-[0.3em] text-[#1c1b18] block">
+                  SELECT COLOR
+                </span>
+
+                <div className="flex flex-wrap gap-2">
+                  {colorOptions.map((colorOption) => {
+                    const isSelected = selectedColor === colorOption.name
+                    return (
+                      <button
+                        key={colorOption.name}
+                        type="button"
+                        onClick={() => setSelectedColor(colorOption.name)}
+                        aria-pressed={isSelected}
+                        className={`flex items-center gap-2 px-3.5 py-2 text-xs font-sans font-medium uppercase transition-all duration-150 cursor-pointer ${
+                          isSelected
+                            ? 'border-b-2 border-[#1c1b18] text-[#1c1b18] bg-[#f4f0e8]/80 font-semibold'
+                            : 'border border-[#e8e4dc] text-[#706c64] hover:border-[#1c1b18] hover:text-[#1c1b18]'
+                        }`}
+                      >
+                        {/* A colour with no hex configured shows its name only, */}
+                        {/* rather than a swatch of some invented colour. */}
+                        {colorOption.hex ? (
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-[#1c1b18]/20 shrink-0"
+                            style={{ backgroundColor: colorOption.hex }}
+                          />
+                        ) : null}
+                        <span>{colorOption.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* SIZE SELECTOR & SIZE GUIDE */}
             <div className="space-y-3">
@@ -386,17 +459,25 @@ export default function Product() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {product.sizes.map((sz) => {
+                {(product.sizes || []).map((sz) => {
                   const isSelected = selectedSize === sz
+                  // Only a size-tracked product can have an individually
+                  // sold-out size. Without per-size inventory every size stays
+                  // selectable exactly as before.
+                  const isSizeSoldOut = sizeTracked && stockForSize(product, sz) === 0
                   return (
                     <button
                       key={sz}
                       type="button"
+                      disabled={isSizeSoldOut}
                       onClick={() => setSelectedSize(sz)}
-                      className={`min-w-[44px] px-3.5 py-2 text-xs font-sans font-medium uppercase transition-all duration-150 cursor-pointer ${
-                        isSelected
-                          ? 'border-b-2 border-[#1c1b18] text-[#1c1b18] bg-[#f4f0e8]/80 font-semibold'
-                          : 'border border-[#e8e4dc] text-[#706c64] hover:border-[#1c1b18] hover:text-[#1c1b18]'
+                      aria-label={isSizeSoldOut ? `Size ${sz} — sold out` : `Size ${sz}`}
+                      className={`min-w-[44px] px-3.5 py-2 text-xs font-sans font-medium uppercase transition-all duration-150 ${
+                        isSizeSoldOut
+                          ? 'border border-[#e8e4dc] text-[#706c64]/50 line-through bg-[#e8e4dc]/40 cursor-not-allowed'
+                          : isSelected
+                          ? 'border-b-2 border-[#1c1b18] text-[#1c1b18] bg-[#f4f0e8]/80 font-semibold cursor-pointer'
+                          : 'border border-[#e8e4dc] text-[#706c64] hover:border-[#1c1b18] hover:text-[#1c1b18] cursor-pointer'
                       }`}
                     >
                       {sz}
@@ -438,13 +519,23 @@ export default function Product() {
             <div className="text-[10px] font-sans uppercase tracking-[0.25em] text-[#5a5e4b] flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${isSoldOut ? 'bg-red-500' : 'bg-[#5a5e4b]'}`} />
               <span>
-                {isSoldOut 
-                  ? 'SOLD OUT' 
-                  : product.stock && product.stock <= 3 
-                  ? `LOW STOCK — ONLY ${product.stock} LEFT` 
+                {isSoldOut
+                  ? 'SOLD OUT'
+                  : availableStock && availableStock <= 3
+                  ? `LOW STOCK — ONLY ${availableStock} LEFT`
                   : 'IN STOCK'}
               </span>
             </div>
+
+            {/* AI VIRTUAL TRY-ON BUTTON */}
+            <button
+              type="button"
+              onClick={() => setIsTryOnOpen(true)}
+              className="w-full min-h-[44px] py-2.5 px-4 text-xs font-sans font-medium uppercase tracking-[0.25em] transition-all cursor-pointer border border-[#5a5e4b] text-[#1c1b18] bg-[#f4f0e8]/80 hover:bg-[#5a5e4b] hover:text-[#faf8f5] flex items-center justify-center gap-2 group shadow-sm"
+            >
+              <Sparkles size={15} className="text-[#5a5e4b] group-hover:text-[#faf8f5] transition-colors" />
+              <span>AI VIRTUAL TRY-ON — SEE ON YOURSELF</span>
+            </button>
 
             {/* PRIMARY ACTIONS: ADD TO BAG & BUY NOW */}
             <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -531,7 +622,7 @@ export default function Product() {
                 SHIRT
               </h3>
               <p className="leading-relaxed">
-                {product.breakdown?.shirt || 'Embroidered lawn front and sleeves, dyed back with worked neck patti.'}
+                {product.breakdown?.shirt || ''}
               </p>
             </div>
 
@@ -540,7 +631,7 @@ export default function Product() {
                 TROUSER
               </h3>
               <p className="leading-relaxed">
-                {product.breakdown?.trouser || 'Solid dyed cambric trouser.'}
+                {product.breakdown?.trouser || ''}
               </p>
             </div>
 
@@ -549,7 +640,7 @@ export default function Product() {
                 DUPATTA
               </h3>
               <p className="leading-relaxed">
-                {product.breakdown?.dupatta || 'Embroidered drape dupatta.'}
+                {product.breakdown?.dupatta || ''}
               </p>
             </div>
           </div>
@@ -561,10 +652,10 @@ export default function Product() {
                 SIZE & FIT
               </h3>
               <p className="leading-relaxed">
-                {product.modelInfo || "Model Height: 5'8\" | Model wears: Size S"}
+                {product.modelInfo || ''}
               </p>
               <p className="leading-relaxed text-[11px] text-[#706c64]">
-                Relaxed fluid fit tailored for standard Pakistani sizing.
+                {product.fitNote || ''}
               </p>
             </div>
 
@@ -573,15 +664,9 @@ export default function Product() {
                 CARE INSTRUCTIONS
               </h3>
               <ul className="space-y-1 leading-relaxed list-disc list-inside">
-                {product.careInstructions?.map((item, idx) => (
+                {(product.careInstructions || []).map((item, idx) => (
                   <li key={idx}>{item}</li>
-                )) || (
-                  <>
-                    <li>Dry clean recommended</li>
-                    <li>Cold hand wash separately</li>
-                    <li>Iron low on reverse side</li>
-                  </>
-                )}
+                ))}
               </ul>
             </div>
           </div>
@@ -618,6 +703,14 @@ export default function Product() {
 
       </section>
 
+      {/* VIRTUAL TRY-ON MODAL */}
+      <VirtualTryOnModal
+        isOpen={isTryOnOpen}
+        onClose={() => setIsTryOnOpen(false)}
+        product={product}
+        onAddToCart={handleAddToCart}
+      />
+
       {/* SIZE GUIDE MODAL */}
       <SizeGuideModal
         isOpen={isSizeGuideOpen}
@@ -631,7 +724,7 @@ export default function Product() {
         isBuyNow={true}
         buyNowProduct={product}
         buyNowSize={selectedSize}
-        buyNowColor={product?.color || ''}
+        buyNowColor={selectedColor || product?.color || ''}
         buyNowQuantity={quantity}
       />
 

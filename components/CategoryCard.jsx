@@ -1,12 +1,15 @@
 'use client'
 
+import Link from 'next/link'
+import { shopCategoryHref } from '../data/categories'
+
 const carouselImg = '/images/carouselimg.png'
 
 export default function CategoryCard({ category, image }) {
   const src = image || category.image || carouselImg
 
   return (
-    <article className="group h-full overflow-hidden rounded-[2rem] shadow-sm">
+    <Link href={shopCategoryHref(category.name)} className="group block h-full overflow-hidden rounded-[2rem] shadow-sm">
       <div className="relative overflow-hidden">
         <img
           src={src}
@@ -18,6 +21,6 @@ export default function CategoryCard({ category, image }) {
           <h3 className="font-serif text-2xl sm:text-3xl font-light tracking-wide text-white drop-shadow-md">{category.name}</h3>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }

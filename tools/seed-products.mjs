@@ -25,6 +25,13 @@
 
 import 'dotenv/config';
 import { query, close as closePg } from '../lib/db.js';
+import { parseModelInfo } from '../lib/productFields.js';
+
+// The exact sentence views/Product.jsx hardcoded beneath the model details
+// before 0004_product_details.sql made it a column. Kept identical to
+// tools/backfill-product-details.mjs's copy so a seeded database and a
+// backfilled one carry the same value.
+const LEGACY_FIT_NOTE = 'Relaxed fluid fit tailored for standard Pakistani sizing.';
 
 // Verbatim copy of server/scripts/seedProducts.js's seedProductsList --
 // same 6 products, same field values (GC4: no refactors, no additions).
@@ -291,14 +298,28 @@ export async function seedProducts(db) {
   console.log('[seed-products] Seeding exactly 6 real ZAHZAN products...');
   const inserted = [];
   for (const p of seedProductsList) {
+    // 0004_product_details.sql fields. Derived from each product's OWN data
+    // rather than added as six more hand-written literals, so the seed and
+    // tools/backfill-product-details.mjs cannot drift apart:
+    //   - model height/size come from parsing that product's modelInfo line
+    //   - colors comes from its existing single `color`, with no invented hex
+    //   - fitNote is the sentence views/Product.jsx used to hardcode for every
+    //     product before it became a column
+    //   - size_stock stays `{}` for the same reason the backfill leaves it
+    //     empty: this data does not say how a product's stock splits across
+    //     its sizes, and making a split up would be fabricated inventory.
+    const parsedModel = parseModelInfo(p.modelInfo);
+    const seedColors = p.color ? [{ name: p.color, hex: null }] : [];
+
     const { rows } = await db.query(
       `insert into products (
          name, slug, sku, description, quick_description, price, original_price,
          category, badge, images, image, hover_image, colors, color, sizes,
-         fabric, work, breakdown, model_info, care_instructions, gallery, stock,
-         is_active
+         fabric, work, breakdown, model_height, model_size, model_info, fit_note,
+         care_instructions, gallery, stock, size_stock, is_active
        ) values (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+         $21,$22,$23,$24,$25,$26::jsonb,$27
        ) returning *`,
       [
         p.name,
@@ -314,16 +335,20 @@ export async function seedProducts(db) {
         p.images ?? [],
         p.image ?? null,
         p.hoverImage ?? null,
-        JSON.stringify([]),
+        JSON.stringify(seedColors),
         p.color ?? null,
         p.sizes ?? [],
         p.fabric ?? null,
         p.work ?? null,
         p.breakdown ? JSON.stringify(p.breakdown) : null,
+        parsedModel.height || null,
+        parsedModel.size || null,
         p.modelInfo ?? null,
+        LEGACY_FIT_NOTE,
         p.careInstructions ?? [],
         p.gallery ?? [],
         p.stock ?? 0,
+        JSON.stringify({}),
         p.isActive ?? true
       ]
     );

@@ -38,7 +38,8 @@
 
 import { query } from '../../../lib/db.js';
 import { ok, fail } from '../../../lib/http.js';
-import { requireAuth } from '../../../lib/auth.js';
+import { optionalAuth, canAccessOrder } from '../../../lib/auth.js';
+import { verifyOrderAccessToken } from '../../../lib/jwt.js';
 import { serializePayment } from '../../../lib/serialize.js';
 import { parseUpload } from '../../../lib/multipart.js';
 import { uploadPaymentProof, deletePaymentProof, signProofUrl } from '../../../lib/storage.js';
@@ -52,8 +53,12 @@ import { sendAdminPaymentProofEmail, dispatch } from '../../../lib/email.js';
  *        (MIGRATION_PLAN.md sec7.7).
  */
 export async function submitPaymentProof(request, fieldName) {
-  const { user, response } = await requireAuth(request);
-  if (response) return response;
+  // Guest checkout (2026-08-20): a guest who paid by bank transfer /
+  // JazzCash / Easypaisa has no account, so there is no session to authorise
+  // this upload. Authorisation is resolved AFTER the order is loaded, from
+  // either a signed-in owner or an order-access token, so this no longer
+  // refuses the request outright.
+  const { user } = await optionalAuth(request);
 
   // Mirrors paymentRoutes.js's inline multer wrapper: a field-missing /
   // format / size rejection returns 400 with the multer-equivalent message
@@ -66,6 +71,19 @@ export async function submitPaymentProof(request, fieldName) {
   }
 
   const { orderId, paymentMethod, transactionReference } = uploadedFile.fields;
+
+  // Guest checkout (2026-08-20). The order-access token is read from the
+  // multipart body rather than the Authorization header, so it is never
+  // confused with a session and never lands in a proxy's header logs.
+  //
+  // A caller who presented no credentials AT ALL still gets requireAuth's
+  // original 401. Only the ORDER of that check moved: it now runs after the
+  // body is parsed, because for a guest the credential IS in the body.
+  const accessTokenOrderId = verifyOrderAccessToken(uploadedFile.fields.orderAccessToken);
+
+  if (!user && accessTokenOrderId == null) {
+    return fail('Not authorized, no token provided', 401);
+  }
 
   if (!orderId) {
     return fail('Order ID is required.', 400);
@@ -87,7 +105,15 @@ export async function submitPaymentProof(request, fieldName) {
     return fail('Order not found.', 404);
   }
 
-  if (order.user_id !== user.id) {
+  // Authorised by EITHER a signed-in owner (their own order, or a guest order
+  // placed with their email -- see canAccessOrder) OR an order-access token
+  // from the link in this order's confirmation email. The token names one
+  // order id and carries a `scope` claim that verifyToken refuses, so it
+  // cannot be replayed against a different order or used as a login.
+  //
+  const authorisedByToken = accessTokenOrderId != null && accessTokenOrderId === order.id;
+
+  if (!authorisedByToken && !canAccessOrder(order, user)) {
     return fail('You are not authorized to submit payment for this order.', 403);
   }
 
@@ -141,7 +167,10 @@ export async function submitPaymentProof(request, fieldName) {
          (order_id, user_id, payment_method, amount, transaction_reference, proof_url, proof_public_id, status)
        values ($1, $2, $3, $4, $5, $6, $7, 'Pending')
        returning *`,
-      [order.id, user.id, paymentMethod.trim(), amount, trimmedRef, proofPath, proofPath]
+      // Null for a guest -- payments.user_id is nullable as of
+      // 0005_guest_orders.sql. The payment belongs to the ORDER; the user is
+      // optional context on it.
+      [order.id, user?.id ?? null, paymentMethod.trim(), amount, trimmedRef, proofPath, proofPath]
     );
     paymentRow = rows[0];
   } catch (payErr) {

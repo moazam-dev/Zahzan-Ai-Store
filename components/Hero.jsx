@@ -1,19 +1,168 @@
 'use client'
 
-const heroMain = '/images/heromain2.png'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { shopCategoryHref } from '../data/categories'
+
+// Each slide opens the shop filtered to the collection it shows. `mobileSrc`
+// is the 9:16 portrait cut <picture> swaps in on phones and portrait tablets,
+// so each device downloads only the image it shows.
+const SLIDES = [
+  { src: '/images/1h.png', mobileSrc: '/images/1m.png', alt: 'Hero look one', href: shopCategoryHref('Naqsh - Embroidered') },
+  { src: '/images/2h.png', mobileSrc: '/images/2m.png', alt: 'Hero look two', href: shopCategoryHref('Sukoon - Solids') },
+  { src: '/images/3h.png', mobileSrc: '/images/3m.png', alt: 'Hero look three', href: shopCategoryHref('Gul - Printed Trouser') },
+  { src: '/images/4h.png', mobileSrc: '/images/4m.png', alt: 'Hero look four', href: '/shop' }
+]
+
+// Below Tailwind's `lg` breakpoint, i.e. phones and portrait tablets.
+const MOBILE_QUERY = '(max-width: 1023px)'
+
+const INTERVAL_MS = 5000
+const TRANSITION_MS = 1800
+const SWIPE_THRESHOLD = 40
+
+// The track carries a clone of the last slide in front and the first slide
+// behind, so a wrap keeps sliding the same direction instead of rewinding
+// across every frame. Position 1 is the first real slide.
+const TRACK = [SLIDES[SLIDES.length - 1], ...SLIDES, SLIDES[0]]
+const FIRST = 1
+const LAST = SLIDES.length
 
 export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
+  const [position, setPosition] = useState(FIRST)
+  const [animated, setAnimated] = useState(true)
+  const [height, setHeight] = useState(null)
+  const touchStartX = useRef(0)
+  const sectionRef = useRef(null)
+
+  const activeIndex = ((position - FIRST) % SLIDES.length + SLIDES.length) % SLIDES.length
+
+  // The hero sits below AnnouncementBar, so a flat 100vh would push its bottom
+  // edge past the fold. Measure what is actually left of the viewport and end
+  // the image exactly there.
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = sectionRef.current
+      if (!el) return
+      const offsetTop = el.getBoundingClientRect().top + window.scrollY
+      setHeight(Math.max(0, window.innerHeight - offsetTop))
+    }
+
+    measure()
+    window.addEventListener('resize', measure)
+    window.addEventListener('orientationchange', measure)
+    return () => {
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('orientationchange', measure)
+    }
+  }, [])
+
+  // Autoplay every INTERVAL_MS, skipped for readers who ask for reduced motion.
+  // The position dependency restarts the clock after a manual move.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined
+
+    const timer = setInterval(() => setPosition((prev) => prev + 1), INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [position])
+
+  // Re-arm the transition on the frame after a silent jump across a clone.
+  useEffect(() => {
+    if (animated) return undefined
+    const frame = requestAnimationFrame(() => setAnimated(true))
+    return () => cancelAnimationFrame(frame)
+  }, [animated])
+
+  // Landing on a clone means the loop just wrapped: swap to the matching real
+  // slide with the transition off, so the swap itself is never seen.
+  const handleTransitionEnd = () => {
+    if (position > LAST) {
+      setAnimated(false)
+      setPosition(FIRST)
+    } else if (position < FIRST) {
+      setAnimated(false)
+      setPosition(LAST)
+    }
+  }
+
+  const goTo = useCallback((slideIndex) => {
+    setPosition(FIRST + slideIndex)
+  }, [])
+
+  const onTouchStart = (event) => {
+    touchStartX.current = event.touches[0]?.clientX ?? 0
+  }
+
+  const onTouchEnd = (event) => {
+    const delta = touchStartX.current - (event.changedTouches[0]?.clientX ?? 0)
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return
+    setPosition((prev) => prev + (delta > 0 ? 1 : -1))
+  }
+
   return (
     <section
-      className="w-full h-screen overflow-hidden relative"
-      style={{ ['--hero-btn-left']: btnLeft, ['--hero-btn-top']: btnTop }}
+      ref={sectionRef}
+      className="relative w-full overflow-hidden bg-[#f3efe8]"
+      style={{
+        ['--hero-btn-left']: btnLeft,
+        ['--hero-btn-top']: btnTop,
+        height: height ? `${height}px` : '100svh'
+      }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      aria-roledescription="carousel"
+      aria-label="Hero"
     >
-      <img
-        src={heroMain}
-        alt="Main hero"
-        className="h-full w-full object-cover"
-      />
-{/* 
+      <div
+        className="flex h-full w-full"
+        onTransitionEnd={handleTransitionEnd}
+        style={{
+          transform: `translate3d(-${position * 100}%, 0, 0)`,
+          transition: animated ? `transform ${TRANSITION_MS}ms cubic-bezier(0.4, 0, 0.2, 1)` : 'none',
+          willChange: 'transform'
+        }}
+      >
+        {TRACK.map((slide, trackIndex) => (
+          <Link
+            key={`${slide.src}-${trackIndex}`}
+            href={slide.href}
+            aria-hidden={trackIndex !== position}
+            tabIndex={trackIndex === position ? undefined : -1}
+            className="block h-full w-full flex-none"
+            draggable={false}
+          >
+            <picture className="block h-full w-full">
+              <source media={MOBILE_QUERY} srcSet={slide.mobileSrc} />
+              <img
+                src={slide.src}
+                alt={trackIndex === 0 || trackIndex === TRACK.length - 1 ? '' : slide.alt}
+                // The first real slide carries the LCP, so it loads eagerly and the
+                // rest stay lazy.
+                loading={trackIndex === FIRST ? 'eager' : 'lazy'}
+                fetchPriority={trackIndex === FIRST ? 'high' : 'auto'}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            </picture>
+          </Link>
+        ))}
+      </div>
+
+      {/* SLIDE INDICATORS */}
+      <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-3">
+        {SLIDES.map((slide, slideIndex) => (
+          <button
+            key={slide.src}
+            type="button"
+            onClick={() => goTo(slideIndex)}
+            aria-label={`Go to slide ${slideIndex + 1}`}
+            aria-current={slideIndex === activeIndex}
+            className="h-[3px] w-10 cursor-pointer border-0 bg-white/40 p-0 transition-colors duration-300 hover:bg-white/70"
+            style={{ backgroundColor: slideIndex === activeIndex ? '#ffffff' : undefined }}
+          />
+        ))}
+      </div>
+{/*
       <button
         type="button"
         className="absolute z-10 inline-flex items-center justify-center rounded-md border border-black bg-black px-10 py-4 text-sm font-medium text-white transition-colors duration-150 hover:bg-transparent hover:text-black"
@@ -24,4 +173,3 @@ export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
     </section>
   )
 }
-    

@@ -31,6 +31,7 @@ import { withApiHandler } from '../../../../lib/rateLimit.js';
 import { requireAuth } from '../../../../lib/auth.js';
 import { serializeCart } from '../../../../lib/serialize.js';
 import { trimIfString } from '../../../../lib/trimFields.js';
+import { stockForSize } from '../../../../lib/productFields.js';
 
 async function getOrCreateCart(userId) {
   const { rows } = await query('select * from carts where user_id = $1', [userId]);
@@ -139,8 +140,16 @@ export const POST = withApiHandler(async (request) => {
     const existingQty = existingItem ? existingItem.quantity : 0;
     const newTotalQty = existingQty + requestedQty;
 
-    if (newTotalQty > product.stock) {
-      return fail(`Cannot add items. Available stock is ${product.stock} (currently in cart: ${existingQty}).`, 400);
+    // Product Management Expansion (2026-08-20): a size-tracked product is
+    // validated against the SELECTED size's inventory, not the product-level
+    // total -- otherwise the cart would happily accept 5 of a size that has 1
+    // left, only for create_order() to reject the whole checkout later. A
+    // product whose size_stock is still `{}` falls back to `product.stock` and
+    // behaves exactly as it did before, including the error string's wording.
+    const availableStock = stockForSize(product, finalSize);
+
+    if (newTotalQty > availableStock) {
+      return fail(`Cannot add items. Available stock is ${availableStock} (currently in cart: ${existingQty}).`, 400);
     }
 
     if (existingItem) {

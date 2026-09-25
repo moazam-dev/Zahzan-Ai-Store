@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-const heroImg = '/images/craftsmanship_hero.jpg'
-const fabricImg = '/images/craftsmanship_fabric.jpg'
-const embroideryImg = '/images/craftsmanship_detail.jpg'
-const fitImg = '/images/craftsmanship_fit.jpg'
-const dupattaImg = '/images/unfolding_dupatta.jpg'
+const heroImg = '/images/main.jpeg'
+const fabricImg = '/images/ul.jpeg'
+const embroideryImg = '/images/ur.jpeg'
+const fitImg = '/images/br.jpeg'
+const dupattaImg = '/images/bl.jpeg'
 
 export default function CraftsmanshipStory({ id = "craftsmanship" }) {
   const containerRef = useRef(null)
@@ -161,8 +161,8 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
                   <img src={fabricImg} alt="Woven silk fabric texture macro" className="w-full h-full object-cover" />
                 </div>
                 <div className="mt-4 space-y-1">
-                  <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">01 / MATERIAL</span>
-                  <p className="font-serif italic text-xl text-[#1c1b18]">Lightweight. Breathable.</p>
+                  <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">01 / EMBROIDRY</span>
+                  <p className="font-serif italic text-xl text-[#1c1b18]">Minimal, Elegant.</p>
                 </div>
               </div>
 
@@ -171,8 +171,8 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
                   <img src={dupattaImg} alt="Fluid dupatta organza drape" className="w-full h-full object-cover" />
                 </div>
                 <div className="mt-4 space-y-1">
-                  <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">03 / DRAPE</span>
-                  <p className="font-serif italic text-xl text-[#1c1b18]">Designed to fall naturally.</p>
+                  <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">03 / FABRIC</span>
+                  <p className="font-serif italic text-xl text-[#1c1b18]">Lightweight. Breathable..</p>
                 </div>
               </div>
             </div>

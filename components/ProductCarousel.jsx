@@ -16,7 +16,7 @@ export default function ProductCarousel({ title, subtitle, products, id }) {
           </a>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          {products.map((product) => (
+          {(products || []).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

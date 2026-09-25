@@ -541,9 +541,18 @@ describe('app/api/orders/* route handlers (Task 11)', () => {
       });
     });
 
-    it('no token -> 401', async () => {
+    // Guest checkout (2026-08-20) deliberately changed this: placing an order
+    // no longer requires an account, so a request with no token is no longer
+    // refused outright. It is validated like any other -- an empty body still
+    // fails, but on its missing contact details (400), not on authentication
+    // (401). The guest happy path is covered in test/api/guest-checkout.test.js.
+    it('no token -> validated as a guest, not rejected as unauthenticated', async () => {
       const res = await createOrderRoute(postJsonRequest('/api/orders', {}));
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({
+        success: false,
+        message: 'Customer name, email, and phone number are required.'
+      });
     });
   });
 

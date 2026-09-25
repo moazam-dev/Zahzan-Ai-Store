@@ -327,6 +327,38 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
       await expect(insertProduct({ original_price: 0 })).resolves.toMatch(UUID_RE);
     });
 
+    // 0004_product_details.sql. The database is the last line of defence for
+    // per-size inventory: the API validates it too, but a bad value reaching
+    // this column would let the store oversell or hand a customer a negative
+    // count, so the CHECK is asserted here independently of any route.
+    it('products.size_stock must be an object of non-negative integers (products_size_stock_valid)', async () => {
+      // Valid: a populated map, an empty map (= "not size-tracked"), and zero
+      // as a legitimate count for a sold-out size.
+      await expect(insertProduct({ size_stock: '{"S":10,"M":15}' })).resolves.toMatch(UUID_RE);
+      await expect(insertProduct({ size_stock: '{}' })).resolves.toMatch(UUID_RE);
+      await expect(insertProduct({ size_stock: '{"S":0}' })).resolves.toMatch(UUID_RE);
+
+      // Invalid: negative, fractional, non-numeric, non-object, blank key.
+      await expect(insertProduct({ size_stock: '{"S":-1}' })).rejects.toThrow();
+      await expect(insertProduct({ size_stock: '{"S":1.5}' })).rejects.toThrow();
+      await expect(insertProduct({ size_stock: '{"S":"ten"}' })).rejects.toThrow();
+      await expect(insertProduct({ size_stock: '[]' })).rejects.toThrow();
+      await expect(insertProduct({ size_stock: '"S"' })).rejects.toThrow();
+      await expect(insertProduct({ size_stock: '{"":3}' })).rejects.toThrow();
+    });
+
+    it('products carries the 0004 detail columns, defaulting size_stock to an empty map', async () => {
+      const productId = await insertProduct();
+      const { rows } = await db.query(
+        'select size_stock, model_height, model_size, fit_note from products where id = $1',
+        [productId]
+      );
+      expect(rows[0].size_stock).toEqual({});
+      expect(rows[0].model_height).toBeNull();
+      expect(rows[0].model_size).toBeNull();
+      expect(rows[0].fit_note).toBeNull();
+    });
+
     it('orders.subtotal >= 0 (orders_subtotal_check)', async () => {
       const userId = await insertUser();
       await expect(insertRow('orders', baseOrderFields(userId, { subtotal: -1 }))).rejects.toThrow();
@@ -544,18 +576,27 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
     await insertRow('verification_tokens', { user_id: userId, token: 'vt-expired', expires_at: past });
     await insertRow('verification_tokens', { user_id: userId, token: 'vt-valid', expires_at: future });
 
-    // A row in a table purge_expired() must NOT touch, even though it also
-    // has an expires_at in the past -- confirms the function is scoped to
-    // exactly the four token tables (plus rate_limits, N3 fix, covered by
-    // its own test below) and nothing else.
+    // tryon_jobs IS now a purge target (ruling P5, migration 0003). It was
+    // deliberately excluded originally, because nothing set expires_at; the
+    // Gemini try-on implementation sets it from TRY_ON_RETENTION_HOURS, so
+    // expired jobs must be collected like any other expiring row.
+    //
+    // NOTE: this deletes the row only. The generated image lives in the
+    // private `tryon-images` bucket and SQL cannot reach object storage --
+    // tools/purge-tryon.mjs deletes objects first, then calls this function.
     await insertRow('tryon_jobs', {
       user_id: userId,
       input_image: 'https://example.test/in.png',
       expires_at: past
     });
+    await insertRow('tryon_jobs', {
+      user_id: userId,
+      input_image: 'https://example.test/keep.png',
+      expires_at: future
+    });
 
     const { rows } = await db.query('select purge_expired() as count');
-    expect(rows[0].count).toBe(4);
+    expect(rows[0].count).toBe(5);
 
     expect((await db.query('select token from refresh_tokens')).rows.map((r) => r.token)).toEqual(['rt-valid']);
     expect((await db.query('select token from password_reset_tokens')).rows.map((r) => r.token)).toEqual([
@@ -567,7 +608,10 @@ describe('0001_init.sql schema (applied to a fresh PGlite -- AR3)', () => {
     expect((await db.query('select token from verification_tokens')).rows.map((r) => r.token)).toEqual([
       'vt-valid'
     ]);
-    expect((await db.query('select count(*)::int as n from tryon_jobs')).rows[0].n).toBe(1);
+    // The expired job is gone; the unexpired one survives.
+    expect(
+      (await db.query('select input_image from tryon_jobs')).rows.map((r) => r.input_image)
+    ).toEqual(['https://example.test/keep.png']);
   });
 
   // N3 fix: rate_limits accrues one permanent row per unique

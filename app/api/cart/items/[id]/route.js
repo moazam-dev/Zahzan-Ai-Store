@@ -36,6 +36,7 @@ import { ok, fail } from '../../../../../lib/http.js';
 import { withApiHandler } from '../../../../../lib/rateLimit.js';
 import { requireAuth } from '../../../../../lib/auth.js';
 import { serializeCart } from '../../../../../lib/serialize.js';
+import { stockForSize } from '../../../../../lib/productFields.js';
 
 async function loadCartItems(cartId) {
   const { rows } = await query(
@@ -145,8 +146,14 @@ export const PATCH = withApiHandler(async (request, context) => {
       if (!product) {
         await query('delete from cart_items where id = $1', [item.id]);
       } else {
-        if (newQty > product.stock) {
-          return fail(`Requested quantity exceeds available stock of ${product.stock}`, 400);
+        // Product Management Expansion (2026-08-20): validate against the
+        // size this line is actually for when the product is size-tracked.
+        // Same fallback to the product-level total as the add path, so a
+        // product with an empty size_stock behaves exactly as before.
+        const availableStock = stockForSize(product, item.selected_size);
+
+        if (newQty > availableStock) {
+          return fail(`Requested quantity exceeds available stock of ${availableStock}`, 400);
         }
         await query('update cart_items set quantity = $1 where id = $2', [newQty, item.id]);
       }

@@ -14,7 +14,7 @@ export default function Collections() {
       <section className="border-b border-stone-200 bg-stone-50 px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <p className="text-[11px] uppercase tracking-[0.35em] text-stone-500">Collections</p>
-          <h1 className="mt-3 text-3xl font-semibold uppercase tracking-[0.2em] text-stone-900 sm:text-4xl">
+          <h1 className="mt-3 text-2xl font-semibold uppercase tracking-[0.12em] text-stone-900 sm:text-4xl sm:tracking-[0.2em]">
             Seasonal edits shaped with clarity and comfort
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-600">

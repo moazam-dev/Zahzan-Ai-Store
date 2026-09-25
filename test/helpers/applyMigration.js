@@ -14,12 +14,12 @@
 // directly and uses `.exec()`; tests that need to exercise the real
 // `lib/db.js` code path (lib/auth.js, lib/rateLimit.js) do.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATION_PATH = path.resolve(__dirname, '../../supabase/migrations/0001_init.sql');
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../supabase/migrations');
 
 /**
  * Splits a SQL script into individual statements on `;`, except inside
@@ -77,15 +77,33 @@ export function splitSqlStatements(sql) {
 }
 
 /**
- * Reads supabase/migrations/0001_init.sql and applies it statement-by-
- * statement through the given `query(text, params)` function (lib/db.js's
- * export, typically).
+ * Reads EVERY supabase/migrations/*.sql file in filename order and applies
+ * them statement-by-statement through the given `query(text, params)`
+ * function (lib/db.js's export, typically).
+ *
+ * This used to hardcode 0001_init.sql. That was fine while 0001 was the only
+ * migration, but it meant the first additional migration would have been
+ * applied to Supabase and silently NOT to the test database -- so every test
+ * would run against a stale schema and fail in a way that points at the
+ * application code rather than at this helper. Reading the directory keeps
+ * the two in step automatically.
+ *
+ * Filename order is the contract (0001_, 0002_, ...), the same order the
+ * Supabase CLI uses.
  */
 export async function applyMigrationViaQuery(query) {
-  const sql = await readFile(MIGRATION_PATH, 'utf8');
-  const statements = splitSqlStatements(sql);
-  for (const statement of statements) {
-    await query(statement);
+  const files = (await readdir(MIGRATIONS_DIR))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+
+  let count = 0;
+  for (const file of files) {
+    const sql = await readFile(path.join(MIGRATIONS_DIR, file), 'utf8');
+    const statements = splitSqlStatements(sql);
+    for (const statement of statements) {
+      await query(statement);
+    }
+    count += statements.length;
   }
-  return statements.length;
+  return count;
 }

@@ -2,29 +2,38 @@
 // instance per call to createTestDb() and applies the real schema migration
 // to it, so tests run against the same schema production does (AR3).
 //
-// supabase/migrations/0001_init.sql does not exist yet -- Task 3 creates it.
-// Until then this silently skips applying it, so this task's own tests can
-// pass today and Task 3's schema starts flowing into every test automatically
-// once it lands, with no changes needed here.
+// Reads EVERY supabase/migrations/*.sql in filename order, not just 0001.
+// This used to hardcode 0001_init.sql, which was correct while it was the
+// only migration. Once 0002/0003 landed, that hardcoding meant new migrations
+// reached Supabase but never the test database -- so tests would run against a
+// stale schema and fail in a way that points at application code rather than
+// at this helper. (test/helpers/applyMigration.js had the identical bug and
+// was fixed the same way.)
 
 import { PGlite } from '@electric-sql/pglite';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MIGRATION_PATH = path.resolve(
-  __dirname,
-  '../../supabase/migrations/0001_init.sql'
-);
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../supabase/migrations');
 
+/** Concatenated migration SQL, in filename order. Null when none exist. */
 async function readMigrationIfPresent() {
+  let files;
   try {
-    return await readFile(MIGRATION_PATH, 'utf8');
+    files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith('.sql')).sort();
   } catch (err) {
     if (err.code === 'ENOENT') return null;
     throw err;
   }
+  if (files.length === 0) return null;
+
+  const parts = [];
+  for (const file of files) {
+    parts.push(await readFile(path.join(MIGRATIONS_DIR, file), 'utf8'));
+  }
+  return parts.join('\n');
 }
 
 /**

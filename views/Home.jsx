@@ -3,6 +3,9 @@
 import AnnouncementBar from '../components/AnnouncementBar'
 import Header from '../components/Header'
 import Hero from '../components/Hero'
+import SixWaysSection from '../components/SixWaysSection'
+import ShopByStorySection from '../components/ShopByStorySection'
+import WhyZahzanSection from '../components/WhyZahzanSection'
 import CategoryCarousel from '../components/CategoryCarousel'
 import ProductCarousel from '../components/ProductCarousel'
 import CraftsmanshipStory from '../components/CraftsmanshipStory'
@@ -22,11 +25,14 @@ export default function Home() {
         <Hero btnLeft="20.5%" btnTop="50.5%" />
         <Header />
       </div>
-      <CategoryCarousel categories={categories} />
+      <SixWaysSection />
+      {/* <ShopByStorySection /> */}
+      <WhyZahzanSection />
+      {/* <CategoryCarousel categories={categories} />
+      <CraftsmanshipStory id="craftsmanship" /> */}
       <TryOnSection />
-      <CraftsmanshipStory id="craftsmanship" />
       <ReviewCarousel />
-      {/* <EditorialBanner />
+     {/* <EditorialBanner />
       <ProductCarousel title="Best Sellers" subtitle="The pieces our clients return to again and again." products={bestSellers} id="best-sellers" />
       <section className="border-t border-stone-200 bg-stone-900 px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 rounded-[2rem] border border-white/10 bg-white/10 px-6 py-10 text-white sm:px-8 lg:px-10">

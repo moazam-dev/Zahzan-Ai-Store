@@ -55,8 +55,17 @@ export default function Account() {
   // Feedback Messages
   const [statusMsg, setStatusMsg] = useState(null) // { type: 'success' | 'error', text: '' }
 
-  // Check stored auth session on mount
+  // Check stored auth session on mount & load Google GSI script
   useEffect(() => {
+    if (typeof window !== 'undefined' && !document.getElementById('google-gsi-client')) {
+      const script = document.createElement('script')
+      script.id = 'google-gsi-client'
+      script.src = 'https://accounts.google.com/gsi/client'
+      script.async = true
+      script.defer = true
+      document.body.appendChild(script)
+    }
+
     const token = localStorage.getItem('zahzan_token')
 
     if (actionParam === 'verify-email' && tokenParam) {
@@ -213,16 +222,8 @@ export default function Account() {
     }
   }
 
-  const handleGoogleLogin = async (googleProfile = null) => {
-    setStatusMsg(null)
+  const submitGoogleAuth = async (payload) => {
     try {
-      // Use provided Google profile or mock prompt simulation for dev
-      const payload = googleProfile || {
-        googleId: `google_${Date.now()}`,
-        email: `google.user.${Date.now().toString().slice(-4)}@gmail.com`,
-        name: 'Google Client'
-      }
-
       const res = await fetch(`${API_BASE}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -235,13 +236,80 @@ export default function Account() {
         window.dispatchEvent(new Event('storage'))
         setUser(data.user)
         setProfileData({ name: data.user.name || '', phone: data.user.phone || '' })
-        showFeedback('success', 'Logged in via Google successfully.')
+        showFeedback('success', `Welcome, ${data.user.name || data.user.email}! Signed in with Google.`)
         fetchUserProfile(data.token)
       } else {
-        showFeedback('error', data.message || 'Google login failed.')
+        showFeedback('error', data.message || 'Google authentication failed.')
       }
     } catch (err) {
       showFeedback('error', 'Unable to connect to server for Google authentication.')
+    }
+  }
+
+  const handleGoogleLogin = async (googleProfile = null) => {
+    setStatusMsg(null)
+
+    // If a profile was passed explicitly, submit it directly
+    if (googleProfile) {
+      await submitGoogleAuth(googleProfile)
+      return
+    }
+
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+
+    if (!clientId || clientId.includes('your_') || clientId.includes('xxxx')) {
+      showFeedback('error', 'Google Client ID is not configured. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your .env.local file.')
+      return
+    }
+
+    if (typeof window === 'undefined' || !window.google?.accounts?.oauth2) {
+      showFeedback('error', 'Google authentication service is initializing. Please click again in a few seconds.')
+      return
+    }
+
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'email profile openid',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            if (tokenResponse.error !== 'popup_closed_by_user') {
+              showFeedback('error', `Google sign-in error: ${tokenResponse.error_description || tokenResponse.error}`)
+            }
+            return
+          }
+
+          try {
+            // Fetch verified user info from Google's official userinfo endpoint
+            const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+            })
+            const userInfo = await userInfoRes.json()
+
+            if (!userInfo.email) {
+              showFeedback('error', 'Could not retrieve email address from your Google account.')
+              return
+            }
+
+            const payload = {
+              googleId: userInfo.sub,
+              email: userInfo.email,
+              name: userInfo.name || `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim(),
+              firstName: userInfo.given_name || userInfo.name || 'Valued',
+              lastName: userInfo.family_name || 'Client',
+              picture: userInfo.picture
+            }
+
+            await submitGoogleAuth(payload)
+          } catch (err) {
+            showFeedback('error', 'Failed to retrieve profile data from Google.')
+          }
+        }
+      })
+
+      client.requestAccessToken({ prompt: 'select_account' })
+    } catch (err) {
+      showFeedback('error', 'Unable to open Google sign-in window. Please check your browser popup settings.')
     }
   }
 
@@ -561,11 +629,11 @@ export default function Account() {
                     <div className="flex-grow border-t border-[#e8e4dc]"></div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1">
                     <button
                       type="button"
                       onClick={() => handleGoogleLogin()}
-                      className="flex items-center justify-center gap-2 border border-[#e8e4dc] bg-white py-2.5 px-3 text-xs font-sans text-[#1c1b18] hover:border-[#1c1b18] transition-colors cursor-pointer"
+                      className="flex items-center justify-center gap-2 border border-[#e8e4dc] bg-white py-2.5 px-3 text-xs font-sans text-[#1c1b18] transition-colors cursor-pointer"
                     >
                       <svg className="w-4 h-4" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -576,7 +644,7 @@ export default function Account() {
                       <span>Google</span>
                     </button>
 
-                    <button
+                    {/* <button
                       type="button"
                       onClick={() => handleFacebookLogin()}
                       className="flex items-center justify-center gap-2 border border-[#e8e4dc] bg-white py-2.5 px-3 text-xs font-sans text-[#1c1b18] hover:border-[#1c1b18] transition-colors cursor-pointer"
@@ -585,7 +653,7 @@ export default function Account() {
                         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                       </svg>
                       <span>Facebook</span>
-                    </button>
+                    </button> */}
                   </div>
                 </div>
 
@@ -1012,7 +1080,15 @@ export default function Account() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {ord.items.map((item, idx) => (
                                 <div key={idx} className="flex items-center gap-3 bg-white p-3 border border-[#e8e4dc]/80 rounded-xs text-xs font-sans">
-                                  <img src={item.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=400&q=80'} alt={item.productName} className="w-12 h-16 object-cover bg-[#eee]" />
+                                  {/* No stock-photo fallback: an order line with
+                                      no stored image shows the empty frame
+                                      rather than a photograph of some other
+                                      garment. */}
+                                  {item.image ? (
+                                    <img src={item.image} alt={item.productName} className="w-12 h-16 object-cover bg-[#eee]" />
+                                  ) : (
+                                    <span className="w-12 h-16 bg-[#eee] block" />
+                                  )}
                                   <div className="flex-1 space-y-0.5">
                                     <h5 className="font-serif text-sm text-[#1c1b18] leading-snug">{item.productName}</h5>
                                     {item.sku && <span className="text-[9px] font-mono text-[#706c64] block">SKU: {item.sku}</span>}

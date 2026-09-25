@@ -25,6 +25,23 @@
 //
 // Shape checked against tools/golden/076-admin.product-update.json,
 // 078-admin.product-soft-delete.json, 079-admin.product-permanent-delete.json.
+//
+// ---------------------------------------------------------------------------
+// Product Management Expansion (2026-08-20), updateAdminProduct only:
+//
+//   - Every field Add Product can set, Edit Product can now change:
+//     quickDescription, originalPrice, badge, sizeStock, breakdown,
+//     modelHeight/modelSize, fitNote (spec sec14).
+//   - Supplying `sizeStock` makes per-size inventory authoritative: `stock`
+//     becomes its sum and `sizes` becomes its keys. Supplying `{}` turns size
+//     tracking back off.
+//   - Price/stock are validated when supplied instead of being passed to
+//     Number() unchecked.
+//   - The fabricated '#FFFFFF' hex on string colour entries is gone.
+//
+// deleteAdminProduct is unchanged: soft delete still sets is_active = false,
+// preserving order history and every product reference (spec sec20).
+// ---------------------------------------------------------------------------
 
 export const runtime = 'nodejs';
 
@@ -35,18 +52,38 @@ import { requireAuth, requireAdmin } from '../../../../../lib/auth.js';
 import { serializeProduct } from '../../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../../lib/auditLogger.js';
 import { trimIfString, trimStringArray, trimColorVariant } from '../../../../../lib/trimFields.js';
+import {
+  normaliseSizeStock,
+  sumSizeStock,
+  isSizeTracked,
+  sizesFromSizeStock,
+  validateColors,
+  stripBlankColors,
+  composeModelInfo,
+  toStockInteger
+} from '../../../../../lib/productFields.js';
 
+// Scalar/array columns the field loop copies straight across. jsonb columns
+// (colors, breakdown, size_stock) are NOT in here -- each needs its own
+// normalisation before it can be written, and is handled explicitly below.
 const FIELD_COLUMN = {
   name: 'name',
   description: 'description',
+  quickDescription: 'quick_description',
   price: 'price',
+  originalPrice: 'original_price',
   sku: 'sku',
   category: 'category',
+  badge: 'badge',
   stock: 'stock',
   sizes: 'sizes',
   color: 'color',
   fabric: 'fabric',
   work: 'work',
+  modelHeight: 'model_height',
+  modelSize: 'model_size',
+  modelInfo: 'model_info',
+  fitNote: 'fit_note',
   careInstructions: 'care_instructions',
   images: 'images',
   image: 'image',
@@ -77,20 +114,29 @@ export const PUT = withApiHandler(async (request, context) => {
   const next = {
     name: existing.name,
     description: existing.description,
+    quickDescription: existing.quick_description,
     price: existing.price,
+    originalPrice: existing.original_price,
     sku: existing.sku,
     category: existing.category,
+    badge: existing.badge,
     stock: existing.stock,
     sizes: existing.sizes,
     color: existing.color,
     fabric: existing.fabric,
     work: existing.work,
+    modelHeight: existing.model_height,
+    modelSize: existing.model_size,
+    modelInfo: existing.model_info,
+    fitNote: existing.fit_note,
     careInstructions: existing.care_instructions,
     images: existing.images,
     image: existing.image,
     hoverImage: existing.hover_image,
     isActive: existing.is_active,
     colors: existing.colors,
+    breakdown: existing.breakdown,
+    sizeStock: existing.size_stock,
     slug: existing.slug
   };
 
@@ -100,7 +146,22 @@ export const PUT = withApiHandler(async (request, context) => {
   // cast. Reproduced here at the same point: only a field this request
   // actually supplied gets (re-)cast, exactly like Mongoose only re-casts a
   // path that was actually assigned.
-  const SCALAR_TRIM_FIELDS = new Set(['name', 'description', 'category', 'color', 'fabric', 'work', 'image', 'hoverImage']);
+  const SCALAR_TRIM_FIELDS = new Set([
+    'name',
+    'description',
+    'quickDescription',
+    'category',
+    'badge',
+    'color',
+    'fabric',
+    'work',
+    'modelHeight',
+    'modelSize',
+    'modelInfo',
+    'fitNote',
+    'image',
+    'hoverImage'
+  ]);
   const ARRAY_TRIM_FIELDS = new Set(['sizes', 'careInstructions', 'images']);
 
   for (const field of Object.keys(FIELD_COLUMN)) {
@@ -116,12 +177,89 @@ export const PUT = withApiHandler(async (request, context) => {
   }
   if (next.sku != null) next.sku = String(next.sku).trim().toUpperCase();
   if (next.price != null) next.price = Number(next.price);
-  if (next.stock != null) next.stock = Number(next.stock);
+
+  // Never trust a submitted price or stock (spec sec21). Validated only when
+  // the request actually supplied the field -- a PUT that does not mention
+  // price must not start failing because the stored value predates this check.
+  if (body.price !== undefined && (!Number.isFinite(next.price) || next.price < 0)) {
+    return fail('Price must be a number of 0 or more.', 400);
+  }
+
+  if (body.originalPrice !== undefined) {
+    if (next.originalPrice === null || next.originalPrice === '') {
+      next.originalPrice = null;
+    } else {
+      next.originalPrice = Number(next.originalPrice);
+      if (!Number.isFinite(next.originalPrice) || next.originalPrice < 0) {
+        return fail('Compare-at price must be a number of 0 or more.', 400);
+      }
+    }
+  }
+
+  if (body.stock !== undefined) {
+    const validatedStock = toStockInteger(next.stock);
+    if (validatedStock === null) {
+      return fail('Stock must be a whole number of 0 or more.', 400);
+    }
+    next.stock = validatedStock;
+  }
+
+  // Per-size inventory. Supplying it makes it authoritative: the product-level
+  // total becomes the sum and the size list becomes its keys, so the selector
+  // can never offer a size with no inventory row (spec sec7, sec30). Supplying
+  // an empty map turns size tracking OFF again, at which point the explicit
+  // `stock` in the same request (or the stored one) is the authority.
+  if (body.sizeStock !== undefined) {
+    const sizeStockResult = normaliseSizeStock(body.sizeStock);
+    if (!sizeStockResult.ok) {
+      return fail(sizeStockResult.message, 400);
+    }
+    next.sizeStock = sizeStockResult.value;
+
+    if (isSizeTracked(next.sizeStock)) {
+      next.stock = sumSizeStock(next.sizeStock);
+      next.sizes = sizesFromSizeStock(next.sizeStock);
+    }
+  }
 
   if (body.colors !== undefined && Array.isArray(body.colors)) {
-    next.colors = body.colors.map((c) =>
-      typeof c === 'string' ? { name: c.trim(), hex: '#FFFFFF' } : trimColorVariant(c)
+    const cleanedColors = stripBlankColors(body.colors);
+    const colorsResult = validateColors(cleanedColors);
+    if (!colorsResult.ok) {
+      return fail(colorsResult.message, 400);
+    }
+    // The source's update path deliberately omits the `image` key here, unlike
+    // createAdminProduct's equivalent branch -- reproduced, not fixed. Only the
+    // fabricated '#FFFFFF' hex is gone: a colour with no hex renders as a named
+    // chip on the Product Page rather than as a white swatch that lies about
+    // the garment's colour.
+    next.colors = cleanedColors.map((c) =>
+      typeof c === 'string' ? { name: c.trim(), hex: null } : trimColorVariant(c)
     );
+  }
+
+  // The page's SHIRT / TROUSER / DUPATTA trio.
+  if (body.breakdown !== undefined) {
+    if (body.breakdown === null) {
+      next.breakdown = null;
+    } else if (typeof body.breakdown === 'object' && !Array.isArray(body.breakdown)) {
+      next.breakdown = {
+        shirt: trimIfString(body.breakdown.shirt ?? '') || '',
+        trouser: trimIfString(body.breakdown.trouser ?? '') || '',
+        dupatta: trimIfString(body.breakdown.dupatta ?? '') || ''
+      };
+    } else {
+      return fail('Product details must be an object with shirt, trouser and dupatta values.', 400);
+    }
+  }
+
+  // model_info stays the single line the Product Page renders. Recomposed
+  // whenever either structured part was supplied, so editing the height alone
+  // updates the rendered line instead of leaving it stale. A request that
+  // supplies neither leaves whatever is stored (including a modelInfo the same
+  // request set directly) untouched.
+  if (body.modelHeight !== undefined || body.modelSize !== undefined) {
+    next.modelInfo = composeModelInfo(next.modelHeight, next.modelSize);
   }
 
   if (body.name || body.sku) {
@@ -139,23 +277,35 @@ export const PUT = withApiHandler(async (request, context) => {
 
   const { rows: updatedRows } = await query(
     `update products set
-       name = $1, description = $2, price = $3, sku = $4, category = $5, stock = $6,
-       sizes = $7, color = $8, fabric = $9, work = $10, care_instructions = $11,
-       images = $12, image = $13, hover_image = $14, is_active = $15,
-       colors = $16::jsonb, slug = $17
-     where id = $18
+       name = $1, description = $2, quick_description = $3, price = $4,
+       original_price = $5, sku = $6, category = $7, badge = $8, stock = $9,
+       size_stock = $10::jsonb, sizes = $11, color = $12, fabric = $13, work = $14,
+       breakdown = $15::jsonb, model_height = $16, model_size = $17,
+       model_info = $18, fit_note = $19, care_instructions = $20,
+       images = $21, image = $22, hover_image = $23, is_active = $24,
+       colors = $25::jsonb, slug = $26
+     where id = $27
      returning *`,
     [
       next.name,
       next.description,
+      next.quickDescription ?? '',
       next.price,
+      next.originalPrice,
       next.sku,
       next.category,
+      next.badge,
       next.stock,
+      JSON.stringify(next.sizeStock ?? {}),
       next.sizes,
       next.color,
       next.fabric,
       next.work,
+      next.breakdown ? JSON.stringify(next.breakdown) : null,
+      next.modelHeight,
+      next.modelSize,
+      next.modelInfo,
+      next.fitNote,
       next.careInstructions,
       next.images,
       next.image,

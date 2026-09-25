@@ -92,7 +92,7 @@ export default function ProductCard({ product }) {
             </Link>
           </div>
 
-          <span className="text-xs font-sans font-medium text-[#1c1b18] pt-0.5">
+          <span className="shrink-0 whitespace-nowrap text-xs font-sans font-medium text-[#1c1b18] pt-0.5">
             PKR {product.price.toLocaleString()}
           </span>
         </div>

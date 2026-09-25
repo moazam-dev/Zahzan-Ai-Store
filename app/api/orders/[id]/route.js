@@ -22,7 +22,7 @@ export const runtime = 'nodejs';
 import { query } from '../../../../lib/db.js';
 import { ok, fail } from '../../../../lib/http.js';
 import { withApiHandler } from '../../../../lib/rateLimit.js';
-import { requireAuth } from '../../../../lib/auth.js';
+import { requireAuth, canAccessOrder } from '../../../../lib/auth.js';
 import { serializeOrder } from '../../../../lib/serialize.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -56,7 +56,9 @@ export const GET = withApiHandler(async (request, context) => {
     }
 
     // Verify ownership or admin access.
-    const isOwner = order.user_id === user.id;
+    // Guest checkout (2026-08-20): also covers a guest order placed with this
+    // account's email address. See canAccessOrder in lib/auth.js.
+    const isOwner = canAccessOrder(order, user);
     const isAdmin = user.role === 'admin';
 
     if (!isOwner && !isAdmin) {

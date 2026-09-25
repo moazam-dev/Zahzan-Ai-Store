@@ -20,6 +20,15 @@ import { withApiHandler } from '../../../lib/rateLimit.js';
 import { requireAuth, requireAdmin } from '../../../lib/auth.js';
 import { serializeProduct } from '../../../lib/serialize.js';
 import { trimProductPayload } from '../../../lib/trimFields.js';
+import {
+  normaliseSizeStock,
+  sumSizeStock,
+  isSizeTracked,
+  sizesFromSizeStock,
+  validateColors,
+  stripBlankColors,
+  composeModelInfo
+} from '../../../lib/productFields.js';
 
 export const GET = withApiHandler(async (request) => {
   try {
@@ -137,13 +146,44 @@ export const POST = withApiHandler(async (request) => {
     // the raw `body`, unchanged (purely additive, no control-flow change).
     const trimmed = trimProductPayload(body);
 
+    // Product Management Expansion (2026-08-20). The new fields are validated
+    // by throwing, not by returning fail(), so a bad value still comes back
+    // wrapped in this route's own `Failed to create product: ...` 400 -- the
+    // same envelope every other validation failure here already uses.
+    const sizeStockResult = normaliseSizeStock(trimmed.sizeStock);
+    if (!sizeStockResult.ok) throw new Error(sizeStockResult.message);
+    const finalSizeStock = sizeStockResult.value;
+    const sizeTracked = isSizeTracked(finalSizeStock);
+
+    const cleanedColors = stripBlankColors(trimmed.colors);
+    const colorsResult = validateColors(cleanedColors);
+    if (!colorsResult.ok) throw new Error(colorsResult.message);
+
+    const numericPrice = Number(trimmed.price);
+    if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+      throw new Error('Price must be a number of 0 or more.');
+    }
+
+    // Size-tracked products derive both the total and the size list from the
+    // per-size counts, so the two can never disagree with each other.
+    const finalStock = sizeTracked ? sumSizeStock(finalSizeStock) : (trimmed.stock ?? 0);
+    const finalSizes = sizeTracked ? sizesFromSizeStock(finalSizeStock) : (trimmed.sizes ?? []);
+
+    // model_info is the single line the Product Page renders; it is composed
+    // from the structured parts when either was supplied, and otherwise keeps
+    // whatever modelInfo the caller sent directly.
+    const composedModelInfo = composeModelInfo(trimmed.modelHeight, trimmed.modelSize);
+    const finalModelInfo = composedModelInfo ?? (trimmed.modelInfo ?? null);
+
     const { rows } = await query(
       `insert into products (
          name, slug, sku, description, quick_description, price, original_price,
          category, badge, images, image, hover_image, colors, color, sizes,
-         fabric, work, breakdown, model_info, care_instructions, gallery, stock, is_active
+         fabric, work, breakdown, model_height, model_size, model_info, fit_note,
+         care_instructions, gallery, stock, size_stock, is_active
        ) values (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+         $21,$22,$23,$24,$25,$26::jsonb,$27
        ) returning *`,
       [
         trimmed.name,
@@ -151,23 +191,27 @@ export const POST = withApiHandler(async (request) => {
         normalizedSku,
         trimmed.description ?? '',
         trimmed.quickDescription ?? '',
-        trimmed.price,
+        numericPrice,
         trimmed.originalPrice ?? null,
         trimmed.category,
         trimmed.badge ?? null,
         trimmed.images ?? [],
         trimmed.image ?? null,
         trimmed.hoverImage ?? null,
-        JSON.stringify(trimmed.colors ?? []),
+        JSON.stringify(cleanedColors ?? []),
         trimmed.color ?? null,
-        trimmed.sizes ?? [],
+        finalSizes,
         trimmed.fabric ?? null,
         trimmed.work ?? null,
         trimmed.breakdown ? JSON.stringify(trimmed.breakdown) : null,
-        trimmed.modelInfo ?? null,
+        trimmed.modelHeight ?? null,
+        trimmed.modelSize ?? null,
+        finalModelInfo,
+        trimmed.fitNote ?? null,
         trimmed.careInstructions ?? [],
         trimmed.gallery ?? [],
-        trimmed.stock ?? 0,
+        finalStock,
+        JSON.stringify(finalSizeStock),
         trimmed.isActive ?? true
       ]
     );

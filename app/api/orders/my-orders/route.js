@@ -30,7 +30,17 @@ export const GET = withApiHandler(async (request) => {
   if (response) return response;
 
   try {
-    const { rows } = await query('select * from orders where user_id = $1 order by created_at desc', [user.id]);
+    // Guest checkout (2026-08-20): an account's history is its own orders PLUS
+    // any guest order placed with its email address -- see the identical query
+    // in app/api/orders/route.js's GET, and canAccessOrder in lib/auth.js for
+    // the single-order form of the same rule.
+    const { rows } = await query(
+      `select * from orders
+        where user_id = $1
+           or (user_id is null and lower(customer_email) = lower($2))
+        order by created_at desc`,
+      [user.id, user.email]
+    );
 
     return ok({
       success: true,

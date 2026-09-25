@@ -364,6 +364,15 @@ describe('lib/serialize.js', () => {
     expect('work' in out).toBe(false);
     expect('breakdown' in out).toBe(false);
     expect('modelInfo' in out).toBe(false);
+    // 0004_product_details.sql: nullable columns with no default follow the
+    // same rule.
+    expect('modelHeight' in out).toBe(false);
+    expect('modelSize' in out).toBe(false);
+    expect('fitNote' in out).toBe(false);
+    // sizeStock is `not null default '{}'`, so it is ALWAYS present -- an
+    // empty object, meaning "not size-tracked", never an absent key. Every
+    // consumer relies on that to decide whether to fall back to `stock`.
+    expect(out.sizeStock).toEqual({});
   });
 
   it('serializeProduct: optional fields present when set', () => {
@@ -374,7 +383,11 @@ describe('lib/serialize.js', () => {
       hover_image: 'https://example.test/2.png',
       work: 'Hand Embroidery',
       breakdown: { shirt: '1.2m' },
-      model_info: 'Height 5\'7"'
+      model_info: 'Height 5\'7"',
+      model_height: '5\'7"',
+      model_size: 'S',
+      fit_note: 'Relaxed fluid fit.',
+      size_stock: { S: 10, M: 15 }
     });
     expect(out.originalPrice).toBe(9500);
     expect(out.badge).toBe('New');
@@ -382,6 +395,10 @@ describe('lib/serialize.js', () => {
     expect(out.work).toBe('Hand Embroidery');
     expect(out.breakdown).toEqual({ shirt: '1.2m' });
     expect(out.modelInfo).toBe('Height 5\'7"');
+    expect(out.modelHeight).toBe('5\'7"');
+    expect(out.modelSize).toBe('S');
+    expect(out.fitNote).toBe('Relaxed fluid fit.');
+    expect(out.sizeStock).toEqual({ S: 10, M: 15 });
   });
 
   it('serializeOrder: keeps items/shippingAddress as-is, converts numeric strings, optional payment key', () => {

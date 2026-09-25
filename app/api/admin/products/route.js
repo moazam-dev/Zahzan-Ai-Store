@@ -23,6 +23,22 @@
 // Shape checked against tools/golden/066-admin.products-list-paged.json,
 // 067-admin.products-list-search.json, 068-admin.products-list-status.json,
 // 075-admin.product-create.json.
+//
+// ---------------------------------------------------------------------------
+// Product Management Expansion (2026-08-20), createAdminProduct only:
+//
+//   - Accepts the full product record the Product Page renders --
+//     quickDescription, originalPrice, badge, sizeStock, breakdown,
+//     modelHeight/modelSize, fitNote, careInstructions, gallery ordering --
+//     so nothing product-specific has to be edited in frontend code.
+//   - `stock` is no longer required when `sizeStock` is supplied: the total is
+//     derived from the per-size counts, and `sizes` is derived from its keys.
+//   - Price and stock are validated instead of being passed to Number()
+//     unchecked (a negative price or 'abc' used to be stored).
+//   - The invented placeholder defaults are REMOVED (see the comment at the
+//     imagesArray assignment). This deliberately changes what a create call
+//     that omits those fields stores, so golden capture 075 was regenerated.
+// ---------------------------------------------------------------------------
 
 export const runtime = 'nodejs';
 
@@ -33,9 +49,16 @@ import { requireAuth, requireAdmin } from '../../../../lib/auth.js';
 import { serializeProduct } from '../../../../lib/serialize.js';
 import { recordAuditLog, getClientIp } from '../../../../lib/auditLogger.js';
 import { trimIfString, trimStringArray, trimColorVariant } from '../../../../lib/trimFields.js';
-
-const DEFAULT_IMAGE =
-  'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=85';
+import {
+  normaliseSizeStock,
+  sumSizeStock,
+  isSizeTracked,
+  sizesFromSizeStock,
+  validateColors,
+  stripBlankColors,
+  composeModelInfo,
+  toStockInteger
+} from '../../../../lib/productFields.js';
 
 export const GET = withApiHandler(async (request) => {
   const { user, response } = await requireAuth(request);
@@ -101,23 +124,76 @@ export const POST = withApiHandler(async (request) => {
   const {
     name,
     description,
+    quickDescription,
     price,
+    originalPrice,
     sku,
     category,
+    badge,
     stock,
+    sizeStock,
     sizes,
     colors,
     color,
     fabric,
     work,
+    breakdown,
+    modelHeight,
+    modelSize,
+    modelInfo,
+    fitNote,
     careInstructions,
     images,
     image,
     hoverImage
   } = body;
 
-  if (!name || price === undefined || !sku || !category || stock === undefined) {
+  // Size-tracked products derive `stock` from the per-size counts, so an
+  // explicit `stock` is no longer required when sizeStock carries the
+  // inventory. Without sizeStock the original requirement stands unchanged.
+  const sizeStockResult = normaliseSizeStock(sizeStock);
+  if (!sizeStockResult.ok) {
+    return fail(sizeStockResult.message, 400);
+  }
+  const finalSizeStock = sizeStockResult.value;
+  const sizeTracked = isSizeTracked(finalSizeStock);
+
+  if (!name || price === undefined || !sku || !category || (stock === undefined && !sizeTracked)) {
     return fail('Name, price, SKU, category, and stock are required fields.', 400);
+  }
+
+  // Never trust a submitted price or stock (spec sec21). The old route passed
+  // both straight to Number(), so 'abc' became NaN and a negative price was
+  // stored as-is; both are now rejected before they can reach the database.
+  const numericPrice = Number(price);
+  if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+    return fail('Price must be a number of 0 or more.', 400);
+  }
+
+  let numericOriginalPrice = null;
+  if (originalPrice !== undefined && originalPrice !== null && originalPrice !== '') {
+    numericOriginalPrice = Number(originalPrice);
+    if (!Number.isFinite(numericOriginalPrice) || numericOriginalPrice < 0) {
+      return fail('Compare-at price must be a number of 0 or more.', 400);
+    }
+  }
+
+  // The total is the sum of the size counts when size-tracked, so the two can
+  // never disagree -- see 0004_product_details.sql on why `stock` is kept.
+  let finalStock;
+  if (sizeTracked) {
+    finalStock = sumSizeStock(finalSizeStock);
+  } else {
+    finalStock = toStockInteger(stock);
+    if (finalStock === null) {
+      return fail('Stock must be a whole number of 0 or more.', 400);
+    }
+  }
+
+  const cleanedColors = stripBlankColors(colors);
+  const colorsResult = validateColors(cleanedColors);
+  if (!colorsResult.ok) {
+    return fail(colorsResult.message, 400);
   }
 
   const formattedSku = sku.trim().toUpperCase();
@@ -126,16 +202,32 @@ export const POST = withApiHandler(async (request) => {
     return fail(`Product with SKU "${formattedSku}" already exists in database.`, 400);
   }
 
-  const baseSlug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-  let slug = `${baseSlug}-${formattedSku.toLowerCase()}`;
+  // An admin-supplied slug wins over the generated one (it is part of the
+  // Basic Information section of the form). A collision on a slug the admin
+  // typed is reported rather than silently suffixed -- they chose that URL on
+  // purpose and need to know it is taken. The generated path keeps its
+  // original silent-suffix behaviour.
+  const providedSlug = typeof body.slug === 'string' ? body.slug.trim().toLowerCase() : '';
+  let slug;
 
-  const { rows: existingSlugRows } = await query('select id from products where slug = $1', [slug]);
-  if (existingSlugRows[0]) {
-    slug = `${slug}-${Date.now().toString().slice(-4)}`;
+  if (providedSlug) {
+    slug = providedSlug;
+    const { rows: slugTakenRows } = await query('select id from products where slug = $1', [slug]);
+    if (slugTakenRows[0]) {
+      return fail(`Product with slug "${slug}" already exists in database.`, 400);
+    }
+  } else {
+    const baseSlug = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    slug = `${baseSlug}-${formattedSku.toLowerCase()}`;
+
+    const { rows: existingSlugRows } = await query('select id from products where slug = $1', [slug]);
+    if (existingSlugRows[0]) {
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
+    }
   }
 
   // Mongoose's schema-level `trim: true` casts every one of these fields
@@ -146,54 +238,109 @@ export const POST = withApiHandler(async (request) => {
   // assignment semantics); the fallback-vs-provided DECISION below (based on
   // raw truthiness) is unchanged -- only the value that ends up persisted is
   // trimmed.
+  // The invented placeholder defaults this route used to apply -- an Unsplash
+  // stock photo, 'Pure Silk', 'Hand Embroidery', a colour called 'Ivory',
+  // 'Dry clean only' -- are gone. They were fabricated product facts: a
+  // product created without a fabric was shown to customers as being made of
+  // pure silk. Unset fields are now stored empty and the Product Page renders
+  // the label with a blank value until an admin fills it in (spec sec22).
   const imagesArray =
     Array.isArray(images) && images.length > 0
-      ? trimStringArray(images)
-      : [image ? trimIfString(image) : DEFAULT_IMAGE];
+      ? trimStringArray(images).filter((url) => typeof url === 'string' && url !== '')
+      : image
+        ? [trimIfString(image)]
+        : [];
 
   let formattedColors = [];
-  if (Array.isArray(colors)) {
-    formattedColors = colors.map((c) =>
-      typeof c === 'string' ? { name: c.trim(), hex: '#FFFFFF', image: imagesArray[0] } : trimColorVariant(c)
+  if (Array.isArray(cleanedColors)) {
+    formattedColors = cleanedColors.map((c) =>
+      typeof c === 'string'
+        ? { name: c.trim(), hex: null, image: imagesArray[0] ?? null }
+        : trimColorVariant(c)
     );
   } else if (color) {
-    formattedColors = [{ name: color.trim(), hex: '#FFFFFF', image: imagesArray[0] }];
-  } else {
-    formattedColors = [{ name: 'Ivory', hex: '#FFFFFF', image: imagesArray[0] }];
+    formattedColors = [{ name: color.trim(), hex: null, image: imagesArray[0] ?? null }];
   }
 
-  const finalColor = color ? color.trim() : (formattedColors[0] ? formattedColors[0].name : 'Ivory');
-  const finalFabric = fabric ? fabric.trim() : 'Pure Silk';
-  const finalWork = work ? work.trim() : 'Hand Embroidery';
-  const finalSizes = Array.isArray(sizes) ? trimStringArray(sizes) : ['S', 'M', 'L', 'XL'];
+  const finalColor = color ? color.trim() : (formattedColors[0] ? formattedColors[0].name : null);
+  const finalFabric = fabric ? trimIfString(fabric) : null;
+  const finalWork = work ? trimIfString(work) : null;
+
+  // When size-tracked, the size list IS the size-stock's key list -- that is
+  // what keeps the selector from offering a size the product has no inventory
+  // row for (spec sec30).
+  const finalSizes = sizeTracked
+    ? sizesFromSizeStock(finalSizeStock)
+    : Array.isArray(sizes)
+      ? trimStringArray(sizes)
+      : [];
+
   const finalCareInstructions = Array.isArray(careInstructions)
-    ? trimStringArray(careInstructions)
-    : ['Dry clean only'];
-  const finalHoverImage = hoverImage ? trimIfString(hoverImage) : imagesArray[1] || imagesArray[0];
+    ? trimStringArray(careInstructions).filter((line) => typeof line === 'string' && line !== '')
+    : [];
+
+  const finalHoverImage = hoverImage ? trimIfString(hoverImage) : imagesArray[1] || imagesArray[0] || null;
+
+  // breakdown is the page's SHIRT / TROUSER / DUPATTA trio. Stored as null
+  // rather than an object of empty strings when nothing was supplied, so
+  // serializeProduct omits the key exactly as it does for a legacy product.
+  const finalBreakdown =
+    breakdown && typeof breakdown === 'object'
+      ? {
+          shirt: trimIfString(breakdown.shirt ?? '') || '',
+          trouser: trimIfString(breakdown.trouser ?? '') || '',
+          dupatta: trimIfString(breakdown.dupatta ?? '') || ''
+        }
+      : null;
+
+  // model_info stays the single line the page renders. It is composed from the
+  // structured inputs when either is supplied, and only falls back to a
+  // directly-supplied modelInfo for API clients that still send one.
+  const finalModelHeight = modelHeight ? trimIfString(modelHeight) : null;
+  const finalModelSize = modelSize ? trimIfString(modelSize) : null;
+  const composedModelInfo = composeModelInfo(finalModelHeight, finalModelSize);
+  const finalModelInfo =
+    composedModelInfo ?? (typeof modelInfo === 'string' && modelInfo.trim() ? modelInfo.trim() : null);
+
+  const finalFitNote = fitNote ? trimIfString(fitNote) : null;
+  const finalQuickDescription = quickDescription ? trimIfString(quickDescription) : '';
+  const finalBadge = badge ? trimIfString(badge) : null;
 
   const { rows } = await query(
     `insert into products (
-       name, slug, description, price, sku, category, stock, sizes, colors, color,
-       fabric, work, care_instructions, images, image, hover_image, is_active
+       name, slug, description, quick_description, price, original_price, sku,
+       category, badge, stock, size_stock, sizes, colors, color,
+       fabric, work, breakdown, model_height, model_size, model_info, fit_note,
+       care_instructions, images, image, hover_image, is_active
      ) values (
-       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,true
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13::jsonb,$14,$15,$16,
+       $17::jsonb,$18,$19,$20,$21,$22,$23,$24,$25,true
      ) returning *`,
     [
       name.trim(),
       slug,
       description ? description.trim() : '',
-      Number(price),
+      finalQuickDescription,
+      numericPrice,
+      numericOriginalPrice,
       formattedSku,
       category.trim(),
-      Number(stock),
+      finalBadge,
+      finalStock,
+      JSON.stringify(finalSizeStock),
       finalSizes,
       JSON.stringify(formattedColors),
       finalColor,
       finalFabric,
       finalWork,
+      finalBreakdown ? JSON.stringify(finalBreakdown) : null,
+      finalModelHeight,
+      finalModelSize,
+      finalModelInfo,
+      finalFitNote,
       finalCareInstructions,
       imagesArray,
-      imagesArray[0],
+      imagesArray[0] ?? null,
       finalHoverImage
     ]
   );

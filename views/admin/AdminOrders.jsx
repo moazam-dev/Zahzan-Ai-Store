@@ -582,7 +582,13 @@ export default function AdminOrders() {
                   <div className="space-y-2">
                     {selectedOrder.items?.map((item, idx) => (
                       <div key={idx} className="flex items-center gap-3 p-3 bg-[#0f1012] border border-[#262931]">
-                        <img src={item.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=400&q=80'} alt={item.productName} className="w-12 h-16 object-cover bg-[#222]" />
+                        {/* No stock-photo fallback -- see the same change in
+                            views/Account.jsx's order history. */}
+                        {item.image ? (
+                          <img src={item.image} alt={item.productName} className="w-12 h-16 object-cover bg-[#222]" />
+                        ) : (
+                          <span className="w-12 h-16 bg-[#222] block" />
+                        )}
                         <div className="flex-1 space-y-0.5">
                           <h4 className="font-serif text-sm text-white font-normal">{item.productName}</h4>
                           {item.sku && <span className="text-[9px] text-[#707482] block">SKU: {item.sku}</span>}

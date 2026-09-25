@@ -6,15 +6,14 @@ import { useRouter } from 'next/navigation'
 import { Search, ShoppingBag, User, ArrowRight, X, Plus, Minus, ChevronRight, HelpCircle, Truck, Ruler, MessageSquare } from 'lucide-react'
 const logo = '/images/logo.png'
 const editorialThumb = '/images/craftsmanship_hero.jpg'
-import { categories } from '../data/categories'
 import { useCart } from '../context/CartContext'
+import { shopCategoryHref } from '../data/categories'
 
 const API_BASE = '/api'
 
 export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' }) {
   const { cartCount } = useCart()
   const [currentView, setCurrentView] = useState(initialView) // 'nav' | 'search'
-  const [isCollectionsExpanded, setIsCollectionsExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeHelpModal, setActiveHelpModal] = useState(null) // 'size' | 'shipping' | 'contact' | 'track' | null
   const [products, setProducts] = useState([])
@@ -138,81 +137,25 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
               {/* PRIMARY SHOP NAVIGATION */}
               <nav className="space-y-4" aria-label="Primary Navigation">
                 
-                {/* NEW ARRIVALS */}
-                <Link
-                  href="/collections"
-                  onClick={onClose}
-                  scroll={false}
-                  className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
-                >
-                  <span>NEW ARRIVALS</span>
-                  <span className="text-sm font-sans opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-[#5a5e4b]">→</span>
-                </Link>
-
-                {/* EXPANDABLE COLLECTIONS ACCORDION */}
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setIsCollectionsExpanded(!isCollectionsExpanded)}
-                    className="w-full group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1 cursor-pointer"
-                    aria-expanded={isCollectionsExpanded}
+                {/* PRIMARY LINKS -- the three category links open the shop with
+                    that category already selected in its filter. */}
+                {[
+                  { label: 'NEW ARRIVALS', href: '/shop' },
+                  { label: 'NAQSH - EMBROIDERED', href: shopCategoryHref('Naqsh - Embroidered') },
+                  { label: 'GUL - PRINTED TROUSER', href: shopCategoryHref('Gul - Printed Trouser') },
+                  { label: 'SUKOON - SOLIDS', href: shopCategoryHref('Sukoon - Solids') },
+                  { label: 'SHOP', href: '/shop' }
+                ].map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={onClose}
+                    className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
                   >
-                    <span>COLLECTIONS</span>
-                    <span className="text-xl font-sans text-[#5a5e4b]">
-                      {isCollectionsExpanded ? '−' : '+'}
-                    </span>
-                  </button>
-
-                  {/* SUB-COLLECTIONS ACCORDION LIST */}
-                  {isCollectionsExpanded && (
-                    <div className="mt-3 ml-4 pl-4 border-l border-[#e8e4dc] space-y-2.5 animate-fadeIn">
-                      {categories.map((cat) => (
-                        <Link
-                          key={cat.id}
-                          href="/collections"
-                          onClick={onClose}
-                          scroll={false}
-                          className="block text-sm font-sans tracking-wider text-[#706c64] hover:text-[#1c1b18] hover:translate-x-1 transition-all py-1"
-                        >
-                          {cat.name}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* READY TO WEAR */}
-                <Link
-                  href="/shop"
-                  onClick={onClose}
-                  scroll={false}
-                  className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
-                >
-                  <span>READY TO WEAR</span>
-                  <span className="text-sm font-sans opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-[#5a5e4b]">→</span>
-                </Link>
-
-                {/* UNSTITCHED */}
-                <Link
-                  href="/shop"
-                  onClick={onClose}
-                  scroll={false}
-                  className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
-                >
-                  <span>UNSTITCHED</span>
-                  <span className="text-sm font-sans opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-[#5a5e4b]">→</span>
-                </Link>
-
-                {/* SALE */}
-                <Link
-                  href="/shop"
-                  onClick={onClose}
-                  scroll={false}
-                  className="group flex items-center justify-between text-2xl sm:text-3xl font-serif font-light text-[#1c1b18] hover:text-[#5a5e4b] transition-colors py-1"
-                >
-                  <span>SALE</span>
-                  <span className="text-sm font-sans opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-[#5a5e4b]">→</span>
-                </Link>
+                    <span>{item.label}</span>
+                    <span className="text-sm font-sans opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-[#5a5e4b]">→</span>
+                  </Link>
+                ))}
 
               </nav>
 

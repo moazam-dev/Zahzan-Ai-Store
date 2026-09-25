@@ -1,10 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, Search, ShoppingCart, Heart } from 'lucide-react'
+import { Menu, Search, ShoppingCart, Heart, User } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-const pkrIcon = '/images/PKR.png'
 const logo = '/images/logo.png'
 import UniversalNavMenu from './UniversalNavMenu'
 import { useCart } from '../context/CartContext'
@@ -20,6 +19,11 @@ export default function Header({ variant }) {
   // On Home page ("/"), navbar stays absolute transparent over Hero.
   // On all other pages, navbar flows relatively under AnnouncementBar without collapsing.
   const isHomePage = variant ? variant === 'absolute' : pathname === '/'
+
+  // Over the hero the bar is transparent, so its controls invert to white.
+  // On the light header of every other page they stay black.
+  const controlColor = isHomePage ? 'text-white' : 'text-black'
+  const logoSrc = isHomePage ? '/images/logo-white.png' : logo
 
   const openNav = () => {
     closeCart()
@@ -47,13 +51,23 @@ export default function Header({ variant }) {
     openWishlist()
   }
 
+  // Navigating away is not the same as opening a sibling overlay: any drawer
+  // left open would sit on top of the account page, and CartDrawer holds
+  // document.body.style.overflow = 'hidden' while it is open, which would
+  // leave the page unscrollable.
+  const handleCloseOverlays = () => {
+    setIsMenuOpen(false)
+    closeCart()
+    closeWishlist()
+  }
+
   return (
     <header className={isHomePage ? "absolute inset-x-0 top-0 z-50 bg-transparent" : "relative w-full z-50 bg-[#faf8f5] border-b border-[#e8e4dc]"}>
       <div className="mx-auto flex max-w-7xl items-center justify-center px-2 py-2 sm:px-3 lg:px-4">
         
         {/* CENTER BRAND LOGO */}
         <Link href="/" scroll={false} className="text-lg font-semibold uppercase tracking-[0.35em] text-black sm:text-xl">
-          <img src={logo} alt="ZAHZAN" className="h-14 sm:h-16 w-auto object-contain" />
+          <img src={logoSrc} alt="ZAHZAN" className="h-14 sm:h-16 w-auto object-contain" />
         </Link>
 
         {/* LEFT UTILITY CONTROLS: MENU & SEARCH */}
@@ -61,11 +75,11 @@ export default function Header({ variant }) {
           <button 
             type="button" 
             onClick={openNav}
-            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer flex items-center gap-1.5"
+            className={`p-2 ${controlColor} transition-transform duration-150 hover:scale-105 cursor-pointer flex items-center gap-1.5`}
             aria-label="Open Navigation Menu"
           >
             <Menu size={20} />
-            <span className="hidden sm:inline-block text-[11px] font-sans uppercase tracking-[0.25em] font-medium text-[#1c1b18]">
+            <span className={`hidden sm:inline-block text-[11px] font-sans uppercase tracking-[0.25em] font-medium ${controlColor}`}>
               MENU
             </span>
           </button>
@@ -73,28 +87,28 @@ export default function Header({ variant }) {
           <button 
             type="button" 
             onClick={openSearch}
-            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer"
+            className={`p-2 ${controlColor} transition-transform duration-150 hover:scale-105 cursor-pointer`}
             aria-label="Search Collection"
           >
             <Search size={18} />
           </button>
         </div>
 
-        {/* RIGHT UTILITY CONTROLS: WISHLIST, BAG, CURRENCY */}
+        {/* RIGHT UTILITY CONTROLS: WISHLIST, BAG, ACCOUNT */}
         <div className="absolute right-3 top-1/2 flex items-center gap-1 sm:gap-2 -translate-y-1/2 sm:right-4">
           <button 
             type="button" 
             onClick={handleOpenWishlist}
-            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer"
+            className={`p-2 ${controlColor} transition-transform duration-150 hover:scale-105 cursor-pointer`}
             aria-label="Open Wishlist"
           >
-            <Heart size={18} className="text-black stroke-[1.5]" />
+            <Heart size={18} className={`${controlColor} stroke-[1.5]`} />
           </button>
 
           <button 
             type="button" 
             onClick={handleOpenCart}
-            className="p-2 text-black transition-transform duration-150 hover:scale-105 cursor-pointer relative"
+            className={`p-2 ${controlColor} transition-transform duration-150 hover:scale-105 cursor-pointer relative`}
             aria-label="Shopping Bag"
           >
             <ShoppingCart size={18} />
@@ -105,13 +119,18 @@ export default function Header({ variant }) {
             )}
           </button>
 
-          <button 
-            type="button" 
-            className="p-2 text-black transition-transform duration-150 hover:scale-105"
-            aria-label="Currency PKR"
+          {/* scroll={false} matches every other navigation site in the app
+              (Ruling B3): react-router never reset scroll position on
+              navigate, and Next's default does. */}
+          <Link
+            href="/account"
+            scroll={false}
+            onClick={handleCloseOverlays}
+            className={`p-2 ${controlColor} transition-transform duration-150 hover:scale-105 cursor-pointer inline-flex items-center`}
+            aria-label="Account"
           >
-            <img src={pkrIcon} alt="PKR" className="h-5 w-5 object-contain" />
-          </button>
+            <User size={18} className={`${controlColor} stroke-[1.5]`} />
+          </Link>
         </div>
 
       </div>
