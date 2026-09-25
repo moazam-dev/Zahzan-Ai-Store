@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useState, useEffect, useRef } from 'react'
 
 export default function Newsletter() {
@@ -80,10 +81,10 @@ export default function Newsletter() {
         }`}>
           
           {/* LEFT COLUMN: EDITORIAL COPY & MINIMAL FORM (7 cols on desktop) */}
-          <div className="lg:col-span-7 flex flex-col justify-center">
+          <div className="lg:col-span-7 flex flex-col justify-center text-center sm:text-left">
             
             {/* Editorial Label */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center justify-center sm:justify-start gap-3 mb-4">
               <span className="h-[1px] w-6 bg-[#5a5e4b]/50" />
               <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.4em] text-[#5a5e4b]">
                 STAY IN THE STORY
@@ -97,13 +98,13 @@ export default function Newsletter() {
             </h2>
 
             {/* Short Refined Copy */}
-            <p className="mt-4 text-xs sm:text-sm text-[#706c64] font-light leading-relaxed tracking-wide max-w-lg">
+            <p className="mt-4 text-xs sm:text-sm text-[#706c64] font-light leading-relaxed tracking-wide max-w-lg mx-auto sm:mx-0">
               New pieces, quiet moments, and stories from Zahzan — delivered occasionally.
             </p>
 
             {/* MINIMAL EDITORIAL FORM */}
             {!feedback || feedback.type === 'error' ? (
-              <form onSubmit={handleSubmit} className="mt-10 max-w-lg">
+              <form onSubmit={handleSubmit} className="mt-10 w-full max-w-lg mx-auto sm:mx-0">
                 <div className="relative flex items-center border-b border-[#1a1918]/30 transition-colors duration-300 focus-within:border-[#1a1918] pb-1">
                   <input
                     type="email"
@@ -132,13 +133,13 @@ export default function Newsletter() {
                 )}
 
                 {/* Microcopy under form */}
-                <div className="mt-3 flex items-center justify-between text-[11px] text-[#706c64] font-light tracking-wide">
+                <div className="mt-3 flex flex-col gap-1 sm:flex-row items-center justify-center sm:justify-between text-[11px] text-[#706c64] font-light tracking-wide">
                   <span>Thoughtful updates. Nothing more.</span>
                   <span className="font-serif italic text-xs text-[#5a5e4b]">Only what is worth knowing.</span>
                 </div>
               </form>
             ) : (
-              <div className="mt-8 p-6 rounded-xl border border-[#5a5e4b]/30 bg-white/60 max-w-lg transition-all duration-500">
+              <div className="mt-8 p-6 rounded-xl border border-[#5a5e4b]/30 bg-white/60 w-full max-w-lg mx-auto sm:mx-0 transition-all duration-500">
                 <p className="text-xs uppercase tracking-[0.25em] text-[#5a5e4b] font-medium">
                   {feedback.type === 'already' ? '✓ ALREADY SUBSCRIBED' : '✓ WELCOME TO THE JOURNEY'}
                 </p>
@@ -153,7 +154,7 @@ export default function Newsletter() {
           {/* RIGHT COLUMN: SMALL VERTICAL EDITORIAL DETAIL PHOTOGRAPH (5 cols on desktop) */}
           <div className="lg:col-span-5 flex justify-center lg:justify-end">
             <div className="relative w-full max-w-xs sm:max-w-sm aspect-[3/4] overflow-hidden rounded-xl bg-[#f0ede6] border border-[#e8e4dc] shadow-md group">
-              <img
+              <Img sizes="384px"
                 src="/images/newsletterimg.png"
                 alt="Close-up photograph of Pakistani embroidery detail"
                 className="h-full w-full object-cover object-center transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"

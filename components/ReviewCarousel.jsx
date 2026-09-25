@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useState, useEffect, useRef } from 'react'
 import { reviews } from '../data/reviews'
 
@@ -109,7 +110,7 @@ export default function ReviewCarousel() {
           isVisible ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
         }`}>
           {/* Left Intro Content */}
-          <div className="text-left max-w-xl">
+          <div className="text-center sm:text-left max-w-xl mx-auto sm:mx-0">
             <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.4em] text-[#5a5e4b]">
               CLIENT MEMOIRS & STYLING
             </span>
@@ -178,7 +179,7 @@ export default function ReviewCarousel() {
                       {/* POST HEADER */}
                       <div className="flex items-center justify-between pb-3.5 border-b border-[#e8e4dc]/60">
                         <div className="flex items-center gap-3">
-                          <img 
+                          <Img sizes="40px" 
                             src={post.avatar} 
                             alt={post.username} 
                             className="h-10 w-10 rounded-full object-cover border border-[#e8e4dc] shadow-xs"
@@ -207,7 +208,7 @@ export default function ReviewCarousel() {
 
                       {/* MAIN CUSTOMER IMAGE */}
                       <div className="mt-3.5 relative overflow-hidden rounded-xl bg-[#f0ede6] aspect-[4/5] shadow-xs">
-                        <img 
+                        <Img sizes="(max-width: 1023px) 90vw, 30vw" 
                           src={post.image} 
                           alt={`Customer wearing ${post.productTag}`}
                           className="h-full w-full object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]"
@@ -302,7 +303,7 @@ export default function ReviewCarousel() {
                     {/* Header */}
                     <div className="flex items-center justify-between pb-3 border-b border-[#e8e4dc]">
                       <div className="flex items-center gap-3">
-                        <img src={post.avatar} alt={post.username} className="h-10 w-10 rounded-full object-cover border border-[#e8e4dc]" />
+                        <Img sizes="40px" src={post.avatar} alt={post.username} className="h-10 w-10 rounded-full object-cover border border-[#e8e4dc]" />
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-sm text-[#1a1918]">{post.username}</span>
@@ -318,7 +319,7 @@ export default function ReviewCarousel() {
 
                     {/* Customer Image */}
                     <div className="mt-3.5 relative overflow-hidden rounded-xl bg-[#f0ede6] aspect-[4/5]">
-                      <img src={post.image} alt={post.productTag} className="h-full w-full object-cover object-top" />
+                      <Img sizes="(max-width: 1023px) 90vw, 30vw" src={post.image} alt={post.productTag} className="h-full w-full object-cover object-top" />
                       <div className="absolute bottom-3 left-3 bg-[#1a1918]/80 text-white text-[9px] uppercase tracking-widest px-2.5 py-1 rounded">
                         {post.environment}
                       </div>

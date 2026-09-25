@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Heart } from 'lucide-react'
@@ -24,7 +25,7 @@ export default function ProductCard({ product }) {
         className="relative aspect-[3/4] overflow-hidden bg-[#f3efe8] cursor-pointer"
       >
         {/* Main Product Image */}
-        <img
+        <Img sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
           src={imageSrc}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-105"
@@ -32,7 +33,7 @@ export default function ProductCard({ product }) {
 
         {/* Secondary Hover Image */}
         {product.hoverImage && (
-          <img
+          <Img sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw"
             src={product.hoverImage}
             alt={`${product.name} alternate view`}
             className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500 group-hover:opacity-100"

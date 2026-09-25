@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useEffect, useRef, useState } from 'react'
 const before = '/images/tryonbefore.png'
 const after = '/images/tryonafter.png'
@@ -57,7 +58,7 @@ export default function TryOnSection() {
         {/* ========================================================================= */}
         {/* LEFT SIDE: EDITORIAL HEADING, PARAGRAPH & TRY IT ON BUTTON */}
         {/* ========================================================================= */}
-        <div className="lg:col-span-5 flex flex-col justify-center text-left">
+        <div className="lg:col-span-5 flex flex-col justify-center items-center text-center sm:items-start sm:text-left">
           
           {/* Editorial Category Label */}
           <span className="text-[10px] sm:text-[11px] font-sans font-medium uppercase tracking-[0.4em] text-[#5a5e4b] block mb-3">
@@ -71,7 +72,7 @@ export default function TryOnSection() {
           </h2>
 
           {/* Short Refined Copy Paragraph */}
-          <p className="mt-4 text-xs sm:text-sm font-sans text-[#706c64] font-light leading-relaxed tracking-wide max-w-md">
+          <p className="mt-4 text-xs sm:text-sm font-sans text-[#706c64] font-light leading-relaxed tracking-wide max-w-md mx-auto sm:mx-0">
             Experience instantaneous virtual dressing. Visualize signature drape, fit, and movement on your silhouette with precision AI rendering.
           </p>
 
@@ -98,9 +99,9 @@ export default function TryOnSection() {
             onTouchStart={handlePointerDown}
             className="relative overflow-hidden rounded-[0.5rem] bg-stone-100 h-[28rem] sm:h-[36rem] lg:h-[38rem] touch-none shadow-xs border border-[#e8e4dc]"
           >
-            <img src={after} alt="Before" className="h-full w-full object-cover" />
+            <Img sizes="(max-width: 1023px) 100vw, 50vw" src={after} alt="Before" className="h-full w-full object-cover" />
             <div className="absolute inset-0 pointer-events-none">
-              <img
+              <Img sizes="(max-width: 1023px) 100vw, 50vw"
                 src={before}
                 alt="After"
                 className="h-full w-full object-cover"

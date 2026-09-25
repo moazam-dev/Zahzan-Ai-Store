@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import Link from 'next/link'
 import { shopCategoryHref } from '../data/categories'
 
@@ -11,7 +12,7 @@ export default function CategoryCard({ category, image }) {
   return (
     <Link href={shopCategoryHref(category.name)} className="group block h-full overflow-hidden rounded-[2rem] shadow-sm">
       <div className="relative overflow-hidden">
-        <img
+        <Img sizes="(max-width: 767px) 100vw, 33vw"
           src={src}
           alt={category.name}
           className="h-[28rem] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"

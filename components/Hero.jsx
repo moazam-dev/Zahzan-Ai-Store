@@ -2,20 +2,59 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Img from './Img'
+import { optimizedSrcSet } from '../lib/imageOptimization'
 import { shopCategoryHref } from '../data/categories'
 
-// Each slide opens the shop filtered to the collection it shows. `mobileSrc`
-// is the 9:16 portrait cut <picture> swaps in on phones and portrait tablets,
-// so each device downloads only the image it shows.
-const SLIDES = [
-  { src: '/images/1h.png', mobileSrc: '/images/1m.png', alt: 'Hero look one', href: shopCategoryHref('Naqsh - Embroidered') },
-  { src: '/images/2h.png', mobileSrc: '/images/2m.png', alt: 'Hero look two', href: shopCategoryHref('Sukoon - Solids') },
-  { src: '/images/3h.png', mobileSrc: '/images/3m.png', alt: 'Hero look three', href: shopCategoryHref('Gul - Printed Trouser') },
-  { src: '/images/4h.png', mobileSrc: '/images/4m.png', alt: 'Hero look four', href: '/shop' }
+// Imported rather than referenced as '/images/...' strings: Next.js serves an
+// imported file under a content-hashed URL, so replacing an image with a new
+// one of the same name changes its URL and every cache (browser, optimiser,
+// CDN) picks it up immediately instead of showing the old picture.
+import desktop1 from '../public/images/1h.avif'
+import desktop2 from '../public/images/2h.avif'
+import desktop3 from '../public/images/3h.avif'
+import desktop4 from '../public/images/4h.avif'
+import mobile1 from '../public/images/1m.avif'
+import mobile2 from '../public/images/2m.avif'
+import mobile3 from '../public/images/3m.avif'
+import mobile4 from '../public/images/4m.avif'
+import mobile5 from '../public/images/5m.avif'
+
+// Two independent campaigns, each slide opening the shop filtered to the
+// collection it shows: wide images on desktop, 9:16 portrait images on phones
+// and portrait tablets. They differ in length, so slide N pairs DESKTOP[N]
+// with MOBILE[N] where both exist.
+const DESKTOP_SLIDES = [
+  { src: desktop1, alt: 'Naqsh collection', href: shopCategoryHref('Naqsh - Embroidered') },
+  { src: desktop2, alt: 'Sukoon collection', href: shopCategoryHref('Sukoon - Solids') },
+  { src: desktop3, alt: 'Gul collection', href: shopCategoryHref('Gul - Printed Trouser') },
+  { src: desktop4, alt: 'Zahzan collection', href: '/shop' }
+]
+
+const MOBILE_SLIDES = [
+  { src: mobile1, alt: 'Naqsh collection', href: shopCategoryHref('Naqsh - Embroidered') },
+  { src: mobile2, alt: 'Sukoon collection', href: shopCategoryHref('Sukoon - Solids') },
+  { src: mobile3, alt: 'Gul collection', href: shopCategoryHref('Gul - Printed Trouser') },
+  { src: mobile4, alt: 'Gul collection', href: shopCategoryHref('Gul - Printed Trouser') },
+  { src: mobile5, alt: 'Launch sale', href: '/shop' }
 ]
 
 // Below Tailwind's `lg` breakpoint, i.e. phones and portrait tablets.
 const MOBILE_QUERY = '(max-width: 1023px)'
+
+// Each slide carries both images; <picture> picks one before any JS runs, so
+// the first paint already shows the right campaign. `isMobile` only decides
+// the slide count and each slide's link.
+function buildSlides(isMobile) {
+  const primary = isMobile ? MOBILE_SLIDES : DESKTOP_SLIDES
+  return primary.map((slide, i) => ({
+    key: slide.src.src,
+    href: slide.href,
+    alt: slide.alt,
+    desktopSrc: DESKTOP_SLIDES[i]?.src ?? slide.src,
+    mobileSrc: MOBILE_SLIDES[i]?.src ?? slide.src
+  }))
+}
 
 const INTERVAL_MS = 5000
 const TRANSITION_MS = 1800
@@ -24,9 +63,7 @@ const SWIPE_THRESHOLD = 40
 // The track carries a clone of the last slide in front and the first slide
 // behind, so a wrap keeps sliding the same direction instead of rewinding
 // across every frame. Position 1 is the first real slide.
-const TRACK = [SLIDES[SLIDES.length - 1], ...SLIDES, SLIDES[0]]
 const FIRST = 1
-const LAST = SLIDES.length
 
 export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
   const [position, setPosition] = useState(FIRST)
@@ -34,6 +71,23 @@ export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
   const [height, setHeight] = useState(null)
   const touchStartX = useRef(0)
   const sectionRef = useRef(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const media = window.matchMedia(MOBILE_QUERY)
+    const update = () => {
+      setIsMobile(media.matches)
+      setAnimated(false)
+      setPosition(FIRST)
+    }
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  const SLIDES = buildSlides(isMobile)
+  const TRACK = [SLIDES[SLIDES.length - 1], ...SLIDES, SLIDES[0]]
+  const LAST = SLIDES.length
 
   const activeIndex = ((position - FIRST) % SLIDES.length + SLIDES.length) % SLIDES.length
 
@@ -124,7 +178,7 @@ export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
       >
         {TRACK.map((slide, trackIndex) => (
           <Link
-            key={`${slide.src}-${trackIndex}`}
+            key={`${slide.key}-${trackIndex}`}
             href={slide.href}
             aria-hidden={trackIndex !== position}
             tabIndex={trackIndex === position ? undefined : -1}
@@ -132,9 +186,10 @@ export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
             draggable={false}
           >
             <picture className="block h-full w-full">
-              <source media={MOBILE_QUERY} srcSet={slide.mobileSrc} />
-              <img
-                src={slide.src}
+              <source media={MOBILE_QUERY} srcSet={optimizedSrcSet(slide.mobileSrc)} sizes="100vw" />
+              <Img
+                sizes="100vw"
+                src={slide.desktopSrc}
                 alt={trackIndex === 0 || trackIndex === TRACK.length - 1 ? '' : slide.alt}
                 // The first real slide carries the LCP, so it loads eagerly and the
                 // rest stay lazy.
@@ -152,7 +207,7 @@ export default function Hero({ btnLeft = '8%', btnTop = '55%' }) {
       <div className="absolute inset-x-0 bottom-8 z-10 flex items-center justify-center gap-3">
         {SLIDES.map((slide, slideIndex) => (
           <button
-            key={slide.src}
+            key={slide.key}
             type="button"
             onClick={() => goTo(slideIndex)}
             aria-label={`Go to slide ${slideIndex + 1}`}

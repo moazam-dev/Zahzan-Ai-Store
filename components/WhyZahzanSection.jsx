@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useEffect, useRef, useState } from 'react'
 import { Banknote, RefreshCcw, Scissors, Truck } from 'lucide-react'
 
@@ -46,7 +47,7 @@ export default function WhyZahzanSection({ showOffer = true, imageSide = 'left' 
 
       <div className={`flex flex-wrap ${imageSide === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
         <div className="relative min-h-[600px] min-w-0 flex-[1_1_480px] overflow-hidden bg-[#e4dfd6] sm:min-h-[720px]">
-          <img src={MODEL_IMAGE} alt="Launch offer" className="absolute inset-0 h-full w-full object-cover object-top" />
+          <Img sizes="(max-width: 1023px) 100vw, 50vw" src={MODEL_IMAGE} alt="Launch offer" className="absolute inset-0 h-full w-full object-cover object-top" />
 
           {showOffer && (
             <>

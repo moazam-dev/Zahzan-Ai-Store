@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useState, useEffect } from 'react'
 import { X, CheckCircle, Truck, MapPin, AlertCircle, ShoppingBag, ShieldCheck, ArrowLeft, Upload, CreditCard, Building, Smartphone } from 'lucide-react'
 import { useCart } from '../context/CartContext'
@@ -478,7 +479,7 @@ export default function CheckoutModal({
                   <div className="space-y-3 max-h-48 overflow-y-auto no-scrollbar pr-1">
                     {checkoutItems.map((item, idx) => (
                       <div key={idx} className="flex items-center gap-4 bg-white p-3 border border-[#e8e4dc]/80 rounded-xs">
-                        <img src={item.image} alt={item.name} className="w-12 h-16 object-cover bg-[#eee]" />
+                        <Img sizes="48px" src={item.image} alt={item.name} className="w-12 h-16 object-cover bg-[#eee]" />
                         <div className="flex-1 text-xs font-sans space-y-0.5">
                           <span className="text-[9px] uppercase tracking-widest text-[#5a5e4b] block">{item.category}</span>
                           <h4 className="font-serif text-base text-[#1c1b18] font-normal leading-tight">{item.name}</h4>

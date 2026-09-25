@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -107,7 +108,7 @@ export default function WishlistDrawer() {
                       }}
                       className="w-20 h-24 sm:w-24 sm:h-30 flex-shrink-0 bg-[#f3efe8] overflow-hidden border border-[#e5e0d8] cursor-pointer"
                     >
-                      <img src={prodImg} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <Img sizes="96px" src={prodImg} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     </div>
 
                     {/* Details & Actions */}

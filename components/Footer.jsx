@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useState } from 'react'
 const logo = '/images/logo.png'
 
@@ -49,7 +50,7 @@ export default function Footer() {
           {/* BRAND STATEMENT COLUMN (4 cols) */}
           <div className="md:col-span-12 lg:col-span-4 flex flex-col justify-between">
             <div>
-            <img src={logo} alt="PKR" className="h-15 w-auto object-contain" />              
+            <Img sizes="240px" src={logo} alt="PKR" className="h-15 w-auto object-contain" />              
               <p className="mt-3 text-xs sm:text-sm text-[#706c64] font-light leading-relaxed max-w-xs">
                 Modern Pakistani clothing,<br />
                 made with intention.

@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { shopCategoryHref } from '../data/categories'
 
 // Ported from the "Six Ways Section" design-canvas file. The canvas version
@@ -28,7 +29,7 @@ export default function SixWaysSection({ showScrim = true }) {
             className="group relative block min-w-[300px] flex-[0_0_33.3333%] snap-start overflow-hidden"
             style={{ aspectRatio: '631 / 620' }}
           >
-            <img
+            <Img sizes="(max-width: 1023px) 80vw, 33vw"
               src={edit.image}
               alt={edit.lines.join(' ')}
               className="h-full w-full object-cover object-center transition-transform duration-[1200ms] ease-out group-hover:scale-[1.06]"

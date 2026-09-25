@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ShoppingBag, X, Minus, Plus, Trash2, ArrowRight } from 'lucide-react'
@@ -91,7 +92,7 @@ export default function CartDrawer() {
                 >
                   {/* Product Thumbnail */}
                   <div className="w-20 h-24 sm:w-22 sm:h-28 flex-shrink-0 bg-[#f3efe8] overflow-hidden border border-[#e5e0d8]">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    <Img sizes="96px" src={item.image} alt={item.name} className="w-full h-full object-cover" />
                   </div>
 
                   {/* Details & Quantity Controls */}

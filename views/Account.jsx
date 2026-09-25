@@ -1,5 +1,6 @@
 'use client'
 
+import Img from '../components/Img'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -1085,7 +1086,7 @@ export default function Account() {
                                       rather than a photograph of some other
                                       garment. */}
                                   {item.image ? (
-                                    <img src={item.image} alt={item.productName} className="w-12 h-16 object-cover bg-[#eee]" />
+                                    <Img sizes="48px" src={item.image} alt={item.productName} className="w-12 h-16 object-cover bg-[#eee]" />
                                   ) : (
                                     <span className="w-12 h-16 bg-[#eee] block" />
                                   )}

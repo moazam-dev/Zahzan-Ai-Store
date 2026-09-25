@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import Img from '../components/Img'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { 
@@ -27,6 +28,19 @@ import { useWishlist } from '../context/WishlistContext'
 import { stockForSize, isSizeTracked } from '../lib/productFields'
 
 const API_BASE = '/api'
+
+// The two Unsplash stock photos that used to sit at the end of this chain are
+// gone: showing a customer a photograph of a different garment is worse than
+// showing them the empty frame the gallery already renders underneath its <img>.
+function getGalleryImages(product) {
+  if (!product) return []
+  if (product.images && product.images.length > 0) return product.images
+  if (product.gallery && product.gallery.length > 0) return product.gallery
+  return [product.image, product.hoverImage].filter(Boolean)
+}
+
+// Minimum horizontal travel, in px, before a touch counts as a swipe.
+const SWIPE_THRESHOLD = 40
 
 export default function Product() {
   const { id } = useParams()
@@ -88,6 +102,7 @@ export default function Product() {
   const [isZoomed, setIsZoomed] = useState(false)
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 })
   const [openDeliveryAccordion, setOpenDeliveryAccordion] = useState(false)
+  const touchStartRef = useRef(null)
 
   // Reset state when product changes
   useEffect(() => {
@@ -107,6 +122,21 @@ export default function Product() {
     setSelectedColor(product?.colors?.[0]?.name || product?.color || '')
     setQuantity(1)
     setActiveImageIndex(0)
+  }, [product])
+
+  // Left/right arrow keys step through the gallery, unless the customer is
+  // typing in a field.
+  useEffect(() => {
+    const count = getGalleryImages(product).length
+    if (count < 2) return
+    const handleKeyDown = (e) => {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return
+      if (e.key === 'ArrowLeft') setActiveImageIndex((prev) => (prev - 1 + count) % count)
+      if (e.key === 'ArrowRight') setActiveImageIndex((prev) => (prev + 1) % count)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [product])
 
   if (loading) {
@@ -142,15 +172,7 @@ export default function Product() {
   const productId = product.id || product._id
   const isSaved = isInWishlist(productId)
 
-  // Construct images array. The two Unsplash stock photos that used to sit at
-  // the end of this chain are gone: showing a customer a photograph of a
-  // different garment is worse than showing them the empty frame the gallery
-  // already renders underneath its <img>.
-  const galleryImages = (product.images && product.images.length > 0)
-    ? product.images
-    : (product.gallery && product.gallery.length > 0)
-    ? product.gallery
-    : [product.image, product.hoverImage].filter(Boolean)
+  const galleryImages = getGalleryImages(product)
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)
@@ -158,6 +180,25 @@ export default function Product() {
 
   const handleNextImage = () => {
     setActiveImageIndex((prev) => (prev + 1) % galleryImages.length)
+  }
+
+  // Swipe left/right on the main image to change photos. A mostly vertical
+  // drag is left alone so the page still scrolls.
+  const handleTouchStart = (e) => {
+    const t = e.touches[0]
+    touchStartRef.current = { x: t.clientX, y: t.clientY }
+  }
+
+  const handleTouchEnd = (e) => {
+    const start = touchStartRef.current
+    touchStartRef.current = null
+    if (!start || galleryImages.length < 2) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return
+    if (dx < 0) handleNextImage()
+    else handlePrevImage()
   }
 
   // Handle image mouse move for desktop zoom
@@ -230,7 +271,7 @@ export default function Product() {
                   }`}
                   aria-label={`View image ${idx + 1}`}
                 >
-                  <img
+                  <Img sizes="80px"
                     src={imgUrl}
                     alt={`${product.name} thumbnail ${idx + 1}`}
                     className="w-full h-full object-cover"
@@ -240,7 +281,11 @@ export default function Product() {
             </div>
 
             {/* MAIN DISPLAY IMAGE WITH HOVER ZOOM & NAVIGATION ARROWS */}
-            <div className="relative flex-1 aspect-[3/4] bg-[#f4f0e8] overflow-hidden group select-none">
+            <div
+              className="relative flex-1 aspect-[3/4] bg-[#f4f0e8] overflow-hidden group select-none touch-pan-y"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               
               <div
                 className="w-full h-full cursor-crosshair overflow-hidden relative"
@@ -252,7 +297,7 @@ export default function Product() {
                 {/* background rather than a broken <img>. Previously two */}
                 {/* Unsplash stock photos made this state unreachable. */}
                 {galleryImages[activeImageIndex] ? (
-                  <img
+                  <Img sizes="(max-width: 1023px) 100vw, 75vw"
                     src={galleryImages[activeImageIndex]}
                     alt={product.name}
                     className={`w-full h-full object-cover transition-transform duration-300 ease-out ${
@@ -273,7 +318,7 @@ export default function Product() {
                   <button
                     type="button"
                     onClick={handlePrevImage}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 text-[#1c1b18] bg-[#faf8f5]/80 hover:bg-[#faf8f5] backdrop-blur-xs transition-opacity opacity-0 group-hover:opacity-100 cursor-pointer"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 text-[#1c1b18] bg-[#faf8f5]/80 hover:bg-[#faf8f5] backdrop-blur-xs transition-opacity opacity-100 lg:opacity-0 lg:group-hover:opacity-100 cursor-pointer"
                     aria-label="Previous image"
                   >
                     <ChevronLeft size={20} />
@@ -282,7 +327,7 @@ export default function Product() {
                   <button
                     type="button"
                     onClick={handleNextImage}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[#1c1b18] bg-[#faf8f5]/80 hover:bg-[#faf8f5] backdrop-blur-xs transition-opacity opacity-0 group-hover:opacity-100 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[#1c1b18] bg-[#faf8f5]/80 hover:bg-[#faf8f5] backdrop-blur-xs transition-opacity opacity-100 lg:opacity-0 lg:group-hover:opacity-100 cursor-pointer"
                     aria-label="Next image"
                   >
                     <ChevronRight size={20} />
@@ -310,7 +355,7 @@ export default function Product() {
                     activeImageIndex === idx ? 'border-2 border-[#1c1b18]' : 'border border-[#e8e4dc] opacity-70'
                   }`}
                 >
-                  <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                  <Img sizes="64px" src={imgUrl} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

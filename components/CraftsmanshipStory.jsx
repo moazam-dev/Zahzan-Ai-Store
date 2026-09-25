@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import React, { useState, useEffect, useRef } from 'react'
 const heroImg = '/images/main.jpeg'
 const fabricImg = '/images/ul.jpeg'
@@ -158,7 +159,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             <div className="lg:col-span-4 space-y-12">
               <div className="relative group">
                 <div className="aspect-[3/4] overflow-hidden bg-[#f3efe8]">
-                  <img src={fabricImg} alt="Woven silk fabric texture macro" className="w-full h-full object-cover" />
+                  <Img sizes="(max-width: 767px) 100vw, 33vw" src={fabricImg} alt="Woven silk fabric texture macro" className="w-full h-full object-cover" />
                 </div>
                 <div className="mt-4 space-y-1">
                   <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">01 / EMBROIDRY</span>
@@ -168,7 +169,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
 
               <div className="relative pt-6 border-t border-[#e8e3d9]">
                 <div className="aspect-[16/10] overflow-hidden bg-[#f3efe8]">
-                  <img src={dupattaImg} alt="Fluid dupatta organza drape" className="w-full h-full object-cover" />
+                  <Img sizes="(max-width: 767px) 100vw, 33vw" src={dupattaImg} alt="Fluid dupatta organza drape" className="w-full h-full object-cover" />
                 </div>
                 <div className="mt-4 space-y-1">
                   <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">03 / FABRIC</span>
@@ -180,7 +181,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             {/* Center Column: Full Hero Garment */}
             <div className="lg:col-span-5 relative">
               <div className="aspect-[3/4.4] overflow-hidden shadow-sm bg-[#f3efe8]">
-                <img src={heroImg} alt="Complete signature ivory Pakistani ensemble" className="w-full h-full object-cover object-top" />
+                <Img sizes="(max-width: 767px) 100vw, 33vw" src={heroImg} alt="Complete signature ivory Pakistani ensemble" className="w-full h-full object-cover object-top" />
               </div>
             </div>
 
@@ -188,7 +189,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             <div className="lg:col-span-3 space-y-12">
               <div className="relative">
                 <div className="aspect-square overflow-hidden bg-[#f3efe8]">
-                  <img src={embroideryImg} alt="Fine neck embroidery detail" className="w-full h-full object-cover" />
+                  <Img sizes="(max-width: 767px) 100vw, 33vw" src={embroideryImg} alt="Fine neck embroidery detail" className="w-full h-full object-cover" />
                 </div>
                 <div className="mt-4 space-y-1">
                   <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">02 / DETAIL</span>
@@ -198,7 +199,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
 
               <div className="relative pt-6 border-t border-[#e8e3d9]">
                 <div className="aspect-[3/4] overflow-hidden bg-[#f3efe8]">
-                  <img src={fitImg} alt="Lower flare hem and trouser drape" className="w-full h-full object-cover" />
+                  <Img sizes="(max-width: 767px) 100vw, 50vw" src={fitImg} alt="Lower flare hem and trouser drape" className="w-full h-full object-cover" />
                 </div>
                 <div className="mt-4 space-y-1">
                   <span className="text-[10px] font-sans tracking-[0.25em] text-[#5a5e4b] uppercase font-medium">SILHOUETTE</span>
@@ -292,7 +293,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             }}
           >
             <div className="relative w-full h-full overflow-hidden shadow-xs bg-[#f4f0e8] border-l border-[#e8e3d9]">
-              <img
+              <Img sizes="100vw"
                 src={heroImg}
                 alt="Full-length signature Pakistani luxury kameez suit on model"
                 className="w-full h-full object-cover transition-all duration-75 ease-out"
@@ -323,7 +324,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             }}
           >
             <div className="w-full h-full overflow-hidden shadow-sm bg-[#f3efe8]">
-              <img
+              <Img sizes="(max-width: 767px) 100vw, 50vw"
                 src={fabricImg}
                 alt="Ultra macro texture of luxury woven linen fabric"
                 className="w-full h-full object-cover"
@@ -377,7 +378,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             }}
           >
             <div className="w-full h-full overflow-hidden shadow-md bg-[#f3efe8] border border-[#e5e0d8]">
-              <img
+              <Img sizes="(max-width: 767px) 100vw, 50vw"
                 src={embroideryImg}
                 alt="Close-up neck embroidery and button detailing"
                 className="w-full h-full object-cover"
@@ -430,7 +431,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             }}
           >
             <div className="w-full h-full overflow-hidden shadow-sm bg-[#f3efe8] border-t border-r border-[#e5e0d8]">
-              <img
+              <Img sizes="(max-width: 767px) 100vw, 50vw"
                 src={dupattaImg}
                 alt="Fluid organza dupatta in motion"
                 className="w-full h-full object-cover"
@@ -483,7 +484,7 @@ export default function CraftsmanshipStory({ id = "craftsmanship" }) {
             }}
           >
             <div className="w-full h-full overflow-hidden shadow-xs bg-[#f3efe8]">
-              <img
+              <Img sizes="(max-width: 767px) 100vw, 50vw"
                 src={fitImg}
                 alt="Wide-leg trouser and flared kameez hemline drape"
                 className="w-full h-full object-cover"

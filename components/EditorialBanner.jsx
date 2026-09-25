@@ -1,9 +1,11 @@
 'use client'
 
+import Img from './Img'
+
 export default function EditorialBanner() {
   return (
     <section className="relative overflow-hidden border-t border-stone-200 bg-stone-900">
-      <img
+      <Img sizes="100vw"
         src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=2000&q=80"
         alt="Editorial campaign"
         className="h-[28rem] w-full object-cover object-center opacity-70 sm:h-[34rem]"

@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useState } from 'react'
 import { Menu, Search, ShoppingCart, Heart, User } from 'lucide-react'
 import Link from 'next/link'
@@ -67,7 +68,7 @@ export default function Header({ variant }) {
         
         {/* CENTER BRAND LOGO */}
         <Link href="/" scroll={false} className="text-lg font-semibold uppercase tracking-[0.35em] text-black sm:text-xl">
-          <img src={logoSrc} alt="ZAHZAN" className="h-14 sm:h-16 w-auto object-contain" />
+          <Img sizes="240px" src={logoSrc} alt="ZAHZAN" className="h-14 sm:h-16 w-auto object-contain" />
         </Link>
 
         {/* LEFT UTILITY CONTROLS: MENU & SEARCH */}

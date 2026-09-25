@@ -1,5 +1,7 @@
 'use client'
 
+import Img from './Img'
+
 const socialTiles = [
   'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=80',
@@ -27,7 +29,7 @@ export default function SocialGrid() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {socialTiles.map((tile, index) => (
             <div key={tile} className={`overflow-hidden rounded-[2rem] border border-stone-200 bg-white ${index === 0 ? 'sm:col-span-2 sm:row-span-2' : ''}`}>
-              <img src={tile} alt={`Editorial fashion tile ${index + 1}`} className={`h-full w-full object-cover ${index === 0 ? 'min-h-[24rem]' : 'h-64'}`} />
+              <Img sizes="(max-width: 767px) 100vw, 33vw" src={tile} alt={`Editorial fashion tile ${index + 1}`} className={`h-full w-full object-cover ${index === 0 ? 'min-h-[24rem]' : 'h-64'}`} />
             </div>
           ))}
         </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -113,7 +114,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
         {/* ----------------------------------------------------------------------- */}
         <div className="sticky top-0 z-20 bg-[#faf8f5]/95 backdrop-blur-xs px-6 py-5 sm:px-8 flex items-center justify-between border-b border-[#e8e4dc]/70">
           <Link href="/" onClick={onClose} scroll={false} className="flex items-center gap-2 group">
-            <img src={logo} alt="ZAHZAN" className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105" />
+            <Img sizes="240px" src={logo} alt="ZAHZAN" className="h-12 sm:h-14 w-auto object-contain transition-transform group-hover:scale-105" />
           </Link>
 
           <button
@@ -220,7 +221,7 @@ export default function UniversalNavMenu({ isOpen, onClose, initialView = 'nav' 
               {/* RESTRAINED EDITORIAL CAMPAIGN IMAGE */}
               <div className="pt-4">
                 <div className="relative group overflow-hidden bg-[#f3efe8] rounded-xs max-w-[260px] aspect-[16/9]">
-                  <img
+                  <Img sizes="(max-width: 767px) 100vw, 400px"
                     src={editorialThumb}
                     alt="Latest Editorial Campaign"
                     className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"

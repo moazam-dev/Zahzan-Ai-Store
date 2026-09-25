@@ -18,6 +18,22 @@ const nextConfig = {
   // bundling configuration only -- zero effect on any HTTP response, byte
   // for byte, on either driver.
   serverExternalPackages: ['@electric-sql/pglite'],
+  // Image optimisation (components/Img.jsx). Photos are served as AVIF, or
+  // WebP for browsers without AVIF, resized to the width each device needs.
+  // Only product photos from our public Supabase bucket and the Unsplash
+  // placeholders may be optimised; lib/imageOptimization.js mirrors this list
+  // so any other URL is shown unoptimised instead of failing.
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    qualities: [75],
+    // Optimised copies are keyed by URL, and uploads get a unique file name,
+    // so a long cache is safe.
+    minimumCacheTTL: 2678400, // 31 days
+    remotePatterns: [
+      { protocol: 'https', hostname: '*.supabase.co', pathname: '/storage/v1/object/public/product-images/**' },
+      { protocol: 'https', hostname: 'images.unsplash.com' }
+    ]
+  },
   async headers() {
     // Reproduces the headers the old Express server sent via `helmet()` with
     // `crossOriginResourcePolicy: { policy: 'cross-origin' }` (see server/server.js).

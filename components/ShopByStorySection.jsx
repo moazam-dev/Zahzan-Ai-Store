@@ -1,5 +1,6 @@
 'use client'
 
+import Img from './Img'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { shopCategoryHref } from '../data/categories'
 
@@ -254,7 +255,7 @@ export default function ShopByStorySection({ defaultOpen = 1 }) {
                   >
                     <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-10">
                       <div className={`relative w-full overflow-hidden bg-[#f3efe8] ${size.mood}`}>
-                        <img src={cat.mood} alt={`${cat.name} campaign`} className="h-full w-full object-cover object-center" />
+                        <Img sizes="(max-width: 1023px) 100vw, 40vw" src={cat.mood} alt={`${cat.name} campaign`} className="h-full w-full object-cover object-center" />
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/35 to-transparent" />
                         <p className="font-serif-editorial pointer-events-none absolute bottom-7 left-8 right-6 m-0 text-[clamp(20px,2.6vh,30px)] font-light italic leading-[1.2] text-white">
                           {cat.line}
@@ -298,7 +299,7 @@ export default function ShopByStorySection({ defaultOpen = 1 }) {
                         return (
                           <article key={key} className={`flex min-w-0 flex-col ${size.card}`}>
                             <div className={`relative w-full overflow-hidden bg-[#f3efe8] ${size.cardImage}`}>
-                              <img src={suit.image} alt={suit.name} className="h-full w-full object-cover object-center" />
+                              <Img sizes="(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw" src={suit.image} alt={suit.name} className="h-full w-full object-cover object-center" />
                               <button
                                 type="button"
                                 onClick={() => toggleWish(key)}
